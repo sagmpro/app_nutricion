@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - NutriPlan{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+  <p class="text-gray-500 text-sm mt-1">Resumen de tu plan nutricional</p>
+</div>
+
+{% if not profile %}
+<!-- Onboarding -->
+<div class="card text-center py-12">
+  <div class="text-5xl mb-4">🥗</div>
+  <h2 class="text-xl font-semibold text-gray-800 mb-2">¡Bienvenido a NutriPlan!</h2>
+  <p class="text-gray-500 mb-6">Configura tu perfil nutricional para empezar a generar planes de comida personalizados.</p>
+  <a href="/perfil" class="btn-primary inline-block">Configurar mi perfil</a>
+</div>
+
+{% else %}
+<!-- Stats row -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  <div class="card text-center">
+    <p class="text-3xl font-bold text-green-600">{{ stats.target_calories }}</p>
+    <p class="text-xs text-gray-500 mt-1">kcal objetivo/día</p>
+  </div>
+  <div class="card text-center">
+    <p class="text-3xl font-bold text-blue-600">{{ stats.tdee }}</p>
+    <p class="text-xs text-gray-500 mt-1">TDEE (kcal/día)</p>
+  </div>
+  <div class="card text-center">
+    <p class="text-3xl font-bold text-purple-600">{{ stats.bmr }}</p>
+    <p class="text-xs text-gray-500 mt-1">TMB (kcal/día)</p>
+  </div>
+  <div class="card text-center">
+    <p class="text-3xl font-bold text-orange-500">{{ stats.activity_days | length }}</p>
+    <p class="text-xs text-gray-500 mt-1">días activos/semana</p>
+  </div>
+</div>
+
+<!-- Main grid -->
+<div class="grid md:grid-cols-2 gap-6">
+
+  <!-- Profile summary -->
+  <div class="card">
+    <div class="flex justify-between items-start mb-4">
+      <h2 class="text-base font-semibold text-gray-800">Mi Perfil</h2>
+      <a href="/perfil" class="text-green-600 text-sm hover:underline">Editar</a>
+    </div>
+    <div class="space-y-2 text-sm">
+      <div class="flex justify-between text-gray-600">
+        <span>Nombre</span><span class="font-medium text-gray-800">{{ profile.name }}</span>
+      </div>
+      <div class="flex justify-between text-gray-600">
+        <span>Peso / Altura</span><span class="font-medium text-gray-800">{{ profile.weight_kg }} kg / {{ profile.height_cm }} cm</span>
+      </div>
+      <div class="flex justify-between text-gray-600">
+        <span>Edad / Género</span>
+        <span class="font-medium text-gray-800">{{ profile.age }} años / {{ "Hombre" if profile.gender == "male" else "Mujer" }}</span>
+      </div>
+      <div class="flex justify-between text-gray-600">
+        <span>Objetivo</span>
+        <span class="font-medium text-gray-800">
+          {% if profile.goal_type == "caloric_deficit" %}Déficit calórico
+          {% else %}Pérdida de grasa ({{ profile.current_fat_pct }}% → {{ profile.target_fat_pct }}%)
+          {% endif %}
+        </span>
+      </div>
+      {% if stats.activity_days %}
+      <div class="flex justify-between text-gray-600">
+        <span>Días activos</span>
+        <span class="font-medium text-gray-800 text-right">{{ stats.activity_days | join(", ") }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Plan status -->
+  <div class="card">
+    <div class="flex justify-between items-start mb-4">
+      <h2 class="text-base font-semibold text-gray-800">Plan Semanal</h2>
+      {% if latest_plan %}
+      <a href="/plan/{{ latest_plan.id }}" class="text-green-600 text-sm hover:underline">Ver plan</a>
+      {% endif %}
+    </div>
+    {% if latest_plan %}
+      <div class="flex items-center gap-2 mb-3">
+        {% if latest_plan.status == "approved" %}
+          <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">✓ Aprobado</span>
+        {% else %}
+          <span class="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">⏳ Pendiente de aprobación</span>
+        {% endif %}
+        <span class="text-xs text-gray-400">Semana del {{ latest_plan.week_start.strftime("%d/%m/%Y") }}</span>
+      </div>
+      {% if latest_plan.status == "approved" %}
+        {% if latest_plan.shopping_list %}
+          <a href="/compras/{{ latest_plan.shopping_list.id }}" class="btn-secondary text-sm w-full text-center block">Ver lista de compras</a>
+        {% else %}
+          <form method="POST" action="/plan/{{ latest_plan.id }}/lista-compras"
+                data-loading data-loading-title="Generando lista de compras..."
+                data-loading-subtitle="Claude está consolidando todos los ingredientes.">
+            <button class="btn-primary text-sm w-full">Generar lista de compras</button>
+          </form>
+        {% endif %}
+      {% else %}
+        <a href="/plan/{{ latest_plan.id }}" class="btn-primary text-sm w-full text-center block">Revisar y aprobar plan</a>
+      {% endif %}
+    {% else %}
+      <p class="text-gray-500 text-sm mb-4">No tienes ningún plan generado aún.</p>
+      <form method="POST" action="/plan/generar"
+            data-loading data-loading-title="Generando tu plan semanal..."
+            data-loading-subtitle="Claude está creando 35 comidas personalizadas para ti.">
+        <button class="btn-primary text-sm w-full">Generar mi primer plan</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <!-- Stock summary -->
+  <div class="card">
+    <div class="flex justify-between items-start mb-4">
+      <h2 class="text-base font-semibold text-gray-800">Mi Stock</h2>
+      <a href="/stock" class="text-green-600 text-sm hover:underline">Gestionar</a>
+    </div>
+    {% if stock_count > 0 %}
+      <p class="text-3xl font-bold text-gray-800 mb-1">{{ stock_count }}</p>
+      <p class="text-gray-500 text-sm">ingredientes en despensa</p>
+    {% else %}
+      <p class="text-gray-500 text-sm mb-3">Tu despensa está vacía.</p>
+      <a href="/stock" class="btn-secondary text-sm inline-block">Agregar ingredientes</a>
+    {% endif %}
+  </div>
+
+  <!-- Quick actions -->
+  <div class="card">
+    <h2 class="text-base font-semibold text-gray-800 mb-4">Acciones rápidas</h2>
+    <div class="space-y-2">
+      <form method="POST" action="/plan/generar"
+            data-loading data-loading-title="Generando nuevo plan..."
+            data-loading-subtitle="Claude está creando 35 comidas personalizadas para ti.">
+        <button class="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-green-50 hover:border-green-200 text-sm text-gray-700 transition-colors flex items-center gap-3">
+          <span class="text-xl">📅</span>
+          <span>Generar nuevo plan semanal</span>
+        </button>
+      </form>
+      <a href="/perfil" class="block w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-green-50 hover:border-green-200 text-sm text-gray-700 transition-colors flex items-center gap-3">
+        <span class="text-xl">⚙️</span>
+        <span>Actualizar objetivos nutricionales</span>
+      </a>
+      <a href="/stock" class="block w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-green-50 hover:border-green-200 text-sm text-gray-700 transition-colors flex items-center gap-3">
+        <span class="text-xl">🏠</span>
+        <span>Gestionar mi despensa</span>
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endif %}
+{% endblock %}

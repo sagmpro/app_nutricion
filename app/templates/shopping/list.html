@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Lista de Compras - NutriPlan{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-800">Lista de Compras</h1>
+    <p class="text-gray-500 text-sm">Semana del {{ shopping_list.meal_plan.week_start.strftime("%d/%m/%Y") }}</p>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <!-- Progress -->
+    <span class="text-sm text-gray-500">{{ checked }}/{{ total }} comprados</span>
+
+    <!-- Sync with stock -->
+    <form method="POST" action="/compras/{{ shopping_list.id }}/sincronizar-stock">
+      <button class="btn-secondary text-sm" title="Marcar automáticamente los items que ya tienes en stock">
+        🏠 Comparar con stock
+      </button>
+    </form>
+
+    <!-- Move to stock -->
+    <form method="POST" action="/compras/{{ shopping_list.id }}/al-stock">
+      <button class="btn-primary text-sm">📦 Agregar comprados al stock</button>
+    </form>
+
+    {% if all_lists | length > 1 %}
+    <select onchange="window.location='/compras/'+this.value" class="input w-auto text-sm">
+      {% for l in all_lists %}
+      <option value="{{ l.id }}" {{ "selected" if l.id == shopping_list.id }}>
+        Semana {{ l.meal_plan.week_start.strftime("%d/%m") }}
+      </option>
+      {% endfor %}
+    </select>
+    {% endif %}
+  </div>
+</div>
+
+{% if success %}
+<div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-4 text-green-700 text-sm">✓ {{ success }}</div>
+{% endif %}
+
+<!-- Progress bar -->
+{% if total > 0 %}
+<div class="mb-6">
+  <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+    <div class="h-full bg-green-500 transition-all" style="width: {{ (checked / total * 100) | int }}%"></div>
+  </div>
+  <p class="text-xs text-gray-400 mt-1 text-right">{{ (checked / total * 100) | int }}% completado</p>
+</div>
+{% endif %}
+
+<!-- Shopping items by category -->
+{% if categories %}
+<div class="space-y-5">
+  {% for category, items in categories.items() %}
+  <div class="card">
+    <h2 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+      {% if "Fruta" in category or "Verdura" in category %}🥦
+      {% elif "Proteín" in category %}🥩
+      {% elif "Lácteo" in category %}🥛
+      {% elif "Cereal" in category or "Legumbre" in category %}🌾
+      {% elif "Aceite" in category or "Condimento" in category %}🫒
+      {% else %}📦{% endif %}
+      {{ category }}
+      <span class="ml-auto text-xs text-gray-400 font-normal">
+        {{ items | selectattr('checked') | list | length }}/{{ items | length }}
+      </span>
+    </h2>
+    <ul class="divide-y divide-gray-100">
+      {% for item in items %}
+      <li class="flex items-center gap-3 py-2">
+        <form method="POST" action="/compras/items/{{ item.id }}/toggle" class="flex-shrink-0">
+          <button type="submit"
+            class="w-6 h-6 rounded border-2 flex items-center justify-center transition-colors
+                   {{ 'bg-green-500 border-green-500 text-white' if item.checked else 'border-gray-300 hover:border-green-400' }}">
+            {% if item.checked %}<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>{% endif %}
+          </button>
+        </form>
+        <span class="flex-1 text-sm {{ 'line-through text-gray-400' if item.checked else 'text-gray-700' }}">
+          {{ item.name }}
+        </span>
+        <span class="text-sm text-gray-500 flex-shrink-0">
+          {{ item.quantity | int if item.quantity == item.quantity | int else item.quantity }}
+          {{ item.unit }}
+        </span>
+        {% set stock = stock_map.get(item.name.lower()) %}
+        {% if stock %}
+        <span class="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded" title="Tienes {{ stock.quantity }} {{ stock.unit }} en stock">
+          🏠 stock
+        </span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card text-center text-gray-400 py-10">No hay items en esta lista.</div>
+{% endif %}
+
+<!-- Mark all / unmark all -->
+<div class="mt-6 flex gap-3 justify-center">
+  <a href="/plan/{{ shopping_list.meal_plan_id }}" class="btn-secondary text-sm">← Ver plan</a>
+</div>
+
+{% endblock %}

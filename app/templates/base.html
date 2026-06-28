@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}NutriPlan{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .nav-link { @apply text-green-100 hover:text-white hover:bg-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors; }
+    .nav-link.active { @apply bg-green-600 text-white; }
+    .btn-primary { @apply bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50; }
+    .btn-secondary { @apply bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-4 py-2 rounded-lg font-medium transition-colors; }
+    .btn-danger { @apply bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors; }
+    .card { @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6; }
+    .input { @apply w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm; }
+    .label { @apply block text-sm font-medium text-gray-700 mb-1; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Navbar -->
+<nav class="bg-green-700 shadow-lg sticky top-0 z-40">
+  <div class="max-w-6xl mx-auto px-4">
+    <div class="flex items-center justify-between h-14">
+      <a href="/dashboard" class="font-bold text-lg text-white flex items-center gap-2">
+        <span class="text-xl">🥗</span> NutriPlan
+      </a>
+      <div class="hidden md:flex items-center gap-1">
+        <a href="/dashboard" class="nav-link {% if request.url.path == '/dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="/perfil"    class="nav-link {% if request.url.path == '/perfil' %}active{% endif %}">Mi Perfil</a>
+        <a href="/plan"      class="nav-link {% if '/plan' in request.url.path %}active{% endif %}">Plan Semanal</a>
+        <a href="/compras"   class="nav-link {% if '/compras' in request.url.path %}active{% endif %}">Compras</a>
+        <a href="/stock"     class="nav-link {% if request.url.path == '/stock' %}active{% endif %}">Mi Stock</a>
+      </div>
+      <button id="menu-btn" class="md:hidden text-white p-2">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div id="mobile-menu" class="hidden md:hidden border-t border-green-600">
+    <div class="px-4 py-2 space-y-1">
+      <a href="/dashboard" class="block nav-link">Dashboard</a>
+      <a href="/perfil"    class="block nav-link">Mi Perfil</a>
+      <a href="/plan"      class="block nav-link">Plan Semanal</a>
+      <a href="/compras"   class="block nav-link">Compras</a>
+      <a href="/stock"     class="block nav-link">Mi Stock</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Content -->
+<main class="max-w-6xl mx-auto px-4 py-6">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- Loading overlay (shown when generation forms are submitted) -->
+<div id="loading-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+  <div class="bg-white rounded-2xl p-8 flex flex-col items-center gap-4 max-w-sm mx-4 text-center shadow-2xl">
+    <div class="animate-spin h-14 w-14 border-4 border-green-600 border-t-transparent rounded-full"></div>
+    <p class="text-gray-800 font-semibold text-lg" id="loading-title">Generando plan...</p>
+    <p class="text-gray-500 text-sm" id="loading-subtitle">Claude está analizando tu perfil nutricional. Esto puede tomar hasta 30 segundos.</p>
+  </div>
+</div>
+
+<script>
+  document.getElementById('menu-btn').addEventListener('click', () => {
+    document.getElementById('mobile-menu').classList.toggle('hidden');
+  });
+
+  document.querySelectorAll('[data-loading]').forEach(el => {
+    el.addEventListener('submit', () => {
+      document.getElementById('loading-title').textContent   = el.dataset.loadingTitle   || 'Procesando...';
+      document.getElementById('loading-subtitle').textContent = el.dataset.loadingSubtitle || 'Por favor espera.';
+      document.getElementById('loading-overlay').classList.remove('hidden');
+    });
+  });
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

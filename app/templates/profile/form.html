@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Mi Perfil - NutriPlan{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-800">Mi Perfil Nutricional</h1>
+  <p class="text-gray-500 text-sm mt-1">Configura tus datos y objetivos para generar planes personalizados</p>
+</div>
+
+{% if success %}
+<div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-6 text-green-700 text-sm">
+  ✓ Perfil guardado correctamente.
+</div>
+{% endif %}
+
+<form method="POST" action="/perfil" class="space-y-6 max-w-2xl">
+
+  <!-- Personal data -->
+  <div class="card">
+    <h2 class="text-base font-semibold text-gray-800 mb-4">Datos personales</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="sm:col-span-2">
+        <label class="label">Nombre</label>
+        <input type="text" name="name" class="input" value="{{ profile.name if profile else '' }}" placeholder="Tu nombre" required>
+      </div>
+      <div>
+        <label class="label">Edad</label>
+        <input type="number" name="age" id="age" class="input" value="{{ profile.age if profile else '' }}" min="15" max="99" placeholder="30" required oninput="calcBMR()">
+      </div>
+      <div>
+        <label class="label">Género</label>
+        <div class="flex gap-4 mt-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="gender" value="male" class="accent-green-600"
+              {{ "checked" if not profile or profile.gender == "male" }} onchange="calcBMR()">
+            <span class="text-sm text-gray-700">Hombre</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="gender" value="female" class="accent-green-600"
+              {{ "checked" if profile and profile.gender == "female" }} onchange="calcBMR()">
+            <span class="text-sm text-gray-700">Mujer</span>
+          </label>
+        </div>
+      </div>
+      <div>
+        <label class="label">Peso (kg)</label>
+        <input type="number" name="weight_kg" id="weight" class="input" step="0.1"
+          value="{{ profile.weight_kg if profile else '' }}" placeholder="70" required oninput="calcBMR()">
+      </div>
+      <div>
+        <label class="label">Altura (cm)</label>
+        <input type="number" name="height_cm" id="height" class="input"
+          value="{{ profile.height_cm if profile else '' }}" placeholder="170" required oninput="calcBMR()">
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity days -->
+  <div class="card">
+    <h2 class="text-base font-semibold text-gray-800 mb-1">Días de actividad física</h2>
+    <p class="text-gray-500 text-sm mb-4">Selecciona los días que realizas ejercicio</p>
+    <div class="flex gap-2 flex-wrap">
+      {% for i in range(7) %}
+      <input type="hidden" name="day_{{ i }}" id="day-input-{{ i }}" value="{{ '1' if i in activity_days else '0' }}">
+      <button type="button" onclick="toggleDay({{ i }})" id="day-btn-{{ i }}"
+        class="w-11 h-11 rounded-full border-2 font-semibold text-sm transition-colors
+               {{ 'bg-green-600 text-white border-green-600' if i in activity_days else 'bg-white text-gray-600 border-gray-300 hover:border-green-400' }}"
+        title="{{ days_names[i] }}">
+        {{ days_letters[i] }}
+      </button>
+      {% endfor %}
+    </div>
+    <p class="text-xs text-gray-400 mt-3" id="activity-count">
+      {{ activity_days | length }} día(s) seleccionado(s)
+    </p>
+  </div>
+
+  <!-- Goal -->
+  <div class="card">
+    <h2 class="text-base font-semibold text-gray-800 mb-4">Objetivo nutricional</h2>
+    <div class="flex gap-4 mb-5">
+      <label class="flex-1 border-2 rounded-xl p-4 cursor-pointer transition-colors hover:border-green-400" id="goal-card-caloric">
+        <input type="radio" name="goal_type" value="caloric_deficit" class="sr-only"
+          {{ "checked" if not profile or profile.goal_type == "caloric_deficit" }} onchange="updateGoalUI()">
+        <div class="text-2xl mb-1">🔥</div>
+        <div class="font-semibold text-sm text-gray-800">Déficit calórico</div>
+        <div class="text-xs text-gray-500 mt-1">Establece una meta de calorías por día</div>
+      </label>
+      <label class="flex-1 border-2 rounded-xl p-4 cursor-pointer transition-colors hover:border-green-400" id="goal-card-fat">
+        <input type="radio" name="goal_type" value="fat_loss" class="sr-only"
+          {{ "checked" if profile and profile.goal_type == "fat_loss" }} onchange="updateGoalUI()">
+        <div class="text-2xl mb-1">📉</div>
+        <div class="font-semibold text-sm text-gray-800">Reducir % grasa</div>
+        <div class="text-xs text-gray-500 mt-1">Define tu % de grasa actual y objetivo</div>
+      </label>
+    </div>
+
+    <!-- Caloric deficit fields -->
+    <div id="fields-caloric">
+      <label class="label">Calorías objetivo por día (kcal)</label>
+      <input type="number" name="target_calories" class="input max-w-xs" min="1000" max="5000"
+        value="{{ profile.target_calories if profile and profile.target_calories else '' }}"
+        placeholder="Ej: 1800">
+      <p class="text-xs text-gray-400 mt-1">Deja vacío para usar TDEE − 500 kcal</p>
+    </div>
+
+    <!-- Fat loss fields -->
+    <div id="fields-fat" class="hidden space-y-4">
+      <div class="grid grid-cols-3 gap-4">
+        <div>
+          <label class="label">% Grasa actual</label>
+          <input type="number" name="current_fat_pct" class="input" step="0.1" min="5" max="60"
+            value="{{ profile.current_fat_pct if profile and profile.current_fat_pct else '' }}"
+            placeholder="Ej: 22">
+        </div>
+        <div>
+          <label class="label">% Grasa objetivo</label>
+          <input type="number" name="target_fat_pct" class="input" step="0.1" min="5" max="60"
+            value="{{ profile.target_fat_pct if profile and profile.target_fat_pct else '' }}"
+            placeholder="Ej: 15">
+        </div>
+        <div>
+          <label class="label">En cuántos días</label>
+          <input type="number" name="target_days" class="input" min="30" max="365"
+            value="{{ profile.target_days if profile and profile.target_days else '' }}"
+            placeholder="Ej: 90">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BMR/TDEE preview -->
+  <div id="calc-section" class="{{ 'block' if profile else 'hidden' }} card bg-green-50 border border-green-200">
+    <h3 class="text-sm font-semibold text-green-800 mb-3">Cálculo estimado</h3>
+    <div class="grid grid-cols-3 gap-4 text-center">
+      <div>
+        <p class="text-xl font-bold text-green-700" id="bmr-display">{{ stats.bmr if stats else '—' }}</p>
+        <p class="text-xs text-green-600">TMB (kcal)</p>
+      </div>
+      <div>
+        <p class="text-xl font-bold text-green-700" id="tdee-display">{{ stats.tdee if stats else '—' }}</p>
+        <p class="text-xs text-green-600">TDEE (kcal)</p>
+      </div>
+      <div>
+        <p class="text-xl font-bold text-green-700" id="target-display">{{ stats.target_calories if stats else '—' }}</p>
+        <p class="text-xs text-green-600">Objetivo (kcal)</p>
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn-primary w-full sm:w-auto px-8">Guardar perfil</button>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const DAYS_NAMES = {{ days_names | tojson }};
+
+function toggleDay(i) {
+  const inp = document.getElementById('day-input-' + i);
+  const btn = document.getElementById('day-btn-' + i);
+  const selected = inp.value === '1';
+  inp.value = selected ? '0' : '1';
+  if (!selected) {
+    btn.classList.replace('bg-white','bg-green-600');
+    btn.classList.replace('text-gray-600','text-white');
+    btn.classList.replace('border-gray-300','border-green-600');
+  } else {
+    btn.classList.replace('bg-green-600','bg-white');
+    btn.classList.replace('text-white','text-gray-600');
+    btn.classList.replace('border-green-600','border-gray-300');
+  }
+  updateActivityCount();
+  calcBMR();
+}
+
+function updateActivityCount() {
+  let count = 0;
+  for (let i = 0; i < 7; i++) if (document.getElementById('day-input-' + i)?.value === '1') count++;
+  document.getElementById('activity-count').textContent = count + ' día(s) seleccionado(s)';
+}
+
+function calcBMR() {
+  const w = parseFloat(document.getElementById('weight')?.value) || 0;
+  const h = parseFloat(document.getElementById('height')?.value) || 0;
+  const a = parseInt(document.getElementById('age')?.value) || 0;
+  if (!w || !h || !a) return;
+  const gender = document.querySelector('[name=gender]:checked')?.value || 'male';
+  const bmr = gender === 'male' ? (10*w + 6.25*h - 5*a + 5) : (10*w + 6.25*h - 5*a - 161);
+
+  let active = 0;
+  for (let i = 0; i < 7; i++) if (document.getElementById('day-input-' + i)?.value === '1') active++;
+  const mults = [1.2,1.375,1.375,1.55,1.55,1.725,1.725,1.9];
+  const tdee = bmr * mults[Math.min(active, 7)];
+  const tc = parseFloat(document.querySelector('[name=target_calories]')?.value) || (tdee - 500);
+
+  document.getElementById('bmr-display').textContent    = Math.round(bmr);
+  document.getElementById('tdee-display').textContent   = Math.round(tdee);
+  document.getElementById('target-display').textContent = Math.round(tc);
+  document.getElementById('calc-section').classList.remove('hidden');
+}
+
+function updateGoalUI() {
+  const isCaloric = document.querySelector('[name=goal_type][value=caloric_deficit]').checked;
+  document.getElementById('fields-caloric').classList.toggle('hidden', !isCaloric);
+  document.getElementById('fields-fat').classList.toggle('hidden', isCaloric);
+
+  // Card border highlight
+  document.getElementById('goal-card-caloric').classList.toggle('border-green-500', isCaloric);
+  document.getElementById('goal-card-caloric').classList.toggle('border-gray-200', !isCaloric);
+  document.getElementById('goal-card-fat').classList.toggle('border-green-500', !isCaloric);
+  document.getElementById('goal-card-fat').classList.toggle('border-gray-200', isCaloric);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  updateGoalUI();
+  updateActivityCount();
+});
+</script>
+{% endblock %}
