@@ -25,7 +25,7 @@ def compras_index(db: Session = Depends(get_db)):
 @router.post("/plan/{plan_id}/lista-compras")
 def generar_lista(plan_id: int, db: Session = Depends(get_db)):
     meal_plan = db.query(MealPlan).filter(MealPlan.id == plan_id).first()
-    if not meal_plan or meal_plan.status != "approved":
+    if not meal_plan:
         return RedirectResponse(f"/plan/{plan_id}", status_code=303)
 
     if meal_plan.shopping_list:

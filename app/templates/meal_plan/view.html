@@ -6,23 +6,23 @@
 <!-- Header -->
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
   <div>
-    <h1 class="text-2xl font-bold text-gray-800">Plan Semanal</h1>
-    <p class="text-gray-500 text-sm">Semana del {{ meal_plan.week_start.strftime("%d/%m/%Y") }}</p>
+    <h1 class="text-2xl font-bold text-gray-900">Plan Semanal</h1>
+    <p class="text-gray-400 text-sm">Semana del {{ meal_plan.week_start.strftime("%d/%m/%Y") }}</p>
   </div>
   <div class="flex items-center gap-2 flex-wrap">
     {% if meal_plan.status == "approved" %}
-      <span class="px-3 py-1 bg-green-100 text-green-700 text-sm font-medium rounded-full">✓ Aprobado</span>
+      <span class="badge-green">✓ Aprobado</span>
       {% if has_shopping_list %}
-        <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-secondary text-sm">Ver compras</a>
+        <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-secondary text-sm">🛒 Ver compras</a>
       {% else %}
         <form method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
               data-loading data-loading-title="Generando lista de compras..."
               data-loading-subtitle="Claude está consolidando los ingredientes de toda la semana.">
-          <button class="btn-primary text-sm">Generar lista de compras</button>
+          <button class="btn-primary text-sm">🛒 Generar lista de compras</button>
         </form>
       {% endif %}
     {% else %}
-      <span class="px-3 py-1 bg-yellow-100 text-yellow-700 text-sm font-medium rounded-full">Pendiente</span>
+      <span class="badge-yellow">⏳ Pendiente</span>
       <form method="POST" action="/plan/{{ meal_plan.id }}/aprobar">
         <button class="btn-primary text-sm">✓ Aprobar plan</button>
       </form>
@@ -31,14 +31,22 @@
             data-loading-subtitle="Claude está creando un nuevo plan para ti.">
         <button class="btn-secondary text-sm">↺ Regenerar</button>
       </form>
+      {% if has_shopping_list %}
+        <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-secondary text-sm">🛒 Ver compras</a>
+      {% else %}
+        <form method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
+              data-loading data-loading-title="Generando lista de compras..."
+              data-loading-subtitle="Claude está consolidando los ingredientes de toda la semana.">
+          <button class="btn-secondary text-sm">🛒 Generar compras</button>
+        </form>
+      {% endif %}
     {% endif %}
 
-    <!-- Plan selector (if multiple plans) -->
     {% if all_plans | length > 1 %}
     <select onchange="window.location='/plan/'+this.value" class="input w-auto text-sm">
       {% for p in all_plans %}
       <option value="{{ p.id }}" {{ "selected" if p.id == meal_plan.id }}>
-        Semana {{ p.week_start.strftime("%d/%m") }} ({{ "✓" if p.status == "approved" else "⏳" }})
+        {{ p.week_start.strftime("%d/%m") }} {{ "✓" if p.status == "approved" else "⏳" }}
       </option>
       {% endfor %}
     </select>
@@ -46,100 +54,112 @@
 
     <form method="POST" action="/plan/{{ meal_plan.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar este plan? Esta acción no se puede deshacer.')">
-      <button class="text-sm text-red-500 hover:text-red-700 px-2 py-1">🗑 Eliminar</button>
+      <button class="btn-ghost text-red-400 hover:text-red-600 hover:bg-red-50 text-sm">🗑</button>
     </form>
   </div>
 </div>
 
 {% if error %}
-<div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-red-700 text-sm">{{ error }}</div>
+<div class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 text-red-700 text-sm">{{ error }}</div>
 {% endif %}
 
-<!-- Generate new plan shortcut -->
-<div class="mb-4 flex justify-end">
-  <form method="POST" action="/plan/generar"
-        data-loading data-loading-title="Generando nuevo plan..."
-        data-loading-subtitle="Esto puede tomar hasta 30 segundos.">
-    <button class="text-sm text-green-600 hover:underline">+ Generar nuevo plan</button>
-  </form>
+<!-- Generate new plan link -->
+<div class="mb-5 flex justify-end">
+  <a href="/plan" class="text-sm text-green-600 hover:text-green-700 font-medium hover:underline">+ Nuevo plan</a>
 </div>
 
 <!-- Day tabs -->
-<div class="flex overflow-x-auto gap-1 pb-1 mb-4 border-b border-gray-200">
+<div class="flex overflow-x-auto gap-1.5 pb-1 mb-5">
   {% for day in days %}
   <button onclick="showDay({{ loop.index0 }})" id="tab-{{ loop.index0 }}"
-    class="day-tab flex-shrink-0 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors text-center">
-    <span class="block">{{ day.short }}</span>
-    <span class="block text-xs opacity-75">{{ day.total_calories }} kcal</span>
+    class="day-tab flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all text-center min-w-[72px]">
+    <span class="block font-semibold">{{ day.short }}</span>
+    <span class="block text-xs opacity-70 mt-0.5">{{ day.total_calories }} kcal</span>
   </button>
   {% endfor %}
 </div>
 
 <!-- Day panels -->
+{% set meal_colors = {
+  "desayuno":    "border-amber-400  bg-amber-50   text-amber-700",
+  "media_manana":"border-orange-400 bg-orange-50  text-orange-700",
+  "almuerzo":    "border-green-500  bg-green-50   text-green-700",
+  "media_tarde": "border-sky-400    bg-sky-50     text-sky-700",
+  "cena":        "border-indigo-400 bg-indigo-50  text-indigo-700",
+} %}
+
 {% for day in days %}
 <div id="day-{{ loop.index0 }}" class="day-content {{ 'hidden' if loop.index0 != 0 }}">
   <div class="space-y-3">
     {% for meal in day.meals %}
-    <div class="card py-4">
-      <div class="flex justify-between items-start gap-2">
-        <div class="flex-1 min-w-0">
-          <span class="inline-block text-xs font-semibold text-green-600 uppercase tracking-wide mb-1">{{ meal.type_label }}</span>
-          <h3 class="font-semibold text-gray-800 leading-tight">{{ meal.name }}</h3>
-          {% if meal.description %}
-          <p class="text-sm text-gray-500 mt-1">{{ meal.description }}</p>
-          {% endif %}
-        </div>
-        <div class="flex items-start gap-3 flex-shrink-0">
-          <div class="text-right">
-            <span class="text-lg font-bold text-gray-700">{{ meal.calories }}</span>
-            <span class="text-xs text-gray-400 block">kcal</span>
+    {% set colors = meal_colors.get(meal.type, "border-gray-300 bg-gray-50 text-gray-600") %}
+    {% set border_color = colors.split()[0] %}
+    {% set bg_color = colors.split()[1] %}
+    {% set text_color = colors.split()[2] %}
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div class="border-l-4 {{ border_color }} p-4">
+        <div class="flex justify-between items-start gap-3">
+          <div class="flex-1 min-w-0">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold {{ bg_color }} {{ text_color }} mb-2">
+              {{ meal.type_label }}
+            </span>
+            <h3 class="font-semibold text-gray-800 leading-snug">{{ meal.name }}</h3>
+            {% if meal.description %}
+            <p class="text-sm text-gray-400 mt-1">{{ meal.description }}</p>
+            {% endif %}
           </div>
-          <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/regenerar"
-                data-loading data-loading-title="Regenerando comida..."
-                data-loading-subtitle="Claude está buscando una alternativa para {{ meal.type_label | lower }}."
-                title="Pedir otra opción para esta comida">
-            <button type="submit" class="text-gray-400 hover:text-green-600 transition-colors mt-0.5">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-            </button>
-          </form>
+          <div class="flex items-start gap-2 flex-shrink-0">
+            <div class="text-right">
+              <span class="text-xl font-bold text-gray-700">{{ meal.calories }}</span>
+              <span class="text-xs text-gray-400 block">kcal</span>
+            </div>
+            <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/regenerar"
+                  data-loading data-loading-title="Buscando alternativa..."
+                  data-loading-subtitle="Claude está generando una nueva opción para {{ meal.type_label | lower }}."
+                  title="Pedir otra opción">
+              <button type="submit" class="mt-0.5 p-1.5 text-gray-300 hover:text-green-500 hover:bg-green-50 rounded-lg transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+              </button>
+            </form>
+          </div>
         </div>
+        <!-- Macros -->
+        <div class="mt-3 flex gap-2 flex-wrap">
+          <span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg font-medium">P {{ meal.protein_g }}g</span>
+          <span class="text-xs px-2 py-0.5 bg-orange-50 text-orange-600 rounded-lg font-medium">C {{ meal.carbs_g }}g</span>
+          <span class="text-xs px-2 py-0.5 bg-yellow-50 text-yellow-600 rounded-lg font-medium">G {{ meal.fat_g }}g</span>
+        </div>
+        <!-- Ingredients -->
+        {% if meal.ingredients %}
+        <details class="mt-3">
+          <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600 select-none w-fit">
+            Ver ingredientes ({{ meal.ingredients | length }})
+          </summary>
+          <ul class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+            {% for ing in meal.ingredients %}
+            <li class="text-xs text-gray-500 flex items-start gap-1">
+              <span class="text-gray-300 mt-0.5">·</span>
+              {{ ing.nombre }}: {{ ing.cantidad }} {{ ing.unidad }}
+            </li>
+            {% endfor %}
+          </ul>
+        </details>
+        {% endif %}
       </div>
-      <!-- Macros -->
-      <div class="mt-3 flex gap-3">
-        <span class="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded-full">P: {{ meal.protein_g }}g</span>
-        <span class="text-xs px-2 py-1 bg-orange-50 text-orange-700 rounded-full">C: {{ meal.carbs_g }}g</span>
-        <span class="text-xs px-2 py-1 bg-yellow-50 text-yellow-700 rounded-full">G: {{ meal.fat_g }}g</span>
-      </div>
-      <!-- Ingredients collapsible -->
-      {% if meal.ingredients %}
-      <details class="mt-3">
-        <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600 select-none">
-          Ver ingredientes ({{ meal.ingredients | length }})
-        </summary>
-        <ul class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
-          {% for ing in meal.ingredients %}
-          <li class="text-xs text-gray-600 flex items-start gap-1">
-            <span class="text-gray-400 mt-0.5">•</span>
-            {{ ing.nombre }}: {{ ing.cantidad }} {{ ing.unidad }}
-          </li>
-          {% endfor %}
-        </ul>
-      </details>
-      {% endif %}
     </div>
     {% else %}
-    <div class="card text-center text-gray-400 text-sm py-8">Sin comidas para este día</div>
+    <div class="card text-center text-gray-400 text-sm py-10">Sin comidas para este día</div>
     {% endfor %}
   </div>
 
   <!-- Daily total -->
-  <div class="mt-4 p-4 bg-green-50 border border-green-100 rounded-xl text-sm flex flex-wrap gap-x-6 gap-y-1">
-    <span class="font-semibold text-green-800">Total del día: {{ day.total_calories }} kcal</span>
-    <span class="text-green-700">Proteínas: {{ day.total_protein }}g</span>
-    <span class="text-green-700">Carbos: {{ day.total_carbs }}g</span>
-    <span class="text-green-700">Grasas: {{ day.total_fat }}g</span>
+  <div class="mt-4 p-4 bg-green-600 rounded-2xl text-white text-sm flex flex-wrap gap-x-6 gap-y-1">
+    <span class="font-semibold">Total: {{ day.total_calories }} kcal</span>
+    <span class="text-green-200">P: {{ day.total_protein }}g</span>
+    <span class="text-green-200">C: {{ day.total_carbs }}g</span>
+    <span class="text-green-200">G: {{ day.total_fat }}g</span>
   </div>
 </div>
 {% endfor %}
@@ -151,10 +171,12 @@
 function showDay(idx) {
   document.querySelectorAll('.day-content').forEach((el, i) => el.classList.toggle('hidden', i !== idx));
   document.querySelectorAll('.day-tab').forEach((el, i) => {
-    el.classList.toggle('bg-green-600', i === idx);
-    el.classList.toggle('text-white', i === idx);
-    el.classList.toggle('text-gray-600', i !== idx);
-    el.classList.toggle('bg-gray-100', i !== idx);
+    const active = i === idx;
+    el.classList.toggle('bg-green-600', active);
+    el.classList.toggle('text-white', active);
+    el.classList.toggle('shadow-sm', active);
+    el.classList.toggle('text-gray-500', !active);
+    el.classList.toggle('hover:bg-gray-100', !active);
   });
 }
 showDay(0);
