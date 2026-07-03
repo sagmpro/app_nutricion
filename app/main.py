@@ -1,7 +1,10 @@
 import os
+import logging
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse, JSONResponse
 from app.routers import dashboard, profile, meal_plan, shopping, stock
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
 
 app = FastAPI(title="NutriPlan")
 

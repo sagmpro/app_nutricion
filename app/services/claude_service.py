@@ -1,9 +1,13 @@
 import json
 import os
+import logging
 import anthropic
 from app.config import settings
 
 MODEL = "claude-sonnet-4-6"
+MODEL_HAIKU = "claude-haiku-4-5-20251001"
+
+logger = logging.getLogger(__name__)
 
 
 def _get_client() -> anthropic.Anthropic:
@@ -11,6 +15,11 @@ def _get_client() -> anthropic.Anthropic:
     if not api_key:
         raise ValueError("ANTHROPIC_API_KEY no está configurada en las variables de entorno")
     return anthropic.Anthropic(api_key=api_key)
+
+
+def _log_usage(fn_name: str, message) -> None:
+    u = message.usage
+    logger.info("[tokens] %s — input=%d output=%d total=%d", fn_name, u.input_tokens, u.output_tokens, u.input_tokens + u.output_tokens)
 
 
 def _parse_json(text: str) -> dict:
@@ -112,6 +121,7 @@ Respeta estrictamente las preferencias alimentarias indicadas. Comidas típicas 
         system="Eres un nutricionista experto. Responde siempre con JSON válido, sin texto adicional ni bloques de código markdown.",
         messages=[{"role": "user", "content": prompt}],
     )
+    _log_usage("generate_meal_plan", message)
     return _parse_json(message.content[0].text)
 
 
@@ -167,6 +177,7 @@ Máximo 5 ingredientes. Cocina típica de España/Latinoamérica."""
         system="Eres un nutricionista experto. Responde siempre con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
+    _log_usage("generate_single_meal", message)
     return _parse_json(message.content[0].text)
 
 
@@ -198,9 +209,10 @@ Categorías a usar: Frutas y Verduras, Proteínas, Lácteos y Huevos, Cereales y
 
     client = _get_client()
     message = client.messages.create(
-        model=MODEL,
+        model=MODEL_HAIKU,
         max_tokens=4000,
         system="Eres un asistente de compras. Responde siempre con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
+    _log_usage("generate_shopping_list", message)
     return _parse_json(message.content[0].text)
