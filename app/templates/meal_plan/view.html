@@ -43,6 +43,11 @@
       {% endfor %}
     </select>
     {% endif %}
+
+    <form method="POST" action="/plan/{{ meal_plan.id }}/eliminar"
+          onsubmit="return confirm('¿Eliminar este plan? Esta acción no se puede deshacer.')">
+      <button class="text-sm text-red-500 hover:text-red-700 px-2 py-1">🗑 Eliminar</button>
+    </form>
   </div>
 </div>
 

@@ -145,6 +145,15 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
     })
 
 
+@router.post("/plan/{plan_id}/eliminar")
+def eliminar_plan(plan_id: int, db: Session = Depends(get_db)):
+    meal_plan = db.query(MealPlan).filter(MealPlan.id == plan_id).first()
+    if meal_plan:
+        db.delete(meal_plan)
+        db.commit()
+    return RedirectResponse("/plan", status_code=303)
+
+
 @router.post("/plan/{plan_id}/aprobar")
 def aprobar_plan(plan_id: int, db: Session = Depends(get_db)):
     meal_plan = db.query(MealPlan).filter(MealPlan.id == plan_id).first()
