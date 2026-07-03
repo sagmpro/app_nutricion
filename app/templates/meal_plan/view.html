@@ -96,59 +96,53 @@
     {% set border_color = colors.split()[0] %}
     {% set bg_color = colors.split()[1] %}
     {% set text_color = colors.split()[2] %}
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div class="border-l-4 {{ border_color }} p-4">
-        <div class="flex justify-between items-start gap-3">
-          <div class="flex-1 min-w-0">
-            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold {{ bg_color }} {{ text_color }} mb-2">
-              {{ meal.type_label }}
-            </span>
-            <h3 class="font-semibold text-gray-800 leading-snug">{{ meal.name }}</h3>
-            {% if meal.description %}
-            <p class="text-sm text-gray-400 mt-1">{{ meal.description }}</p>
-            {% endif %}
-          </div>
-          <div class="flex items-start gap-2 flex-shrink-0">
-            <div class="text-right">
-              <span class="text-xl font-bold text-gray-700">{{ meal.calories }}</span>
-              <span class="text-xs text-gray-400 block">kcal</span>
-            </div>
-            <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/regenerar"
-                  data-loading data-loading-title="Buscando alternativa..."
-                  data-loading-subtitle="Claude está generando una nueva opción para {{ meal.type_label | lower }}."
-                  title="Pedir otra opción">
-              <button type="submit" class="mt-0.5 p-1.5 text-gray-300 hover:text-green-500 hover:bg-green-50 rounded-lg transition-all">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-              </button>
-            </form>
-          </div>
-        </div>
+    <details class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group" id="meal-{{ meal.id }}">
+      <!-- Collapsed: always visible -->
+      <summary class="border-l-4 {{ border_color }} px-4 py-3 flex items-center gap-3 cursor-pointer select-none list-none hover:bg-gray-50 transition-colors">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold {{ bg_color }} {{ text_color }} flex-shrink-0 w-24 justify-center">
+          {{ meal.type_label }}
+        </span>
+        <span class="flex-1 font-medium text-gray-800 text-sm truncate">{{ meal.name }}</span>
+        <span class="text-sm font-bold text-gray-600 flex-shrink-0">{{ meal.calories }} kcal</span>
+        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </summary>
+      <!-- Expanded: detail content -->
+      <div class="border-l-4 {{ border_color }} px-4 pb-4 pt-1">
+        {% if meal.description %}
+        <p class="text-sm text-gray-400 mb-3">{{ meal.description }}</p>
+        {% endif %}
         <!-- Macros -->
-        <div class="mt-3 flex gap-2 flex-wrap">
+        <div class="flex gap-2 flex-wrap mb-3">
           <span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg font-medium">P {{ meal.protein_g }}g</span>
           <span class="text-xs px-2 py-0.5 bg-orange-50 text-orange-600 rounded-lg font-medium">C {{ meal.carbs_g }}g</span>
           <span class="text-xs px-2 py-0.5 bg-yellow-50 text-yellow-600 rounded-lg font-medium">G {{ meal.fat_g }}g</span>
         </div>
         <!-- Ingredients -->
         {% if meal.ingredients %}
-        <details class="mt-3">
-          <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600 select-none w-fit">
-            Ver ingredientes ({{ meal.ingredients | length }})
-          </summary>
-          <ul class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
-            {% for ing in meal.ingredients %}
-            <li class="text-xs text-gray-500 flex items-start gap-1">
-              <span class="text-gray-300 mt-0.5">·</span>
-              {{ ing.nombre }}: {{ ing.cantidad }} {{ ing.unidad }}
-            </li>
-            {% endfor %}
-          </ul>
-        </details>
+        <ul class="grid grid-cols-2 gap-x-4 gap-y-1 mb-3">
+          {% for ing in meal.ingredients %}
+          <li class="text-xs text-gray-500 flex items-start gap-1">
+            <span class="text-gray-300 mt-0.5">·</span>
+            {{ ing.nombre }}: {{ ing.cantidad }} {{ ing.unidad }}
+          </li>
+          {% endfor %}
+        </ul>
         {% endif %}
+        <!-- Regenerate -->
+        <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/regenerar"
+              data-loading data-loading-title="Buscando alternativa..."
+              data-loading-subtitle="Claude está generando una nueva opción para {{ meal.type_label | lower }}.">
+          <button type="submit" class="text-xs text-gray-400 hover:text-green-600 hover:bg-green-50 px-2 py-1 rounded-lg transition-all flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Pedir otra opción
+          </button>
+        </form>
       </div>
-    </div>
+    </details>
     {% else %}
     <div class="card text-center text-gray-400 text-sm py-10">Sin comidas para este día</div>
     {% endfor %}
