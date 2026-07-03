@@ -25,6 +25,12 @@
       data-loading-subtitle="Claude está creando tu menú personalizado. Esto puede tomar hasta 30 segundos."
       class="space-y-5 max-w-2xl">
 
+  <!-- Fecha de inicio -->
+  <div class="card">
+    <h2 class="text-base font-semibold text-gray-800 mb-3">¿Desde cuándo quieres el plan?</h2>
+    <input type="date" name="week_start" class="input max-w-xs" id="week_start" required>
+  </div>
+
   <!-- Tipo de dieta -->
   <div class="card">
     <h2 class="text-base font-semibold text-gray-800 mb-4">Tipo de dieta</h2>
@@ -85,6 +91,10 @@
 
 {% block scripts %}
 <script>
+// Default date to today
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('week_start').value = today;
+
 document.querySelectorAll('.diet-card').forEach(card => {
   card.addEventListener('click', () => {
     document.querySelectorAll('.diet-card').forEach(c => {

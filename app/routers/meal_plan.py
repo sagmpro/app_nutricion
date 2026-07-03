@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import date, datetime
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -98,7 +98,11 @@ async def generar_plan(request: Request, db: Session = Depends(get_db)):
     profile.preferred_foods = form.get("preferred_foods", "").strip() or None
     db.commit()
 
-    week_start = date.today()
+    week_start_str = form.get("week_start", "")
+    try:
+        week_start = datetime.strptime(week_start_str, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        week_start = date.today()
 
     meal_plan = MealPlan(profile_id=profile.id, week_start=week_start, status="pending")
     db.add(meal_plan)
