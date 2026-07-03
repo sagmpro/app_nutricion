@@ -81,6 +81,7 @@ def plan_index(request: Request, db: Session = Depends(get_db)):
     profile = db.query(UserProfile).first()
     return templates.TemplateResponse(request, "meal_plan/no_plan.html", {
         "profile": profile,
+        "error": request.query_params.get("error"),
     })
 
 
