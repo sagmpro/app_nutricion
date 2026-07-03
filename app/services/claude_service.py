@@ -86,7 +86,7 @@ Comidas variadas, equilibradas y típicas de España/Latinoamérica."""
     client = _get_client()
     message = client.messages.create(
         model=MODEL,
-        max_tokens=8000,
+        max_tokens=16000,
         system="Eres un nutricionista experto. Responde siempre con JSON válido, sin texto adicional ni bloques de código markdown.",
         messages=[{"role": "user", "content": prompt}],
     )
