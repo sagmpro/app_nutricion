@@ -4,16 +4,40 @@
 {% block content %}
 
 <!-- Header -->
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-  <div>
-    <h1 class="text-2xl font-bold text-gray-900">Plan Semanal</h1>
-    <p class="text-gray-400 text-sm">Semana del {{ meal_plan.week_start.strftime("%d/%m/%Y") }}</p>
+<div class="mb-6">
+  <!-- Title row -->
+  <div class="flex items-start justify-between gap-3 mb-4">
+    <div>
+      <div class="flex items-center gap-2 mb-0.5">
+        <h1 class="text-2xl font-bold text-gray-900">Plan Semanal</h1>
+        {% if meal_plan.status == "approved" %}
+          <span class="badge-green">✓ Aprobado</span>
+        {% else %}
+          <span class="badge-yellow">⏳ Pendiente</span>
+        {% endif %}
+      </div>
+      <p class="text-gray-400 text-sm">Semana del {{ meal_plan.week_start.strftime("%d/%m/%Y") }}</p>
+    </div>
+    {% if all_plans | length > 1 %}
+    <select onchange="window.location='/plan/'+this.value" class="input w-auto text-sm flex-shrink-0">
+      {% for p in all_plans %}
+      <option value="{{ p.id }}" {{ "selected" if p.id == meal_plan.id }}>
+        {{ p.week_start.strftime("%d/%m") }} {{ "✓" if p.status == "approved" else "⏳" }}
+      </option>
+      {% endfor %}
+    </select>
+    {% endif %}
   </div>
-  <div class="flex items-center gap-2 flex-wrap">
+
+  <!-- Action toolbar -->
+  <div class="flex flex-wrap items-center gap-2 p-3 bg-white rounded-2xl border border-gray-100 shadow-sm">
+
+    <!-- Primary action -->
     {% if meal_plan.status == "approved" %}
-      <span class="badge-green">✓ Aprobado</span>
       {% if has_shopping_list %}
-        <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-secondary text-sm">🛒 Ver compras</a>
+        <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-primary text-sm">
+          🛒 Ver lista de compras
+        </a>
       {% else %}
         <form method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
               data-loading data-loading-title="Generando lista de compras..."
@@ -22,15 +46,22 @@
         </form>
       {% endif %}
     {% else %}
-      <span class="badge-yellow">⏳ Pendiente</span>
       <form method="POST" action="/plan/{{ meal_plan.id }}/aprobar">
         <button class="btn-primary text-sm">✓ Aprobar plan</button>
       </form>
-      <form method="POST" action="/plan/{{ meal_plan.id }}/regenerar"
-            data-loading data-loading-title="Regenerando plan..."
-            data-loading-subtitle="Claude está creando un nuevo plan para ti.">
-        <button class="btn-secondary text-sm">↺ Regenerar</button>
-      </form>
+    {% endif %}
+
+    <!-- Divider -->
+    <div class="w-px h-6 bg-gray-200 mx-1"></div>
+
+    <!-- Secondary actions -->
+    <form method="POST" action="/plan/{{ meal_plan.id }}/regenerar"
+          data-loading data-loading-title="Regenerando plan..."
+          data-loading-subtitle="Claude está creando un nuevo plan para ti.">
+      <button class="btn-secondary text-sm">↺ Regenerar todo</button>
+    </form>
+
+    {% if meal_plan.status != "approved" %}
       {% if has_shopping_list %}
         <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-secondary text-sm">🛒 Ver compras</a>
       {% else %}
@@ -42,19 +73,15 @@
       {% endif %}
     {% endif %}
 
-    {% if all_plans | length > 1 %}
-    <select onchange="window.location='/plan/'+this.value" class="input w-auto text-sm">
-      {% for p in all_plans %}
-      <option value="{{ p.id }}" {{ "selected" if p.id == meal_plan.id }}>
-        {{ p.week_start.strftime("%d/%m") }} {{ "✓" if p.status == "approved" else "⏳" }}
-      </option>
-      {% endfor %}
-    </select>
-    {% endif %}
+    <a href="/plan" class="btn-secondary text-sm">+ Nuevo plan</a>
 
+    <!-- Divider -->
+    <div class="w-px h-6 bg-gray-200 mx-1 ml-auto"></div>
+
+    <!-- Destructive -->
     <form method="POST" action="/plan/{{ meal_plan.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar este plan? Esta acción no se puede deshacer.')">
-      <button class="btn-ghost text-red-400 hover:text-red-600 hover:bg-red-50 text-sm">🗑</button>
+      <button class="btn-ghost text-red-400 hover:text-red-600 hover:bg-red-50 text-sm">🗑 Eliminar</button>
     </form>
   </div>
 </div>
@@ -62,11 +89,6 @@
 {% if error %}
 <div class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 text-red-700 text-sm">{{ error }}</div>
 {% endif %}
-
-<!-- Generate new plan link -->
-<div class="mb-5 flex justify-end">
-  <a href="/plan" class="text-sm text-green-600 hover:text-green-700 font-medium hover:underline">+ Nuevo plan</a>
-</div>
 
 <!-- Day tabs -->
 <div class="flex overflow-x-auto gap-1.5 pb-1 mb-5">
