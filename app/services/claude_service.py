@@ -115,6 +115,61 @@ Respeta estrictamente las preferencias alimentarias indicadas. Comidas típicas 
     return _parse_json(message.content[0].text)
 
 
+def generate_single_meal(profile, meal_type: str, day_name: str, target_calories: int, current_meal_name: str, other_meals: list) -> dict:
+    """Call Claude to regenerate a single meal. Returns a parsed meal dict."""
+    from app.models.meal import MEAL_TYPE_LABELS
+
+    dietary_map = {"omnivoro": "omnívoro", "vegetariano": "vegetariano", "vegano": "vegano", "pescetariano": "pescetariano"}
+    dietary_label = dietary_map.get(getattr(profile, "dietary_type", "omnivoro"), "omnívoro")
+
+    prefs_lines = []
+    if getattr(profile, "food_intolerances", None):
+        prefs_lines.append(f"- Alergias/intolerancias: {profile.food_intolerances}")
+    if getattr(profile, "disliked_foods", None):
+        prefs_lines.append(f"- Alimentos que NO le gustan: {profile.disliked_foods}")
+    if getattr(profile, "preferred_foods", None):
+        prefs_lines.append(f"- Alimentos favoritos: {profile.preferred_foods}")
+    prefs_section = "\n".join(prefs_lines) if prefs_lines else "Sin restricciones adicionales"
+
+    other_meals_str = ", ".join(other_meals) if other_meals else "ninguna"
+    meal_label = MEAL_TYPE_LABELS.get(meal_type, meal_type)
+
+    prompt = f"""Genera UNA SOLA comida de tipo "{meal_label}" para el {day_name}.
+
+Perfil:
+- Dieta: {dietary_label}
+- Objetivo calórico para esta comida: ~{target_calories} kcal
+{prefs_section}
+
+Comida actual (generar algo DIFERENTE): {current_meal_name}
+Otras comidas del día (para evitar repetir ingredientes): {other_meals_str}
+
+Responde ÚNICAMENTE con JSON válido:
+{{
+  "tipo": "{meal_type}",
+  "nombre": "Nombre del plato",
+  "descripcion": "Descripción breve de preparación (máx 15 palabras)",
+  "calorias": {target_calories},
+  "proteinas_g": 25,
+  "carbohidratos_g": 40,
+  "grasas_g": 10,
+  "ingredientes": [
+    {{"nombre": "Ingrediente", "cantidad": 100, "unidad": "g"}}
+  ]
+}}
+
+Máximo 5 ingredientes. Cocina típica de España/Latinoamérica."""
+
+    client = _get_client()
+    message = client.messages.create(
+        model=MODEL,
+        max_tokens=1000,
+        system="Eres un nutricionista experto. Responde siempre con JSON válido, sin texto adicional.",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return _parse_json(message.content[0].text)
+
+
 def generate_shopping_list(all_ingredients: list) -> dict:
     """Call Claude to consolidate and categorize ingredients into a shopping list."""
     if not all_ingredients:

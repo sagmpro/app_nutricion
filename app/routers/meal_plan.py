@@ -7,12 +7,12 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.profile import UserProfile
 from app.models.meal_plan import MealPlan
-from app.models.meal import Meal, MEAL_TYPE_ORDER, MEAL_TYPE_LABELS
+from app.models.meal import Meal, MEAL_TYPE_ORDER, MEAL_TYPE_LABELS, MEAL_TYPES
 from app.services.nutrition import (
     calculate_bmr, calculate_tdee, calculate_target_calories,
     get_activity_days_list, DAYS_OF_WEEK, DAYS_SHORT,
 )
-from app.services.claude_service import generate_meal_plan as claude_generate
+from app.services.claude_service import generate_meal_plan as claude_generate, generate_single_meal as claude_single_meal
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -143,6 +143,48 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
         "has_shopping_list": meal_plan.shopping_list is not None,
         "error": request.query_params.get("error"),
     })
+
+
+@router.post("/plan/{plan_id}/comida/{meal_id}/regenerar")
+def regenerar_comida(plan_id: int, meal_id: int, db: Session = Depends(get_db)):
+    import json as _json
+    meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    if not meal:
+        return RedirectResponse(f"/plan/{plan_id}", status_code=303)
+
+    meal_plan = meal.meal_plan
+    profile = meal_plan.profile
+
+    calorie_pct = {"desayuno": 0.25, "media_manana": 0.10, "almuerzo": 0.35, "media_tarde": 0.10, "cena": 0.20}
+    bmr = calculate_bmr(profile)
+    activity_days = get_activity_days_list(profile)
+    tdee = calculate_tdee(bmr, len(activity_days))
+    target_total = calculate_target_calories(profile, tdee)
+    target_calories = int(target_total * calorie_pct.get(meal.meal_type, 0.20))
+
+    other_meals = [m.name for m in meal_plan.meals if m.day_of_week == meal.day_of_week and m.id != meal_id]
+
+    try:
+        result = claude_single_meal(
+            profile=profile,
+            meal_type=meal.meal_type,
+            day_name=DAYS_OF_WEEK[meal.day_of_week],
+            target_calories=target_calories,
+            current_meal_name=meal.name,
+            other_meals=other_meals,
+        )
+        meal.name = result.get("nombre", meal.name)
+        meal.description = result.get("descripcion", meal.description)
+        meal.calories = int(result.get("calorias", meal.calories))
+        meal.protein_g = float(result.get("proteinas_g", meal.protein_g))
+        meal.carbs_g = float(result.get("carbohidratos_g", meal.carbs_g))
+        meal.fat_g = float(result.get("grasas_g", meal.fat_g))
+        meal.ingredients_json = _json.dumps(result.get("ingredientes", []))
+        db.commit()
+    except Exception as e:
+        return RedirectResponse(f"/plan/{plan_id}?error=Error+regenerando+comida:+{str(e)[:80]}", status_code=303)
+
+    return RedirectResponse(f"/plan/{plan_id}", status_code=303)
 
 
 @router.post("/plan/{plan_id}/eliminar")
