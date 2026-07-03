@@ -8,10 +8,9 @@ class Settings(BaseSettings):
     @property
     def resolved_database_url(self) -> str:
         url = self.database_url
+        # Railway uses postgres:// but SQLAlchemy requires postgresql://
         if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql+pg8000://", 1)
-        elif url.startswith("postgresql://"):
-            url = url.replace("postgresql://", "postgresql+pg8000://", 1)
+            url = url.replace("postgres://", "postgresql://", 1)
         return url
 
     class Config:
