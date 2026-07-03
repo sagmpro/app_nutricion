@@ -1,4 +1,5 @@
 import json
+import os
 import anthropic
 from app.config import settings
 
@@ -6,7 +7,10 @@ MODEL = "claude-sonnet-4-6"
 
 
 def _get_client() -> anthropic.Anthropic:
-    return anthropic.Anthropic(api_key=settings.anthropic_api_key or None)
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or settings.anthropic_api_key
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY no está configurada en las variables de entorno")
+    return anthropic.Anthropic(api_key=api_key)
 
 
 def _parse_json(text: str) -> dict:
