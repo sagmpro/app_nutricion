@@ -39,17 +39,39 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float)
         )
     )
 
+    dietary_map = {"omnivoro": "omnívoro", "vegetariano": "vegetariano", "vegano": "vegano", "pescetariano": "pescetariano"}
+    dietary_label = dietary_map.get(getattr(profile, "dietary_type", "omnivoro"), "omnívoro")
+
+    prefs_lines = []
+    if getattr(profile, "food_intolerances", None):
+        prefs_lines.append(f"- Alergias/intolerancias: {profile.food_intolerances}")
+    if getattr(profile, "disliked_foods", None):
+        prefs_lines.append(f"- Alimentos que NO le gustan (excluir): {profile.disliked_foods}")
+    if getattr(profile, "preferred_foods", None):
+        prefs_lines.append(f"- Alimentos favoritos (incluir cuando sea posible): {profile.preferred_foods}")
+    prefs_section = "\n".join(prefs_lines) if prefs_lines else "- Sin restricciones adicionales"
+
     prompt = f"""Genera un plan de alimentación para una semana completa (lunes a domingo).
 
 Datos de la persona:
 - Peso: {profile.weight_kg} kg | Altura: {profile.height_cm} cm | Edad: {profile.age} años
 - Género: {"masculino" if profile.gender == "male" else "femenino"}
+- Tipo de dieta: {dietary_label}
 - TMB: {bmr:.0f} kcal | TDEE: {tdee:.0f} kcal/día
 - Objetivo: {goal_desc}
 - Días de actividad física: {", ".join(activity_names) if activity_names else "ninguno"}
 
+Preferencias alimentarias:
+{prefs_section}
+
 Distribución calórica por comida:
 - Desayuno: ~25% | Media mañana: ~10% | Almuerzo: ~35% | Media tarde: ~10% | Cena: ~20%
+
+INSTRUCCIONES IMPORTANTES para reducir tokens:
+- Desayuno, almuerzo y cena: 7 recetas distintas (una por día), variadas.
+- Media mañana y media tarde (snacks): usa SOLO 3-4 opciones diferentes que se repiten a lo largo de la semana. No inventes 7 snacks distintos.
+- Descripciones breves (máx 15 palabras).
+- Ingredientes: máximo 5 por comida.
 
 Responde ÚNICAMENTE con un JSON válido (sin markdown, sin texto adicional):
 {{
@@ -61,7 +83,7 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown, sin texto adicional):
         {{
           "tipo": "desayuno",
           "nombre": "Nombre del plato",
-          "descripcion": "Descripción breve de preparación",
+          "descripcion": "Descripción breve",
           "calorias": 450,
           "proteinas_g": 25,
           "carbohidratos_g": 55,
@@ -81,7 +103,7 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown, sin texto adicional):
 }}
 
 Incluye los 7 días con exactamente 5 comidas cada uno (tipos: desayuno, media_manana, almuerzo, media_tarde, cena).
-Comidas variadas, equilibradas y típicas de España/Latinoamérica."""
+Respeta estrictamente las preferencias alimentarias indicadas. Comidas típicas de España/Latinoamérica."""
 
     client = _get_client()
     message = client.messages.create(

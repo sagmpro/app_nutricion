@@ -86,10 +86,17 @@ def plan_index(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/plan/generar")
-def generar_plan(request: Request, db: Session = Depends(get_db)):
+async def generar_plan(request: Request, db: Session = Depends(get_db)):
     profile = db.query(UserProfile).first()
     if not profile:
         return RedirectResponse("/perfil?error=Completa+tu+perfil+primero", status_code=303)
+
+    form = await request.form()
+    profile.dietary_type = form.get("dietary_type", "omnivoro")
+    profile.food_intolerances = form.get("food_intolerances", "").strip() or None
+    profile.disliked_foods = form.get("disliked_foods", "").strip() or None
+    profile.preferred_foods = form.get("preferred_foods", "").strip() or None
+    db.commit()
 
     today = date.today()
     week_start = today - timedelta(days=today.weekday())

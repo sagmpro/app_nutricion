@@ -27,6 +27,12 @@ class UserProfile(Base):
     # JSON array of ints: [0,2,4] = Mon,Wed,Fri
     activity_days: Mapped[str] = mapped_column(String(50), default="[]")
 
+    # Food preferences
+    dietary_type: Mapped[str] = mapped_column(String(20), default="omnivoro")
+    food_intolerances: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    disliked_foods: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    preferred_foods: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

@@ -20,15 +20,80 @@
   <a href="/perfil" class="btn-primary inline-block">Ir a Mi Perfil</a>
 </div>
 {% else %}
-<div class="card text-center py-12">
-  <div class="text-5xl mb-4">📅</div>
-  <h2 class="text-xl font-semibold text-gray-800 mb-2">No tienes ningún plan generado</h2>
-  <p class="text-gray-500 mb-6 max-w-md mx-auto">Claude generará un menú completo para 7 días con 5 comidas por día, adaptado a tu perfil y objetivos.</p>
-  <form method="POST" action="/plan/generar"
-        data-loading data-loading-title="Generando tu plan semanal..."
-        data-loading-subtitle="Claude está creando 35 comidas personalizadas. Esto puede tomar hasta 30 segundos.">
-    <button class="btn-primary px-8 py-3 text-base">Generar mi plan semanal</button>
-  </form>
-</div>
+<form method="POST" action="/plan/generar"
+      data-loading data-loading-title="Generando tu plan semanal..."
+      data-loading-subtitle="Claude está creando tu menú personalizado. Esto puede tomar hasta 30 segundos."
+      class="space-y-5 max-w-2xl">
+
+  <!-- Tipo de dieta -->
+  <div class="card">
+    <h2 class="text-base font-semibold text-gray-800 mb-4">Tipo de dieta</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {% set diet_options = [
+        ("omnivoro",     "🍖", "Omnívoro"),
+        ("vegetariano",  "🥗", "Vegetariano"),
+        ("vegano",       "🌱", "Vegano"),
+        ("pescetariano", "🐟", "Pescetariano"),
+      ] %}
+      {% for val, icon, label in diet_options %}
+      <label class="diet-card border-2 rounded-xl p-3 cursor-pointer text-center transition-colors hover:border-green-400
+                    {{ 'border-green-500 bg-green-50' if (profile.dietary_type == val) else 'border-gray-200' }}">
+        <input type="radio" name="dietary_type" value="{{ val }}" class="sr-only"
+               {{ "checked" if profile.dietary_type == val }}>
+        <div class="text-2xl mb-1">{{ icon }}</div>
+        <div class="text-xs font-medium text-gray-700">{{ label }}</div>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Preferencias y restricciones -->
+  <div class="card space-y-4">
+    <h2 class="text-base font-semibold text-gray-800">Preferencias alimentarias</h2>
+
+    <div>
+      <label class="label">Alimentos favoritos <span class="text-gray-400 font-normal">(opcional)</span></label>
+      <input type="text" name="preferred_foods" class="input"
+             value="{{ profile.preferred_foods or '' }}"
+             placeholder="Ej: pollo, arroz, aguacate, huevos...">
+      <p class="text-xs text-gray-400 mt-1">Claude los incluirá cuando sea posible</p>
+    </div>
+
+    <div>
+      <label class="label">Alimentos que NO te gustan <span class="text-gray-400 font-normal">(opcional)</span></label>
+      <input type="text" name="disliked_foods" class="input"
+             value="{{ profile.disliked_foods or '' }}"
+             placeholder="Ej: hígado, coliflor, sardinas...">
+      <p class="text-xs text-gray-400 mt-1">Se evitarán en el plan</p>
+    </div>
+
+    <div>
+      <label class="label">Alergias e intolerancias <span class="text-gray-400 font-normal">(opcional)</span></label>
+      <input type="text" name="food_intolerances" class="input"
+             value="{{ profile.food_intolerances or '' }}"
+             placeholder="Ej: lactosa, gluten, frutos secos...">
+      <p class="text-xs text-gray-400 mt-1">Se excluirán estrictamente</p>
+    </div>
+  </div>
+
+  <button type="submit" class="btn-primary w-full py-3 text-base">
+    Generar mi plan semanal
+  </button>
+</form>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.diet-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.diet-card').forEach(c => {
+      c.classList.remove('border-green-500', 'bg-green-50');
+      c.classList.add('border-gray-200');
+    });
+    card.classList.add('border-green-500', 'bg-green-50');
+    card.classList.remove('border-gray-200');
+  });
+});
+</script>
 {% endblock %}
