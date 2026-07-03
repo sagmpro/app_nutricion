@@ -103,12 +103,13 @@ def toggle_item(item_id: int, db: Session = Depends(get_db)):
 
 @router.post("/compras/{list_id}/al-stock")
 def mover_al_stock(list_id: int, db: Session = Depends(get_db)):
-    """Add all checked items to the food stock."""
+    """Add checked items to stock and remove them from the shopping list."""
     shopping_list = db.query(ShoppingList).filter(ShoppingList.id == list_id).first()
     if not shopping_list:
         return RedirectResponse("/compras", status_code=303)
 
-    for item in shopping_list.items:
+    moved = 0
+    for item in list(shopping_list.items):
         if not item.checked:
             continue
         existing = db.query(FoodStock).filter(FoodStock.name.ilike(item.name)).first()
@@ -124,9 +125,11 @@ def mover_al_stock(list_id: int, db: Session = Depends(get_db)):
                 unit=item.unit,
                 category=item.category,
             ))
+        db.delete(item)
+        moved += 1
 
     db.commit()
-    return RedirectResponse(f"/compras/{list_id}?success=Stock+actualizado", status_code=303)
+    return RedirectResponse(f"/compras/{list_id}?success={moved}+productos+añadidos+al+stock", status_code=303)
 
 
 @router.post("/compras/{list_id}/sincronizar-stock")
