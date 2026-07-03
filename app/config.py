@@ -10,6 +10,8 @@ class Settings(BaseSettings):
         url = self.database_url
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+pg8000://", 1)
+        elif url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+pg8000://", 1)
         return url
 
     class Config:
