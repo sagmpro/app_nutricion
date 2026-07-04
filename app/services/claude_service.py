@@ -70,6 +70,36 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float)
     lifestyle_lines.append(f"- Máximo de veces que puede repetirse una receta de desayuno/almuerzo/cena en la semana: {max_repeats}")
     lifestyle_section = "\n".join(lifestyle_lines)
 
+    # Meal schedule
+    all_meal_types = ["desayuno", "media_manana", "almuerzo", "media_tarde", "cena"]
+    meal_labels_map = {"desayuno": "Desayuno", "media_manana": "Media mañana",
+                       "almuerzo": "Almuerzo", "media_tarde": "Media tarde", "cena": "Cena"}
+    base_pcts = {"desayuno": 25, "media_manana": 10, "almuerzo": 35, "media_tarde": 10, "cena": 20}
+    snack_types = {"media_manana", "media_tarde"}
+
+    try:
+        enabled_meals = json.loads(profile.enabled_meals) if getattr(profile, "enabled_meals", None) else all_meal_types
+    except (ValueError, TypeError):
+        enabled_meals = all_meal_types
+    try:
+        meal_times_dict = json.loads(profile.meal_times) if getattr(profile, "meal_times", None) else {}
+    except (ValueError, TypeError):
+        meal_times_dict = {}
+
+    total_pct = sum(base_pcts[m] for m in enabled_meals) or 100
+    schedule_lines = []
+    for m in enabled_meals:
+        pct = round(base_pcts[m] / total_pct * 100)
+        time_str = f" a las {meal_times_dict[m]}" if m in meal_times_dict else ""
+        schedule_lines.append(f"- {meal_labels_map[m]}{time_str}: ~{pct}% de las calorías diarias")
+    schedule_section = "\n".join(schedule_lines)
+
+    enabled_types_str = ", ".join(enabled_meals)
+    n_meals = len(enabled_meals)
+    enabled_snacks = [m for m in enabled_meals if m in snack_types]
+    snack_note = (f"- Snacks ({', '.join(meal_labels_map[s] for s in enabled_snacks)}): usa SOLO 3-4 opciones distintas que se repiten a lo largo de la semana."
+                  if enabled_snacks else "")
+
     prompt = f"""Genera un plan de alimentación para una semana completa (lunes a domingo).
 
 Datos de la persona:
@@ -86,12 +116,13 @@ Preferencias alimentarias:
 Estilo de vida:
 {lifestyle_section}
 
-Distribución calórica por comida:
-- Desayuno: ~25% | Media mañana: ~10% | Almuerzo: ~35% | Media tarde: ~10% | Cena: ~20%
+Comidas del día (SOLO estas, en este orden):
+{schedule_section}
 
 INSTRUCCIONES IMPORTANTES:
+- Genera exactamente {n_meals} comida(s) por día (tipos: {enabled_types_str}). No añadas ni quites comidas.
 - Desayuno, almuerzo y cena: 7 recetas distintas (una por día), variadas.
-- Media mañana y media tarde (snacks): usa SOLO 3-4 opciones diferentes que se repiten a lo largo de la semana. No inventes 7 snacks distintos.
+{snack_note}
 - Descripciones breves (máx 15 palabras).
 - Ingredientes: máximo 5 por comida.
 - CONSISTENCIA DE INGREDIENTES: usa nombres exactos y consistentes en todo el plan. Si un ingrediente puede estar crudo o cocido, elige UNO y mantenlo así toda la semana (ej: usa siempre "garbanzos cocidos" o siempre "garbanzos crudos", nunca ambos). Especifica el estado cuando sea relevante: "lentejas crudas", "garbanzos cocidos en conserva", "pechuga de pollo", "atún en conserva".
@@ -125,7 +156,7 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown, sin texto adicional):
   ]
 }}
 
-Incluye los 7 días con exactamente 5 comidas cada uno (tipos: desayuno, media_manana, almuerzo, media_tarde, cena).
+Incluye los 7 días con exactamente {n_meals} comida(s) cada uno (tipos: {enabled_types_str}).
 Respeta estrictamente las preferencias alimentarias indicadas. Comidas típicas de España/Latinoamérica."""
 
     client = _get_client()

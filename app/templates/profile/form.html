@@ -210,12 +210,58 @@
     </div>
   </div>
 
+  <!-- Meal schedule -->
+  <div class="card">
+    <h2 class="text-base font-semibold text-gray-800 mb-1">Horario de comidas</h2>
+    <p class="text-gray-500 text-sm mb-4">Activa las comidas que haces normalmente y asigna su hora</p>
+
+    {% set meal_defs = [
+      ("desayuno",     "🌅", "Desayuno",      "07:00"),
+      ("media_manana", "🍎", "Media mañana",  "10:30"),
+      ("almuerzo",     "🍽", "Almuerzo",      "13:30"),
+      ("media_tarde",  "🥜", "Media tarde",   "17:00"),
+      ("cena",         "🌙", "Cena",          "20:30"),
+    ] %}
+    <div class="space-y-2">
+      {% for meal_id, icon, label, default_time in meal_defs %}
+      {% set is_on = meal_id in enabled_meals %}
+      {% set saved_time = meal_times.get(meal_id, default_time) %}
+      <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-white transition-colors">
+        <!-- Toggle -->
+        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+          <input type="checkbox" name="meal_enabled_{{ meal_id }}" value="1"
+                 id="meal-cb-{{ meal_id }}"
+                 {{ "checked" if is_on }}
+                 onchange="toggleMeal('{{ meal_id }}', this.checked)"
+                 class="sr-only peer">
+          <div class="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-green-500 transition-colors relative">
+            <div id="meal-thumb-{{ meal_id }}"
+                 class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-all {{ 'translate-x-5' if is_on }}"></div>
+          </div>
+        </label>
+        <!-- Icon + name -->
+        <span class="text-lg flex-shrink-0">{{ icon }}</span>
+        <span id="meal-label-{{ meal_id }}"
+              class="flex-1 text-sm font-medium {{ 'text-gray-400 line-through' if not is_on else 'text-gray-800' }}">
+          {{ label }}
+        </span>
+        <!-- Time input -->
+        <input type="time" name="meal_time_{{ meal_id }}"
+               id="meal-time-{{ meal_id }}"
+               value="{{ saved_time }}"
+               {{ "disabled" if not is_on }}
+               class="input max-w-[110px] text-sm py-1.5 {{ 'opacity-30 cursor-not-allowed' if not is_on }}">
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
   <!-- Cooking & lifestyle -->
   <div class="card space-y-5">
     <div>
       <h2 class="text-base font-semibold text-gray-800 mb-1">Facilidades de cocina</h2>
       <p class="text-gray-500 text-sm mb-3">Equipamiento disponible para preparar comidas</p>
-      <textarea name="cooking_facilities" class="input min-h-[80px] resize-none" rows="3"
+      <textarea name="cooking_facilities" class="input w-full min-h-[80px] resize-y" rows="3"
                 placeholder="Ej: tengo horno, microondas y freidora de aire. Sin estufa de gas. Poco tiempo en el desayuno (máx 10 min).">{{ profile.cooking_facilities or '' if profile else '' }}</textarea>
     </div>
 
@@ -308,5 +354,24 @@ document.addEventListener('DOMContentLoaded', () => {
   updateGoalUI();
   updateActivityCount();
 });
+
+function toggleMeal(mealId, enabled) {
+  const label    = document.getElementById('meal-label-' + mealId);
+  const timeInput = document.getElementById('meal-time-' + mealId);
+  const thumb    = document.getElementById('meal-thumb-' + mealId);
+  if (enabled) {
+    label.classList.remove('text-gray-400', 'line-through');
+    label.classList.add('text-gray-800');
+    timeInput.disabled = false;
+    timeInput.classList.remove('opacity-30', 'cursor-not-allowed');
+    thumb.classList.add('translate-x-5');
+  } else {
+    label.classList.add('text-gray-400', 'line-through');
+    label.classList.remove('text-gray-800');
+    timeInput.disabled = true;
+    timeInput.classList.add('opacity-30', 'cursor-not-allowed');
+    thumb.classList.remove('translate-x-5');
+  }
+}
 </script>
 {% endblock %}

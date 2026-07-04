@@ -27,6 +27,16 @@ def perfil_form(request: Request, db: Session = Depends(get_db)):
         target = calculate_target_calories(profile, tdee)
         stats = {"bmr": round(bmr), "tdee": round(tdee), "target_calories": round(target)}
 
+    all_meal_types = ["desayuno", "media_manana", "almuerzo", "media_tarde", "cena"]
+    try:
+        enabled_meals = json.loads(profile.enabled_meals) if profile and profile.enabled_meals else all_meal_types
+    except (ValueError, TypeError):
+        enabled_meals = all_meal_types
+    try:
+        meal_times = json.loads(profile.meal_times) if profile and profile.meal_times else {}
+    except (ValueError, TypeError):
+        meal_times = {}
+
     return templates.TemplateResponse(request, "profile/form.html", {
         "profile": profile,
         "activity_days": activity_days,
@@ -34,6 +44,8 @@ def perfil_form(request: Request, db: Session = Depends(get_db)):
         "days_names": DAYS_OF_WEEK,
         "stats": stats,
         "success": request.query_params.get("success"),
+        "enabled_meals": enabled_meals,
+        "meal_times": meal_times,
     })
 
 
@@ -88,7 +100,14 @@ async def perfil_save(
     profile.training_time = training_time.strip() or None
     profile.cooking_facilities = cooking_facilities.strip() or None
     profile.max_meal_repeats = max(1, min(7, max_meal_repeats))
-    profile.updated_at = datetime.now()
 
+    all_meal_types = ["desayuno", "media_manana", "almuerzo", "media_tarde", "cena"]
+    enabled = [mt for mt in all_meal_types if form_data.get(f"meal_enabled_{mt}") == "1"]
+    profile.enabled_meals = json.dumps(enabled if enabled else all_meal_types)
+    times = {mt: form_data.get(f"meal_time_{mt}", "").strip()
+             for mt in all_meal_types if form_data.get(f"meal_time_{mt}", "").strip()}
+    profile.meal_times = json.dumps(times) if times else None
+
+    profile.updated_at = datetime.now()
     db.commit()
     return RedirectResponse("/perfil?success=1", status_code=303)

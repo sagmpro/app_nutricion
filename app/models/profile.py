@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+import sqlalchemy as sa
 from sqlalchemy import String, Float, Integer, DateTime, func
 from app.database import Base
 
@@ -37,6 +38,10 @@ class UserProfile(Base):
     training_time: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)   # HH:MM
     cooking_facilities: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     max_meal_repeats: Mapped[int] = mapped_column(Integer, default=2)
+
+    # Meal schedule: which meals are enabled and at what time (stored as JSON)
+    enabled_meals: Mapped[Optional[str]] = mapped_column(sa.Text(), nullable=True)  # JSON list
+    meal_times: Mapped[Optional[str]] = mapped_column(sa.Text(), nullable=True)     # JSON dict
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
