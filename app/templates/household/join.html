@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Unirse al hogar — NutriPlan{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto py-16 px-4">
+  <div class="bg-white rounded-2xl shadow border border-gray-200 p-8 text-center">
+    <div class="text-5xl mb-4">🏠</div>
+    <h1 class="text-xl font-bold text-gray-900 mb-2">Unirse a {{ household.name }}</h1>
+    <p class="text-gray-500 text-sm mb-1">{{ member_count }} miembro(s) actual(es)</p>
+    <p class="text-gray-500 text-sm mb-6">Al unirte, tu stock se comparte con el hogar.</p>
+
+    <div class="flex gap-3 justify-center">
+      <form method="POST" action="/hogar/unirse/{{ token }}">
+        <button type="submit" class="btn-primary" style="padding:0.75rem 2rem">Unirse al hogar</button>
+      </form>
+      <a href="/hogar" class="btn-secondary" style="padding:0.75rem 2rem">Cancelar</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

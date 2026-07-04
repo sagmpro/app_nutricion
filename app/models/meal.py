@@ -39,4 +39,7 @@ class Meal(Base):
     actual_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     recipe_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Regeneration tracking: after 3+ regens, use detailed real-recipe prompt
+    regen_count: Mapped[int] = mapped_column(Integer, default=0)
+
     meal_plan: Mapped["MealPlan"] = relationship(back_populates="meals")

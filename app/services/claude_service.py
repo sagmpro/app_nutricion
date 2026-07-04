@@ -380,6 +380,119 @@ Incluye en enabled_meals y meal_times SOLO las comidas que recomiendas. Formato 
     return _parse_json(message.content[0].text)
 
 
+def generate_real_recipe_meal(
+    meal_name: str,
+    meal_type: str,
+    target_calories: int,
+    profile=None,
+) -> dict:
+    """Generate a detailed, traditional recipe after 3+ regenerations.
+    Uses a richer prompt to produce step-by-step recipes with exact quantities."""
+    from app.models.meal import MEAL_TYPE_LABELS
+    meal_label = MEAL_TYPE_LABELS.get(meal_type, meal_type)
+
+    intolerances = ""
+    if profile and getattr(profile, "food_intolerances", None):
+        intolerances = f"Evitar: {profile.food_intolerances}."
+
+    prompt = f"""Eres un chef profesional y nutricionista. Genera una receta real, tradicional y detallada de "{meal_name}" (tipo: {meal_label}).
+
+{intolerances}
+Objetivo calórico: ~{target_calories} kcal.
+
+Responde ÚNICAMENTE con JSON válido:
+{{
+  "tipo": "{meal_type}",
+  "nombre": "Nombre exacto del plato",
+  "descripcion": "Descripción culinaria precisa (máx 20 palabras)",
+  "calorias": {target_calories},
+  "proteinas_g": 0.0,
+  "carbohidratos_g": 0.0,
+  "grasas_g": 0.0,
+  "ingredientes": [
+    {{"nombre": "Ingrediente", "cantidad": 100, "unidad": "g"}}
+  ],
+  "receta_detallada": "Paso 1: ...\\nPaso 2: ...\\nPaso 3: ..."
+}}
+
+Incluye entre 6-10 ingredientes con cantidades exactas. La receta debe tener al menos 4 pasos detallados de preparación."""
+
+    client = _get_client()
+    message = client.messages.create(
+        model=MODEL,
+        max_tokens=1500,
+        system="Eres un chef y nutricionista experto. Genera recetas reales con pasos detallados. Responde SOLO con JSON válido.",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    _log_usage("generate_real_recipe_meal", message)
+    return _parse_json(message.content[0].text)
+
+
+def buscar_plato_por_nombre(
+    nombre: str,
+    meal_type: str,
+    target_calories: int,
+    stock_items: list | None = None,
+    profile=None,
+) -> dict:
+    """Search for a dish by name and return full meal details with recipe.
+    If stock_items provided, uses those ingredients preferentially."""
+    from app.models.meal import MEAL_TYPE_LABELS
+    meal_label = MEAL_TYPE_LABELS.get(meal_type, meal_type)
+
+    is_stock_mode = stock_items is not None
+    stock_section = ""
+    if stock_items:
+        stock_list = ", ".join(f"{s['nombre']} ({s['cantidad']} {s['unidad']})" for s in stock_items[:20])
+        stock_section = f"\nIngredientes disponibles en stock: {stock_list}\n"
+
+    intolerances = ""
+    if profile and getattr(profile, "food_intolerances", None):
+        intolerances = f"Evitar: {profile.food_intolerances}."
+
+    if is_stock_mode and stock_items:
+        intro = f"El usuario tiene los siguientes ingredientes en su stock y quiere preparar su {meal_label} usándolos."
+        instruction = "Crea un plato nutritivo y delicioso usando PRINCIPALMENTE los ingredientes del stock listados arriba."
+    elif is_stock_mode:
+        intro = f"El usuario quiere preparar su {meal_label} con ingredientes básicos de despensa."
+        instruction = "Crea un plato nutritivo y delicioso con ingredientes comunes de despensa."
+    else:
+        intro = f'El usuario busca el plato "{nombre}" para su {meal_label}.'
+        instruction = "Genera la receta completa y auténtica de este plato buscándolo en tu conocimiento culinario."
+
+    prompt = f"""{intro}
+{intolerances}
+{stock_section}
+Objetivo calórico: ~{target_calories} kcal.
+
+{instruction} Responde ÚNICAMENTE con JSON válido:
+{{
+  "tipo": "{meal_type}",
+  "nombre": "Nombre del plato",
+  "descripcion": "Descripción breve (máx 20 palabras)",
+  "calorias": {target_calories},
+  "proteinas_g": 0.0,
+  "carbohidratos_g": 0.0,
+  "grasas_g": 0.0,
+  "ingredientes": [
+    {{"nombre": "Ingrediente", "cantidad": 100, "unidad": "g"}}
+  ],
+  "receta_detallada": "Paso 1: ...\\nPaso 2: ...\\nPaso 3: ..."
+}}
+
+Incluye 5-8 ingredientes con cantidades exactas y al menos 3 pasos de preparación."""
+
+    client = _get_client()
+    message = client.messages.create(
+        model=MODEL,
+        max_tokens=1500,
+        system="Eres un chef y nutricionista experto. Responde SOLO con JSON válido.",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    _log_usage("buscar_plato_por_nombre", message)
+    return _parse_json(message.content[0].text)
+
+
 def identify_stock_photo(image_bytes: bytes, media_type: str) -> dict:
     """Identify food items in a photo and return them as stock items."""
     image_data = base64.standard_b64encode(image_bytes).decode("utf-8")

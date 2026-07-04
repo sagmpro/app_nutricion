@@ -238,6 +238,16 @@
             {{ "Receta guardada" if meal.has_recipe else "Ver receta" }}
           </button>
 
+          <!-- Search / replace dish -->
+          <button type="button"
+                  onclick="openBuscarPlato({{ meal_plan.id }}, {{ meal.id }}, '{{ meal.name | e }}', '{{ meal.type }}')"
+                  class="text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-lg transition-all flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            Cambiar plato
+          </button>
+
           <!-- Consume toggle -->
           <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/consumir">
             <button type="submit"
@@ -313,6 +323,103 @@
   </div>
 </div>
 {% endfor %}
+
+<!-- Buscar / cambiar plato modal -->
+<div id="buscar-modal" class="hidden fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
+    <div class="p-5 border-b border-gray-100">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-gray-800">Cambiar plato</h3>
+        <button onclick="closeBuscarModal()" class="text-gray-400 hover:text-gray-600 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Mode tabs -->
+      <div class="flex rounded-xl overflow-hidden border border-gray-200 mb-4">
+        <button id="tab-stock" onclick="setBuscarMode('stock')"
+                class="flex-1 py-2 text-sm font-medium transition-all bg-green-600 text-white">
+          🏪 Usar mi stock
+        </button>
+        <button id="tab-buscar" onclick="setBuscarMode('buscar')"
+                class="flex-1 py-2 text-sm font-medium transition-all text-gray-500 hover:bg-gray-50">
+          🔍 Buscar por nombre
+        </button>
+      </div>
+
+      <!-- Stock mode explanation -->
+      <div id="mode-stock-info" class="text-xs text-gray-500 bg-green-50 border border-green-100 rounded-xl p-3 mb-3">
+        Claude generará un plato usando los ingredientes que tienes disponibles en tu stock. El plato será adaptado a tu perfil y objetivos calóricos.
+      </div>
+
+      <!-- Name search mode explanation -->
+      <div id="mode-buscar-info" class="hidden text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-xl p-3 mb-3">
+        Escribe el nombre del plato que deseas. Claude lo buscará en internet y te dará la receta con ingredientes y valores nutricionales.
+      </div>
+
+      <!-- Search input (only for buscar mode) -->
+      <div id="nombre-input-row" class="hidden mb-3">
+        <input type="text" id="buscar-nombre-input" placeholder="Ej: Pollo al curry, Pasta carbonara..."
+               class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+               onkeydown="if(event.key==='Enter'){buscarPlato();}">
+      </div>
+
+      <button id="buscar-btn" onclick="buscarPlato()"
+              class="w-full py-2 rounded-xl text-sm font-medium transition-all"
+              style="background:#16a34a;color:#fff;">
+        Generar plato con mi stock
+      </button>
+    </div>
+
+    <!-- Result area -->
+    <div id="buscar-resultado" class="hidden overflow-y-auto p-5 flex-1">
+      <div id="buscar-loading" class="hidden text-center py-6">
+        <svg class="w-6 h-6 animate-spin text-green-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        <p class="text-sm text-gray-500">Claude está buscando...</p>
+      </div>
+      <div id="buscar-error" class="hidden text-sm text-red-500 text-center py-4"></div>
+      <div id="buscar-data" class="hidden">
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <h4 id="res-nombre" class="font-semibold text-gray-800 text-base"></h4>
+          <span id="res-calorias" class="text-sm font-bold text-green-600 flex-shrink-0"></span>
+        </div>
+        <p id="res-descripcion" class="text-xs text-gray-500 mb-3"></p>
+        <div class="flex gap-2 flex-wrap mb-3">
+          <span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg font-medium">P <span id="res-p">0</span>g</span>
+          <span class="text-xs px-2 py-0.5 bg-orange-50 text-orange-600 rounded-lg font-medium">C <span id="res-c">0</span>g</span>
+          <span class="text-xs px-2 py-0.5 bg-yellow-50 text-yellow-600 rounded-lg font-medium">G <span id="res-g">0</span>g</span>
+        </div>
+        <div id="res-ingredientes-wrap" class="mb-3">
+          <p class="text-xs font-semibold text-gray-600 mb-1">Ingredientes</p>
+          <ul id="res-ingredientes" class="grid grid-cols-2 gap-x-3 gap-y-0.5"></ul>
+        </div>
+        <div id="res-receta-wrap" class="hidden mb-4">
+          <p class="text-xs font-semibold text-gray-600 mb-1">Receta</p>
+          <ol id="res-receta" class="text-xs text-gray-700 space-y-1 list-decimal list-inside leading-relaxed"></ol>
+        </div>
+        <!-- Hidden replacement form -->
+        <form id="reemplazar-form" method="POST">
+          <input type="hidden" name="nombre" id="rep-nombre">
+          <input type="hidden" name="descripcion" id="rep-descripcion">
+          <input type="hidden" name="calorias" id="rep-calorias">
+          <input type="hidden" name="proteinas" id="rep-proteinas">
+          <input type="hidden" name="carbohidratos" id="rep-carbohidratos">
+          <input type="hidden" name="grasas" id="rep-grasas">
+          <input type="hidden" name="ingredientes_json" id="rep-ingredientes-json">
+          <input type="hidden" name="receta_detallada" id="rep-receta">
+          <div class="flex gap-3">
+            <button type="submit" class="flex-1 py-2 rounded-xl text-sm font-medium text-white" style="background:#16a34a;">✓ Reemplazar comida</button>
+            <button type="button" onclick="buscarPlato()" class="flex-1 py-2 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">↺ Otra opción</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Food photo confirmation modal -->
 <div id="foto-modal" class="hidden fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-4">
@@ -412,6 +519,111 @@ async function analyzeFood(planId, mealId, input) {
   }
   input.disabled = false;
 }
+
+// ---- Buscar / cambiar plato ----
+let _buscarPlanId = null, _buscarMealId = null, _buscarMode = 'stock';
+
+function openBuscarPlato(planId, mealId, mealName, mealType) {
+  _buscarPlanId = planId;
+  _buscarMealId = mealId;
+  _buscarMode = 'stock';
+  document.getElementById('buscar-nombre-input').value = mealName;
+  setBuscarMode('stock');
+  document.getElementById('buscar-resultado').classList.add('hidden');
+  document.getElementById('buscar-data').classList.add('hidden');
+  document.getElementById('buscar-error').classList.add('hidden');
+  document.getElementById('buscar-loading').classList.add('hidden');
+  document.getElementById('buscar-modal').classList.remove('hidden');
+}
+
+function closeBuscarModal() {
+  document.getElementById('buscar-modal').classList.add('hidden');
+}
+
+function setBuscarMode(mode) {
+  _buscarMode = mode;
+  const isStock = mode === 'stock';
+  document.getElementById('tab-stock').style.cssText = isStock ? 'background:#16a34a;color:#fff;flex:1;padding:0.5rem;font-size:0.875rem;font-weight:500;' : 'flex:1;padding:0.5rem;font-size:0.875rem;font-weight:500;color:#6b7280;';
+  document.getElementById('tab-buscar').style.cssText = !isStock ? 'background:#2563eb;color:#fff;flex:1;padding:0.5rem;font-size:0.875rem;font-weight:500;' : 'flex:1;padding:0.5rem;font-size:0.875rem;font-weight:500;color:#6b7280;';
+  document.getElementById('mode-stock-info').classList.toggle('hidden', !isStock);
+  document.getElementById('mode-buscar-info').classList.toggle('hidden', isStock);
+  document.getElementById('nombre-input-row').classList.toggle('hidden', isStock);
+  const btn = document.getElementById('buscar-btn');
+  if (isStock) {
+    btn.textContent = 'Generar plato con mi stock';
+    btn.style.cssText = 'width:100%;padding:0.5rem;border-radius:0.75rem;font-size:0.875rem;font-weight:500;background:#16a34a;color:#fff;';
+  } else {
+    btn.textContent = '🔍 Buscar plato';
+    btn.style.cssText = 'width:100%;padding:0.5rem;border-radius:0.75rem;font-size:0.875rem;font-weight:500;background:#2563eb;color:#fff;';
+  }
+}
+
+async function buscarPlato() {
+  const nombre = document.getElementById('buscar-nombre-input').value.trim();
+  if (_buscarMode === 'buscar' && !nombre) {
+    document.getElementById('buscar-nombre-input').focus();
+    return;
+  }
+
+  document.getElementById('buscar-resultado').classList.remove('hidden');
+  document.getElementById('buscar-loading').classList.remove('hidden');
+  document.getElementById('buscar-data').classList.add('hidden');
+  document.getElementById('buscar-error').classList.add('hidden');
+
+  const formData = new FormData();
+  const nombreEnvio = _buscarMode === 'stock' ? 'Genera un plato saludable con los ingredientes disponibles en el stock' : nombre;
+  formData.append('nombre', nombreEnvio);
+  formData.append('usar_stock', _buscarMode === 'stock' ? 'si' : 'no');
+
+  try {
+    const resp = await fetch(`/plan/${_buscarPlanId}/comida/${_buscarMealId}/buscar-plato`, {
+      method: 'POST', body: formData,
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById('res-nombre').textContent = data.nombre || '';
+    document.getElementById('res-calorias').textContent = (data.calorias || 0) + ' kcal';
+    document.getElementById('res-descripcion').textContent = data.descripcion || '';
+    document.getElementById('res-p').textContent = data.proteinas_g ?? data.proteinas ?? 0;
+    document.getElementById('res-c').textContent = data.carbohidratos_g ?? data.carbohidratos ?? 0;
+    document.getElementById('res-g').textContent = data.grasas_g ?? data.grasas ?? 0;
+
+    const ings = data.ingredientes || [];
+    document.getElementById('res-ingredientes').innerHTML = ings.map(i =>
+      `<li class="text-xs text-gray-500 flex items-start gap-1"><span class="text-gray-300">·</span>${i.nombre}: ${i.cantidad} ${i.unidad}</li>`
+    ).join('');
+
+    const receta = data.receta_detallada || '';
+    const pasos = receta.split('\n').filter(p => p.trim());
+    const recetaWrap = document.getElementById('res-receta-wrap');
+    if (pasos.length) {
+      document.getElementById('res-receta').innerHTML = pasos.map(p => `<li>${p}</li>`).join('');
+      recetaWrap.classList.remove('hidden');
+    } else {
+      recetaWrap.classList.add('hidden');
+    }
+
+    // Fill hidden form
+    document.getElementById('reemplazar-form').action = `/plan/${_buscarPlanId}/comida/${_buscarMealId}/reemplazar`;
+    document.getElementById('rep-nombre').value = data.nombre || '';
+    document.getElementById('rep-descripcion').value = data.descripcion || '';
+    document.getElementById('rep-calorias').value = data.calorias || 0;
+    document.getElementById('rep-proteinas').value = data.proteinas_g ?? data.proteinas ?? 0;
+    document.getElementById('rep-carbohidratos').value = data.carbohidratos_g ?? data.carbohidratos ?? 0;
+    document.getElementById('rep-grasas').value = data.grasas_g ?? data.grasas ?? 0;
+    document.getElementById('rep-ingredientes-json').value = JSON.stringify(ings);
+    document.getElementById('rep-receta').value = receta;
+
+    document.getElementById('buscar-loading').classList.add('hidden');
+    document.getElementById('buscar-data').classList.remove('hidden');
+  } catch(e) {
+    document.getElementById('buscar-loading').classList.add('hidden');
+    document.getElementById('buscar-error').textContent = '❌ ' + e.message;
+    document.getElementById('buscar-error').classList.remove('hidden');
+  }
+}
+// ---- end buscar plato ----
 
 async function toggleRecipe(planId, mealId) {
   const btn = document.getElementById('recipe-btn-' + mealId);

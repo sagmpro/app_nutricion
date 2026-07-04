@@ -362,6 +362,35 @@
     </button>
   </div>
 </form>
+
+<!-- Danger zone -->
+<div class="bg-white rounded-2xl shadow border border-red-100 overflow-hidden mt-6 mb-8">
+  <div class="border-b border-red-100 px-6 py-4 bg-red-50 flex items-center gap-3">
+    <span class="text-xl leading-none">⚠️</span>
+    <h2 class="text-sm font-semibold text-red-700">Zona de peligro</h2>
+  </div>
+  <div class="p-6">
+    <p class="text-sm text-gray-600 mb-4">Eliminar tu cuenta borra permanentemente todos tus datos: perfil, planes, stock e historial. Esta acción no se puede deshacer.</p>
+    <button onclick="document.getElementById('modal-eliminar').classList.remove('hidden')" class="btn-danger" style="font-size:0.85rem">
+      Eliminar mi cuenta
+    </button>
+  </div>
+</div>
+
+<!-- Delete account modal -->
+<div id="modal-eliminar" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+    <h3 class="text-lg font-semibold text-gray-800 mb-2">¿Eliminar cuenta?</h3>
+    <p class="text-sm text-gray-500 mb-4">Esta acción es irreversible. Ingresá tu contraseña para confirmar.</p>
+    <form method="POST" action="/cuenta/eliminar">
+      <input type="password" name="password" class="input mb-4" placeholder="Tu contraseña actual" required>
+      <div class="flex gap-3">
+        <button type="submit" class="btn-danger flex-1">Eliminar definitivamente</button>
+        <button type="button" onclick="document.getElementById('modal-eliminar').classList.add('hidden')" class="btn-secondary flex-1">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}

@@ -22,7 +22,7 @@ def _build_greeting(profile, plans_count: int, today_consumed: int, today_total:
         return {
             "greeting": f"Hola, {first_name}!",
             "message": "Tu perfil esta listo. Genera tu primer plan semanal y empieza tu camino hacia tus objetivos.",
-            "emoji": "rocket",
+            "emoji": "🚀",
             "color": "blue",
         }
 
@@ -30,7 +30,7 @@ def _build_greeting(profile, plans_count: int, today_consumed: int, today_total:
         return {
             "greeting": f"Hola, {first_name}!",
             "message": "Tienes un plan activo. Empieza a marcar las comidas que consumes para ver tu progreso.",
-            "emoji": "plan",
+            "emoji": "📋",
             "color": "amber",
         }
 
@@ -41,21 +41,21 @@ def _build_greeting(profile, plans_count: int, today_consumed: int, today_total:
             return {
                 "greeting": f"Dia completado, {first_name}!",
                 "message": f"Registraste las {today_total} comidas de hoy. Eso es constancia real. Sigue manana igual!",
-                "emoji": "check",
+                "emoji": "✅",
                 "color": "green",
             }
         if today_consumed == 0:
             return {
                 "greeting": f"Hola, {first_name}!",
                 "message": f"Hoy tienes {today_total} comidas planificadas. Empieza a marcarlas a medida que las consumes.",
-                "emoji": "food",
+                "emoji": "🍽️",
                 "color": "amber",
             }
         remaining = today_total - today_consumed
         return {
             "greeting": f"Vas bien, {first_name}!",
             "message": f"Ya llevas {today_consumed}/{today_total} comidas hoy. {remaining} mas y completaras el dia.",
-            "emoji": "up",
+            "emoji": "📈",
             "color": "green",
         }
 
@@ -64,27 +64,27 @@ def _build_greeting(profile, plans_count: int, today_consumed: int, today_total:
         return {
             "greeting": f"Gran semana, {first_name}!",
             "message": f"Seguiste el {week_pct}% de tu plan esta semana. Esa disciplina marca la diferencia.",
-            "emoji": "trophy",
+            "emoji": "🏆",
             "color": "green",
         }
     if week_pct >= 50:
         return {
             "greeting": f"Buen trabajo, {first_name}!",
             "message": f"Seguiste el {week_pct}% de tu plan. Cada comida registrada te acerca a tu objetivo.",
-            "emoji": "chart",
+            "emoji": "📊",
             "color": "green",
         }
     if week_consumed > 0:
         return {
             "greeting": f"Hola, {first_name}!",
             "message": f"Llevas {week_consumed} comidas registradas esta semana. Intenta marcarlas todas para ver tu progreso real.",
-            "emoji": "idea",
+            "emoji": "💡",
             "color": "amber",
         }
     return {
         "greeting": f"Hola, {first_name}!",
         "message": "Tienes un plan listo. Recuerda marcar las comidas que consumes para seguir tu progreso.",
-        "emoji": "wave",
+        "emoji": "👋",
         "color": "amber",
     }
 

@@ -1,3 +1,4 @@
+import uuid as _uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -14,6 +15,7 @@ class Household(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     created_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    invite_token: Mapped[str] = mapped_column(String(64), unique=True, index=True, default=lambda: _uuid.uuid4().hex)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     members: Mapped[list["HouseholdMember"]] = relationship(

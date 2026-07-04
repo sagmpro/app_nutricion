@@ -65,12 +65,12 @@ async def invitar_usuario(request: Request, db: Session = Depends(get_db), email
     db.add(inv)
     db.commit()
     sent = send_invitation_email(email, token)
-    if sent:
-        return RedirectResponse(f"/admin/usuarios?success=Invitacion+enviada+a+{email}", status_code=303)
-    else:
-        # Show link directly if email not configured
-        invite_url = f"{settings.app_base_url}/registro/{token}"
-        return RedirectResponse(f"/admin/usuarios?success=Invitacion+creada&invite_link={invite_url}", status_code=303)
+    invite_url = f"{settings.app_base_url}/registro/{token}"
+    msg = "Invitacion+enviada+por+email+y" if sent else "Email+no+configurado+"
+    return RedirectResponse(
+        f"/admin/usuarios?success={msg}link+disponible&invite_link={invite_url}",
+        status_code=303,
+    )
 
 
 @router.post("/admin/usuarios/{user_id}/toggle")

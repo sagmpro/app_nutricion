@@ -203,6 +203,75 @@ def salir_hogar(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse("/hogar?success=Saliste+del+hogar", status_code=303)
 
 
+@router.get("/hogar/unirse/{token}")
+def ver_invitacion_hogar(token: str, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse(f"/login?next=/hogar/unirse/{token}", status_code=303)
+
+    household = db.query(Household).filter(Household.invite_token == token).first()
+    if not household:
+        return RedirectResponse("/hogar?error=Enlace+de+invitacion+invalido", status_code=303)
+
+    already = hs.get_member(current_user.id, db)
+    if already:
+        if already.household_id == household.id:
+            return RedirectResponse("/hogar?success=Ya+eres+miembro+de+este+hogar", status_code=303)
+        return RedirectResponse("/hogar?error=Ya+perteneces+a+otro+hogar.+Salí+primero.", status_code=303)
+
+    return templates.TemplateResponse(request, "household/join.html", {
+        "current_user": current_user,
+        "household": household,
+        "token": token,
+        "member_count": len(household.members),
+    })
+
+
+@router.post("/hogar/unirse/{token}")
+def unirse_hogar(token: str, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    household = db.query(Household).filter(Household.invite_token == token).first()
+    if not household:
+        return RedirectResponse("/hogar?error=Enlace+invalido", status_code=303)
+
+    already = hs.get_member(current_user.id, db)
+    if already:
+        return RedirectResponse("/hogar?error=Ya+perteneces+a+un+hogar", status_code=303)
+
+    new_member = HouseholdMember(household_id=household.id, user_id=current_user.id, role="member")
+    db.add(new_member)
+    db.commit()
+
+    moved = hs.migrate_stock_to_household(current_user.id, household.id, db)
+    return RedirectResponse(
+        f"/hogar?success=Te+uniste+a+{household.name}.+{moved}+items+de+stock+transferidos",
+        status_code=303,
+    )
+
+
+@router.post("/hogar/regenerar-link")
+def regenerar_link(request: Request, db: Session = Depends(get_db)):
+    """Generate a new invite token (invalidates old one)."""
+    import uuid
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    member = hs.get_member(current_user.id, db)
+    if not member or member.role != "owner":
+        return RedirectResponse("/hogar?error=Solo+el+dueno+puede+regenerar+el+link", status_code=303)
+
+    household = db.query(Household).filter(Household.id == member.household_id).first()
+    if household:
+        household.invite_token = uuid.uuid4().hex
+        db.commit()
+
+    return RedirectResponse("/hogar?success=Nuevo+link+de+invitacion+generado", status_code=303)
+
+
 @router.post("/hogar/plan-compartido/{plan_id}/toggle")
 def toggle_plan_compartido(plan_id: int, request: Request, db: Session = Depends(get_db)):
     """Mark/unmark a meal plan as the household's shared plan."""

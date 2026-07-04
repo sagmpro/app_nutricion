@@ -18,6 +18,8 @@ from app.services.nutrition import (
 from app.services.claude_service import (
     generate_meal_plan as claude_generate,
     generate_single_meal as claude_single_meal,
+    generate_real_recipe_meal as claude_real_recipe,
+    buscar_plato_por_nombre as claude_buscar_plato,
     analyze_food_photo as claude_analyze_photo,
     generate_recipe as claude_generate_recipe,
 )
@@ -245,16 +247,26 @@ def regenerar_comida(plan_id: int, meal_id: int, request: Request, db: Session =
     target_calories = int(target_total * calorie_pct.get(meal.meal_type, 0.20))
 
     other_meals = [m.name for m in meal_plan.meals if m.day_of_week == meal.day_of_week and m.id != meal_id]
+    new_regen_count = (meal.regen_count or 0) + 1
 
     try:
-        result = claude_single_meal(
-            profile=profile,
-            meal_type=meal.meal_type,
-            day_name=DAYS_OF_WEEK[meal.day_of_week],
-            target_calories=target_calories,
-            current_meal_name=meal.name,
-            other_meals=other_meals,
-        )
+        if new_regen_count >= 3:
+            # Use detailed real-recipe prompt after 3 regenerations
+            result = claude_real_recipe(
+                meal_name=meal.name,
+                meal_type=meal.meal_type,
+                target_calories=target_calories,
+                profile=profile,
+            )
+        else:
+            result = claude_single_meal(
+                profile=profile,
+                meal_type=meal.meal_type,
+                day_name=DAYS_OF_WEEK[meal.day_of_week],
+                target_calories=target_calories,
+                current_meal_name=meal.name,
+                other_meals=other_meals,
+            )
         meal.name = result.get("nombre", meal.name)
         meal.description = result.get("descripcion", meal.description)
         meal.calories = int(result.get("calorias", meal.calories))
@@ -262,6 +274,10 @@ def regenerar_comida(plan_id: int, meal_id: int, request: Request, db: Session =
         meal.carbs_g = float(result.get("carbohidratos_g", meal.carbs_g))
         meal.fat_g = float(result.get("grasas_g", meal.fat_g))
         meal.ingredients_json = _json.dumps(result.get("ingredientes", []))
+        # Store detailed recipe if provided
+        if result.get("receta_detallada"):
+            meal.recipe_text = _json.dumps({"pasos": result["receta_detallada"].split("\n"), "fuente": "receta_detallada"})
+        meal.regen_count = new_regen_count
         db.commit()
     except Exception as e:
         return RedirectResponse(f"/plan/{plan_id}?error=Error+regenerando+comida:+{str(e)[:80]}", status_code=303)
@@ -409,6 +425,102 @@ def generar_receta(plan_id: int, meal_id: int, request: Request, db: Session = D
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"error": str(e)[:100]}, status_code=500)
+
+
+@router.post("/plan/{plan_id}/comida/{meal_id}/buscar-plato")
+async def buscar_plato(
+    plan_id: int,
+    meal_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    nombre: str = Form(...),
+    usar_stock: str = Form(default="no"),
+):
+    """Search for a dish by name and return meal details as JSON for the UI modal."""
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
+    if not meal_plan:
+        return JSONResponse({"error": "Plan no encontrado"}, status_code=404)
+
+    meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    if not meal:
+        return JSONResponse({"error": "Comida no encontrada"}, status_code=404)
+
+    profile = meal_plan.profile
+    calorie_pct = {"desayuno": 0.25, "media_manana": 0.10, "almuerzo": 0.35, "media_tarde": 0.10, "cena": 0.20}
+    bmr = calculate_bmr(profile)
+    activity_days = get_activity_days_list(profile)
+    tdee = calculate_tdee(bmr, len(activity_days))
+    target_total = calculate_target_calories(profile, tdee)
+    target_calories = int(target_total * calorie_pct.get(meal.meal_type, 0.20))
+
+    stock_items = None
+    if usar_stock == "si":
+        raw_stock = db.query(FoodStock).filter(hs.stock_filter(current_user.id, db)).all()
+        stock_items = [{"nombre": s.name, "cantidad": s.quantity, "unidad": s.unit} for s in raw_stock]
+
+    try:
+        result = claude_buscar_plato(
+            nombre=nombre.strip(),
+            meal_type=meal.meal_type,
+            target_calories=target_calories,
+            stock_items=stock_items,
+            profile=profile,
+        )
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"error": str(e)[:100]}, status_code=500)
+
+
+@router.post("/plan/{plan_id}/comida/{meal_id}/reemplazar")
+async def reemplazar_plato(
+    plan_id: int,
+    meal_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    nombre: str = Form(...),
+    descripcion: str = Form(default=""),
+    calorias: str = Form(default="0"),
+    proteinas: str = Form(default="0"),
+    carbohidratos: str = Form(default="0"),
+    grasas: str = Form(default="0"),
+    ingredientes_json: str = Form(default="[]"),
+    receta_detallada: str = Form(default=""),
+):
+    """Replace a meal with a user-selected dish (from the search modal)."""
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
+    if not meal_plan:
+        return RedirectResponse("/plan", status_code=303)
+
+    meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    if meal:
+        meal.name = nombre.strip()
+        meal.description = descripcion.strip()
+        try:
+            meal.calories = int(float(calorias))
+            meal.protein_g = float(proteinas)
+            meal.carbs_g = float(carbohidratos)
+            meal.fat_g = float(grasas)
+        except (ValueError, TypeError):
+            pass
+        meal.ingredients_json = ingredientes_json or "[]"
+        if receta_detallada.strip():
+            import json as _j
+            meal.recipe_text = _j.dumps({"pasos": receta_detallada.strip().split("\n"), "fuente": "busqueda_personalizada"})
+        meal.consumed = False
+        meal.actual_calories = None
+        meal.actual_name = None
+        meal.regen_count = 0
+        db.commit()
+
+    return RedirectResponse(f"/plan/{plan_id}?success=Comida+reemplazada", status_code=303)
 
 
 @router.post("/plan/{plan_id}/copiar")

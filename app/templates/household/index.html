@@ -77,17 +77,38 @@
         {% endfor %}
       </div>
 
-      <!-- Invite form -->
-      <div class="pt-2">
-        <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Agregar miembro</h3>
+      <!-- Invite link -->
+      <div class="pt-2 border-t border-gray-100">
+        <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Invitar por link</h3>
+        <p class="text-xs text-gray-500 mb-2">Compartí este link con quien quieras agregar al hogar:</p>
+        <div class="flex gap-2 items-center">
+          <input id="invite-link" type="text" readonly
+            value="{{ request.url.scheme }}://{{ request.headers.get('host', 'localhost') }}/hogar/unirse/{{ household.invite_token }}"
+            class="input text-xs" style="font-family:monospace">
+          <button type="button" onclick="copyInviteLink()" class="btn-secondary" style="white-space:nowrap;font-size:0.75rem;padding:0.5rem 0.75rem">
+            Copiar
+          </button>
+        </div>
+        {% if member.role == 'owner' %}
+        <form method="POST" action="/hogar/regenerar-link" class="mt-2">
+          <button type="button" onclick="if(confirm('¿Invalidar el link anterior y generar uno nuevo?')) this.form.submit()"
+            class="text-xs text-gray-400 hover:text-red-500 transition-colors">
+            🔄 Regenerar link
+          </button>
+        </form>
+        {% endif %}
+      </div>
+
+      <!-- Invite by email (direct add) -->
+      <div class="pt-2 border-t border-gray-100">
+        <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Agregar por email (directo)</h3>
         <form method="POST" action="/hogar/invitar" class="flex gap-3 items-end">
           <div class="flex-1">
-            <label class="label">Email del usuario</label>
+            <label class="label">Email del usuario registrado</label>
             <input type="email" name="email" class="input" placeholder="email@ejemplo.com" required>
           </div>
           <button type="submit" class="btn-primary" style="white-space:nowrap">Agregar</button>
         </form>
-        <p class="text-xs text-gray-400 mt-2">El usuario debe estar registrado en NutriPlan.</p>
       </div>
     </div>
   </div>
@@ -156,4 +177,19 @@
 
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyInviteLink() {
+  const el = document.getElementById('invite-link');
+  el.select();
+  navigator.clipboard.writeText(el.value).then(() => {
+    const btn = el.nextElementSibling;
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copiado';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+</script>
 {% endblock %}
