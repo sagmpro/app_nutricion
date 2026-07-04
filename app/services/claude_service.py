@@ -89,11 +89,12 @@ Estilo de vida:
 Distribución calórica por comida:
 - Desayuno: ~25% | Media mañana: ~10% | Almuerzo: ~35% | Media tarde: ~10% | Cena: ~20%
 
-INSTRUCCIONES IMPORTANTES para reducir tokens:
+INSTRUCCIONES IMPORTANTES:
 - Desayuno, almuerzo y cena: 7 recetas distintas (una por día), variadas.
 - Media mañana y media tarde (snacks): usa SOLO 3-4 opciones diferentes que se repiten a lo largo de la semana. No inventes 7 snacks distintos.
 - Descripciones breves (máx 15 palabras).
 - Ingredientes: máximo 5 por comida.
+- CONSISTENCIA DE INGREDIENTES: usa nombres exactos y consistentes en todo el plan. Si un ingrediente puede estar crudo o cocido, elige UNO y mantenlo así toda la semana (ej: usa siempre "garbanzos cocidos" o siempre "garbanzos crudos", nunca ambos). Especifica el estado cuando sea relevante: "lentejas crudas", "garbanzos cocidos en conserva", "pechuga de pollo", "atún en conserva".
 
 Responde ÚNICAMENTE con un JSON válido (sin markdown, sin texto adicional):
 {{
@@ -181,7 +182,8 @@ Responde ÚNICAMENTE con JSON válido:
   ]
 }}
 
-Máximo 5 ingredientes. Cocina típica de España/Latinoamérica."""
+Máximo 5 ingredientes. Cocina típica de España/Latinoamérica.
+Usa nombres de ingredientes específicos y consistentes: indica el estado cuando sea relevante (ej: "garbanzos cocidos", "lentejas crudas", "atún en conserva")."""
 
     client = _get_client()
     message = client.messages.create(

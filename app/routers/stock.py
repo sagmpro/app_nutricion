@@ -79,6 +79,54 @@ def stock_eliminar(item_id: int, db: Session = Depends(get_db)):
     return RedirectResponse("/stock", status_code=303)
 
 
+@router.post("/stock/editar-todos")
+async def stock_editar_todos(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    count = int(form.get("count", 0))
+    updated = 0
+    for i in range(count):
+        id_str = form.get(f"id_{i}")
+        if not id_str:
+            continue
+        name = (form.get(f"name_{i}") or "").strip()
+        if not name:
+            continue
+        try:
+            item_id = int(id_str)
+            quantity = float(form.get(f"quantity_{i}") or 0)
+        except ValueError:
+            continue
+        unit = (form.get(f"unit_{i}") or "").strip()
+        category = (form.get(f"category_{i}") or "Otros").strip()
+        item = db.query(FoodStock).filter(FoodStock.id == item_id).first()
+        if item:
+            item.name = name
+            item.quantity = quantity
+            item.unit = unit
+            item.category = category
+            item.updated_at = datetime.now()
+            updated += 1
+    db.commit()
+    return RedirectResponse(f"/stock?success={updated}+ingrediente(s)+actualizados", status_code=303)
+
+
+@router.post("/stock/eliminar-varios")
+async def stock_eliminar_varios(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    ids = form.getlist("delete_ids")
+    count = 0
+    for id_str in ids:
+        try:
+            item = db.query(FoodStock).filter(FoodStock.id == int(id_str)).first()
+            if item:
+                db.delete(item)
+                count += 1
+        except (ValueError, TypeError):
+            pass
+    db.commit()
+    return RedirectResponse(f"/stock?success={count}+ingrediente(s)+eliminados", status_code=303)
+
+
 @router.post("/stock/desde-foto")
 async def stock_desde_foto(request: Request, db: Session = Depends(get_db), foto: UploadFile = File(...)):
     try:
