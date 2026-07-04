@@ -229,16 +229,28 @@ Usa nombres de ingredientes específicos y consistentes: indica el estado cuando
     return _parse_json(message.content[0].text)
 
 
-def generate_shopping_list(all_ingredients: list) -> dict:
+def generate_shopping_list(all_ingredients: list, stock_items: list | None = None) -> dict:
     """Call Claude to consolidate and categorize ingredients into a shopping list."""
     if not all_ingredients:
         return {"lista": []}
 
-    prompt = f"""Consolida y categoriza los siguientes ingredientes de un plan semanal de comidas.
+    stock_section = ""
+    if stock_items:
+        stock_section = f"""
+Stock disponible actualmente (descuenta lo que ya hay en casa):
+{json.dumps(stock_items, ensure_ascii=False)}
+
+Reglas de descuento:
+- Si el stock cubre completamente la cantidad necesaria, NO incluyas ese ingrediente.
+- Si cubre parcialmente (misma unidad), incluye solo la cantidad faltante.
+- Si las unidades difieren (ej: stock en "unidades", plan en "g"), incluye igual en la lista.
+"""
+
+    prompt = f"""Consolida y categoriza los ingredientes de un plan semanal de comidas para generar la lista de lo que hay que COMPRAR.
 Agrupa ingredientes iguales sumando sus cantidades (misma unidad) o listando por separado (distintas unidades).
 Normaliza nombres (ej: "tomates" → "Tomate").
-
-Ingredientes: {json.dumps(all_ingredients, ensure_ascii=False)}
+{stock_section}
+Ingredientes del plan: {json.dumps(all_ingredients, ensure_ascii=False)}
 
 Responde ÚNICAMENTE con JSON válido:
 {{
@@ -253,7 +265,8 @@ Responde ÚNICAMENTE con JSON válido:
   ]
 }}
 
-Categorías a usar: Frutas y Verduras, Proteínas, Lácteos y Huevos, Cereales y Legumbres, Aceites y Condimentos, Otros."""
+Categorías a usar: Frutas y Verduras, Proteínas, Lácteos y Huevos, Cereales y Legumbres, Aceites y Condimentos, Otros.
+Si todos los ingredientes están cubiertos por el stock, devuelve {{"lista": []}}."""
 
     client = _get_client()
     message = client.messages.create(

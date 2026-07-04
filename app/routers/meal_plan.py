@@ -273,9 +273,12 @@ async def confirmar_foto_consumida(
 ):
     meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
     if meal:
+        already_consumed = meal.consumed
         meal.consumed = True
         meal.actual_name = nombre.strip() or meal.name
         meal.actual_calories = int(calorias) if calorias.strip().isdigit() else None
+        if not already_consumed:
+            _deduct_from_stock(db, meal)
         db.commit()
     return RedirectResponse(f"/plan/{plan_id}", status_code=303)
 

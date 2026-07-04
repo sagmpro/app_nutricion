@@ -42,7 +42,11 @@ def generar_lista(plan_id: int, db: Session = Depends(get_db)):
         for meal in meal_plan.meals:
             all_ingredients.extend(json.loads(meal.ingredients_json or "[]"))
 
-        result = claude_shopping(all_ingredients)
+        stock_items = [
+            {"nombre": s.name, "cantidad": s.quantity, "unidad": s.unit}
+            for s in db.query(FoodStock).all()
+        ]
+        result = claude_shopping(all_ingredients, stock_items)
 
         for category_group in result.get("lista", []):
             category = category_group.get("categoria", "Otros")
