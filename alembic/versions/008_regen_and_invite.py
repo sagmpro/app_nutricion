@@ -33,8 +33,11 @@ def upgrade():
     if _table_exists(conn, "households") and not _column_exists(conn, "households", "invite_token"):
         op.add_column("households", sa.Column("invite_token", sa.String(64), nullable=True))
         op.create_index("ix_households_invite_token", "households", ["invite_token"])
-        # Backfill existing households with a unique token
-        conn.execute(sa.text("UPDATE households SET invite_token = lower(hex(randomblob(16))) WHERE invite_token IS NULL"))
+        # Backfill existing households using Python uuid (works on both SQLite and PostgreSQL)
+        rows = conn.execute(sa.text("SELECT id FROM households WHERE invite_token IS NULL")).fetchall()
+        for row in rows:
+            token = uuid.uuid4().hex
+            conn.execute(sa.text("UPDATE households SET invite_token = :token WHERE id = :id"), {"token": token, "id": row[0]})
 
 
 def downgrade():
