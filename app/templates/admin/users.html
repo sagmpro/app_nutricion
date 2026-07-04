@@ -164,9 +164,18 @@
           <p class="text-sm font-medium text-gray-900">{{ inv.email }}</p>
           <p class="text-xs text-gray-400 mt-0.5">Expira: {{ inv.expires_at.strftime('%d/%m/%Y %H:%M') }}</p>
         </div>
-        <span class="inline-flex items-center px-2.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">
-          Pendiente
-        </span>
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center px-2.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">
+            Pendiente
+          </span>
+          <form method="POST" action="/admin/invitaciones/{{ inv.id }}/cancelar">
+            <button type="submit"
+              class="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors"
+              onclick="return confirm('¿Cancelar la invitación para {{ inv.email }}?')">
+              Cancelar
+            </button>
+          </form>
+        </div>
       </div>
       {% endfor %}
     </div>

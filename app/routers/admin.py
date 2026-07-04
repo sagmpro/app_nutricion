@@ -112,6 +112,18 @@ def eliminar_usuario(user_id: int, request: Request, db: Session = Depends(get_d
     return RedirectResponse(f"/admin/usuarios?success=Usuario+{user.email}+eliminado", status_code=303)
 
 
+@router.post("/admin/invitaciones/{inv_id}/cancelar")
+def cancelar_invitacion(inv_id: int, request: Request, db: Session = Depends(get_db)):
+    current = _require_admin(request, db)
+    if isinstance(current, RedirectResponse):
+        return current
+    inv = db.query(Invitation).filter(Invitation.id == inv_id, Invitation.used == False).first()
+    if inv:
+        inv.used = True
+        db.commit()
+    return RedirectResponse("/admin/usuarios?success=Invitacion+cancelada", status_code=303)
+
+
 @router.post("/admin/usuarios/{user_id}/toggle")
 def toggle_usuario(user_id: int, request: Request, db: Session = Depends(get_db)):
     current = _require_admin(request, db)
