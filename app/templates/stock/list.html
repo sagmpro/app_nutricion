@@ -9,7 +9,7 @@
     <p class="text-gray-500 text-sm">{{ all_items | length }} ingrediente(s) en stock</p>
   </div>
   <!-- View mode buttons -->
-  <div id="view-bar" class="flex gap-2 flex-wrap">
+  <div id="view-bar" class="flex gap-3 flex-wrap">
     {% if all_items %}
     <button onclick="enterEditMode()" class="btn-secondary text-sm" title="Editar">
       ✏ <span class="hidden sm:inline">Editar</span>
@@ -23,7 +23,7 @@
     </button>
   </div>
   <!-- Edit mode buttons -->
-  <div id="edit-bar" class="hidden flex gap-2 flex-wrap items-center">
+  <div id="edit-bar" class="hidden flex gap-3 flex-wrap items-center">
     <button type="button" onclick="submitSave()" class="btn-primary text-sm" title="Guardar todo">
       💾 <span class="hidden sm:inline">Guardar todo</span>
     </button>
