@@ -73,6 +73,7 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float)
     lifestyle_section = "\n".join(lifestyle_lines)
 
     # Meal schedule
+    from app.services.nutrition import get_effective_meal_times
     all_meal_types = ["desayuno", "media_manana", "almuerzo", "media_tarde", "cena"]
     meal_labels_map = {"desayuno": "Desayuno", "media_manana": "Media mañana",
                        "almuerzo": "Almuerzo", "media_tarde": "Media tarde", "cena": "Cena"}
@@ -83,10 +84,9 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float)
         enabled_meals = json.loads(profile.enabled_meals) if getattr(profile, "enabled_meals", None) else all_meal_types
     except (ValueError, TypeError):
         enabled_meals = all_meal_types
-    try:
-        meal_times_dict = json.loads(profile.meal_times) if getattr(profile, "meal_times", None) else {}
-    except (ValueError, TypeError):
-        meal_times_dict = {}
+
+    # Resolve "auto" values so Claude receives concrete times, not the literal string "auto"
+    meal_times_dict = get_effective_meal_times(profile)
 
     total_pct = sum(base_pcts[m] for m in enabled_meals) or 100
     schedule_lines = []

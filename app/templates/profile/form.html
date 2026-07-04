@@ -117,7 +117,8 @@
         <div>
           <label class="label">Hasta</label>
           <input type="time" name="training_end" class="input"
-                 value="{{ profile.training_end if profile and profile.training_end else '' }}">
+                 value="{{ profile.training_end if profile and profile.training_end else '' }}"
+                 oninput="refreshAutoTimes()">
         </div>
       </div>
     </div>
@@ -541,6 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function getAutoTime(mealId) {
   const trainingVal = document.querySelector('[name=training_time]')?.value || '';
+  const endVal = document.querySelector('[name=training_end]')?.value || '';
   const fmt = m => {
     m = Math.max(300, Math.min(1380, Math.round(m / 15) * 15));
     return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
@@ -549,19 +551,25 @@ function getAutoTime(mealId) {
   if (!trainingVal) return defaults[mealId] || '12:00';
   const [th, tm] = trainingVal.split(':').map(Number);
   const tr = th * 60 + tm;
+  let te = tr + 90;
+  if (endVal) {
+    const [eh, em] = endVal.split(':').map(Number);
+    const candidate = eh * 60 + em;
+    if (candidate > tr) te = candidate;
+  }
   let times;
   if (tr < 720) {
-    times = { desayuno: tr-90, media_manana: tr+45, almuerzo: tr+195, media_tarde: tr+375, cena: tr+555 };
+    times = { desayuno: tr-90, media_manana: te+30, almuerzo: te+180, media_tarde: te+360, cena: te+540 };
     return fmt(times[mealId] ?? 480);
   } else if (tr < 1080) {
     const fixed = { desayuno: '07:00', media_manana: '10:30' };
     if (fixed[mealId]) return fixed[mealId];
-    times = { almuerzo: tr-90, media_tarde: tr+45, cena: tr+210 };
+    times = { almuerzo: tr-90, media_tarde: te+30, cena: te+150 };
     return fmt(times[mealId] ?? 480);
   } else {
     const fixed = { desayuno: '07:00', media_manana: '10:30', almuerzo: '13:30' };
     if (fixed[mealId]) return fixed[mealId];
-    times = { media_tarde: tr-90, cena: tr+45 };
+    times = { media_tarde: tr-90, cena: te+30 };
     return fmt(times[mealId] ?? 480);
   }
 }

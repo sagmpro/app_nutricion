@@ -28,7 +28,7 @@ def calculate_tdee(bmr: float, activity_days_count: int) -> float:
     return bmr * multiplier
 
 
-def calculate_auto_meal_times(training_time: "str | None") -> dict:
+def calculate_auto_meal_times(training_time: "str | None", training_end: "str | None" = None) -> dict:
     defaults = {"desayuno": "07:00", "media_manana": "10:30", "almuerzo": "13:30", "media_tarde": "17:00", "cena": "20:30"}
     if not training_time:
         return defaults
@@ -38,15 +38,27 @@ def calculate_auto_meal_times(training_time: "str | None") -> dict:
         return defaults
     tr = h * 60 + m
 
+    # Parse training end; default = start + 90 min
+    te = tr + 90
+    if training_end:
+        try:
+            eh, em = map(int, training_end.split(":"))
+            candidate = eh * 60 + em
+            if candidate > tr:
+                te = candidate
+        except Exception:
+            pass
+
     def fmt(mins: int) -> str:
         mins = max(300, min(1380, round(mins / 15) * 15))
         return f"{mins // 60:02d}:{mins % 60:02d}"
 
-    if tr < 720:
-        return {"desayuno": fmt(tr - 90), "media_manana": fmt(tr + 45), "almuerzo": fmt(tr + 195), "media_tarde": fmt(tr + 375), "cena": fmt(tr + 555)}
-    if tr < 1080:
-        return {"desayuno": "07:00", "media_manana": "10:30", "almuerzo": fmt(tr - 90), "media_tarde": fmt(tr + 45), "cena": fmt(tr + 210)}
-    return {"desayuno": "07:00", "media_manana": "10:30", "almuerzo": "13:30", "media_tarde": fmt(tr - 90), "cena": fmt(tr + 45)}
+    if tr < 720:   # mañana
+        return {"desayuno": fmt(tr - 90), "media_manana": fmt(te + 30), "almuerzo": fmt(te + 180), "media_tarde": fmt(te + 360), "cena": fmt(te + 540)}
+    if tr < 1080:  # mediodía / tarde temprana
+        return {"desayuno": "07:00", "media_manana": "10:30", "almuerzo": fmt(tr - 90), "media_tarde": fmt(te + 30), "cena": fmt(te + 150)}
+    # tarde-noche (>= 18:00)
+    return {"desayuno": "07:00", "media_manana": "10:30", "almuerzo": "13:30", "media_tarde": fmt(tr - 90), "cena": fmt(te + 30)}
 
 
 def get_effective_meal_times(profile: "UserProfile") -> dict:
@@ -55,7 +67,10 @@ def get_effective_meal_times(profile: "UserProfile") -> dict:
         stored = json.loads(profile.meal_times) if profile and profile.meal_times else {}
     except Exception:
         stored = {}
-    auto_times = calculate_auto_meal_times(profile.training_time if profile else None)
+    auto_times = calculate_auto_meal_times(
+        profile.training_time if profile else None,
+        profile.training_end if profile else None,
+    )
     result = {}
     for meal in ["desayuno", "media_manana", "almuerzo", "media_tarde", "cena"]:
         val = stored.get(meal, "")
