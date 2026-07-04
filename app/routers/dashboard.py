@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -12,6 +13,80 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
+def _build_greeting(profile, plans_count: int, today_consumed: int, today_total: int, week_consumed: int, week_total: int) -> dict:
+    first_name = profile.name.split()[0] if profile.name else "amigo"
+
+    if plans_count == 0:
+        return {
+            "greeting": f"¡Hola, {first_name}!",
+            "message": "Tu perfil está listo. Genera tu primer plan semanal y empieza tu camino hacia tus objetivos.",
+            "emoji": "🚀",
+            "color": "blue",
+        }
+
+    if week_total == 0:
+        return {
+            "greeting": f"¡Hola, {first_name}!",
+            "message": "Tienes un plan activo. Empieza a marcar las comidas que consumes para ver tu progreso.",
+            "emoji": "📋",
+            "color": "amber",
+        }
+
+    week_pct = round(week_consumed / week_total * 100) if week_total > 0 else 0
+
+    if today_total > 0:
+        if today_consumed == today_total:
+            return {
+                "greeting": f"¡Día completado, {first_name}!",
+                "message": f"Registraste las {today_total} comidas de hoy. Eso es constancia real. ¡Sigue mañana igual!",
+                "emoji": "🎉",
+                "color": "green",
+            }
+        if today_consumed == 0:
+            return {
+                "greeting": f"¡Hola, {first_name}!",
+                "message": f"Hoy tienes {today_total} comidas planificadas. Empieza a marcarlas a medida que las consumes.",
+                "emoji": "🍽️",
+                "color": "amber",
+            }
+        remaining = today_total - today_consumed
+        return {
+            "greeting": f"¡Vas bien, {first_name}!",
+            "message": f"Ya llevas {today_consumed}/{today_total} comidas hoy. {remaining} más y completarás el día.",
+            "emoji": "💪",
+            "color": "green",
+        }
+
+    # No meals today (plan is from another week)
+    if week_pct >= 80:
+        return {
+            "greeting": f"¡Gran semana, {first_name}!",
+            "message": f"Seguiste el {week_pct}% de tu plan esta semana. Esa disciplina marca la diferencia.",
+            "emoji": "🏆",
+            "color": "green",
+        }
+    if week_pct >= 50:
+        return {
+            "greeting": f"¡Buen trabajo, {first_name}!",
+            "message": f"Seguiste el {week_pct}% de tu plan. Cada comida registrada te acerca a tu objetivo.",
+            "emoji": "📈",
+            "color": "green",
+        }
+    if week_consumed > 0:
+        return {
+            "greeting": f"¡Hola, {first_name}!",
+            "message": f"Llevas {week_consumed} comidas registradas esta semana. Intenta marcarlas todas para ver tu progreso real.",
+            "emoji": "💡",
+            "color": "amber",
+        }
+    return {
+        "greeting": f"¡Hola, {first_name}!",
+        "message": "Tienes un plan listo. Recuerda marcar las comidas que consumes para seguir tu progreso.",
+        "emoji": "👋",
+        "color": "amber",
+    }
+
+
 @router.get("/dashboard")
 def dashboard(request: Request, db: Session = Depends(get_db)):
     profile = db.query(UserProfile).first()
@@ -19,9 +94,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         db.query(MealPlan).order_by(MealPlan.created_at.desc()).first()
         if profile else None
     )
+    plans_count = db.query(MealPlan).count() if profile else 0
     stock_count = db.query(FoodStock).count()
 
     stats = None
+    greeting = None
     if profile:
         bmr = calculate_bmr(profile)
         activity_days = get_activity_days_list(profile)
@@ -35,9 +112,31 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "activity_days": activity_names,
         }
 
+        # Compute consumed meal counts for greeting
+        today_consumed = 0
+        today_total = 0
+        week_consumed = 0
+        week_total = 0
+        if latest_plan:
+            today_weekday = date.today().weekday()
+            days_since = (date.today() - latest_plan.week_start).days
+            is_current_week = 0 <= days_since <= 6
+
+            for meal in latest_plan.meals:
+                week_total += 1
+                if meal.consumed:
+                    week_consumed += 1
+                if is_current_week and meal.day_of_week == today_weekday:
+                    today_total += 1
+                    if meal.consumed:
+                        today_consumed += 1
+
+        greeting = _build_greeting(profile, plans_count, today_consumed, today_total, week_consumed, week_total)
+
     return templates.TemplateResponse(request, "dashboard.html", {
         "profile": profile,
         "latest_plan": latest_plan,
         "stock_count": stock_count,
         "stats": stats,
+        "greeting": greeting,
     })

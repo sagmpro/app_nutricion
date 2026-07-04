@@ -2,11 +2,6 @@
 {% block title %}Dashboard - NutriPlan{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-  <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-  <p class="text-gray-400 text-sm mt-0.5">Resumen de tu plan nutricional</p>
-</div>
-
 {% if not profile %}
 <div class="card text-center py-14">
   <div class="text-5xl mb-4">🥗</div>
@@ -16,6 +11,18 @@
 </div>
 
 {% else %}
+
+<!-- Greeting banner -->
+{% if greeting %}
+{% set bg = "bg-green-600 text-white" if greeting.color == "green" else ("bg-blue-600 text-white" if greeting.color == "blue" else "bg-amber-500 text-white") %}
+<div class="rounded-2xl p-5 mb-6 {{ bg }} flex items-center gap-4">
+  <span class="text-4xl flex-shrink-0">{{ greeting.emoji }}</span>
+  <div>
+    <h1 class="text-xl font-bold leading-tight">{{ greeting.greeting }}</h1>
+    <p class="text-sm opacity-90 mt-0.5">{{ greeting.message }}</p>
+  </div>
+</div>
+{% endif %}
 
 <!-- Stats row -->
 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
