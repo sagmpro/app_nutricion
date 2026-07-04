@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crear cuenta — NutriPlan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Poppins', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center px-4">
+
+<div class="w-full max-w-sm">
+  <!-- Logo -->
+  <div class="text-center mb-8">
+    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-600 mb-4 shadow-lg">
+      <span class="text-3xl">🥗</span>
+    </div>
+    <h1 class="text-2xl font-bold text-gray-900">NutriPlan</h1>
+    <p class="text-gray-500 text-sm mt-1">Crea tu cuenta para empezar</p>
+  </div>
+
+  <!-- Card -->
+  <div class="bg-white rounded-2xl shadow border border-gray-200 p-8">
+    <h2 class="text-lg font-semibold text-gray-800 mb-2">Crear mi cuenta</h2>
+    <p class="text-gray-500 text-sm mb-6">
+      Fuiste invitado como <span class="font-medium text-gray-700">{{ email }}</span>
+    </p>
+
+    {% if error %}
+    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/registro/{{ token }}">
+
+      <div class="mb-4">
+        <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+          Correo electronico
+        </label>
+        <input
+          type="email"
+          value="{{ email }}"
+          disabled
+          class="block w-full rounded-xl px-4 py-3 text-sm bg-gray-100 border border-gray-200 text-gray-500 cursor-not-allowed"
+        >
+      </div>
+
+      <div class="mb-4">
+        <label for="password" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+          Contrasena
+        </label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          required
+          minlength="8"
+          autocomplete="new-password"
+          class="block w-full rounded-xl px-4 py-3 text-sm bg-gray-50 border border-gray-300 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-green-500 focus:bg-white"
+          placeholder="Minimo 8 caracteres"
+        >
+      </div>
+
+      <div class="mb-6">
+        <label for="password2" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+          Confirmar contrasena
+        </label>
+        <input
+          type="password"
+          id="password2"
+          name="password2"
+          required
+          minlength="8"
+          autocomplete="new-password"
+          class="block w-full rounded-xl px-4 py-3 text-sm bg-gray-50 border border-gray-300 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-green-500 focus:bg-white"
+          placeholder="Repite tu contrasena"
+        >
+      </div>
+
+      <button
+        type="submit"
+        class="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold py-3 rounded-xl transition-all shadow-sm text-sm"
+      >
+        Crear mi cuenta
+      </button>
+    </form>
+  </div>
+
+  <p class="text-center text-gray-400 text-xs mt-6">
+    Ya tienes cuenta? <a href="/login" class="text-green-600 hover:underline">Inicia sesion aqui</a>
+  </p>
+</div>
+
+</body>
+</html>

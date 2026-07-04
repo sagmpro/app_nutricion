@@ -121,6 +121,35 @@
           Configuración
         </a>
 
+        <!-- User menu -->
+        {% if current_user is defined and current_user %}
+        <div class="w-px h-5 bg-white/20 mx-1"></div>
+        {% if current_user.role == 'admin' %}
+        <a href="/admin/usuarios"
+           class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all
+                  {{ 'bg-white/20 border-white/40 text-white' if '/admin' in request.url.path else 'border-white/20 text-green-200 hover:bg-white/10 hover:border-white/35 hover:text-white' }}">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          Usuarios
+        </a>
+        {% endif %}
+        <div class="flex items-center gap-2 ml-1">
+          <span class="text-green-200 text-xs font-medium truncate max-w-[120px]" title="{{ current_user.email }}">
+            {{ current_user.email.split('@')[0] }}
+          </span>
+          <form method="POST" action="/logout" class="inline">
+            <button type="submit"
+              class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-white/20 text-green-200 hover:bg-white/10 hover:border-white/35 hover:text-white transition-all">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+              </svg>
+              Salir
+            </button>
+          </form>
+        </div>
+        {% endif %}
+
       </div>
       <!-- Mobile: hamburger + gear -->
       <div class="md:hidden flex items-center gap-0.5">
@@ -158,6 +187,22 @@
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
         Mi Stock
       </a>
+      {% if current_user is defined and current_user %}
+      {% if current_user.role == 'admin' %}
+      <a href="/admin/usuarios" class="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-green-100 hover:bg-white/10 hover:text-white {{ 'bg-white/15 text-white font-medium' if '/admin' in request.url.path }}">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        Usuarios
+      </a>
+      {% endif %}
+      <form method="POST" action="/logout" class="col-span-{% if current_user.role == 'admin' %}1{% else %}2{% endif %}">
+        <button type="submit" class="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-red-200 hover:bg-white/10 hover:text-white">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+          Salir ({{ current_user.email.split('@')[0] }})
+        </button>
+      </form>
+      {% endif %}
     </div>
   </div>
 </nav>

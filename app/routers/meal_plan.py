@@ -9,6 +9,7 @@ from app.models.profile import UserProfile
 from app.models.meal_plan import MealPlan
 from app.models.meal import Meal, MEAL_TYPE_ORDER, MEAL_TYPE_LABELS, MEAL_TYPES
 from app.models.food_stock import FoodStock
+from app.services.auth_service import get_current_user
 from app.services.nutrition import (
     calculate_bmr, calculate_tdee, calculate_target_calories,
     get_activity_days_list, DAYS_OF_WEEK, DAYS_SHORT,
@@ -87,21 +88,52 @@ def _save_meals_from_response(db: Session, plan_id: int, result: dict):
             db.add(meal)
 
 
+def _get_user_profile(db: Session, user_id: int):
+    """Get profile scoped to current user."""
+    return db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+
+
+def _get_user_plan(db: Session, plan_id: int, user_id: int):
+    """Get a meal plan ensuring it belongs to the current user."""
+    return (
+        db.query(MealPlan)
+        .join(UserProfile)
+        .filter(MealPlan.id == plan_id, UserProfile.user_id == user_id)
+        .first()
+    )
+
+
 @router.get("/plan")
 def plan_index(request: Request, db: Session = Depends(get_db)):
-    latest = db.query(MealPlan).order_by(MealPlan.created_at.desc()).first()
-    if latest:
-        return RedirectResponse(f"/plan/{latest.id}", status_code=303)
-    profile = db.query(UserProfile).first()
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    profile = _get_user_profile(db, current_user.id)
+    if profile:
+        latest = (
+            db.query(MealPlan)
+            .filter(MealPlan.profile_id == profile.id)
+            .order_by(MealPlan.created_at.desc())
+            .first()
+        )
+        if latest:
+            return RedirectResponse(f"/plan/{latest.id}", status_code=303)
+
     return templates.TemplateResponse(request, "meal_plan/no_plan.html", {
         "profile": profile,
         "error": request.query_params.get("error"),
+        "current_user": current_user,
     })
 
 
 @router.post("/plan/generar")
 async def generar_plan(request: Request, db: Session = Depends(get_db)):
-    profile = db.query(UserProfile).first()
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    profile = _get_user_profile(db, current_user.id)
     if not profile:
         return RedirectResponse("/perfil?error=Completa+tu+perfil+primero", status_code=303)
 
@@ -141,13 +173,23 @@ async def generar_plan(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/plan/{plan_id}")
 def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
-    meal_plan = db.query(MealPlan).filter(MealPlan.id == plan_id).first()
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
     if not meal_plan:
         return RedirectResponse("/plan", status_code=303)
 
     days = _build_days_data(meal_plan)
-    all_plans = db.query(MealPlan).order_by(MealPlan.created_at.desc()).all()
-    profile = db.query(UserProfile).first()
+    profile = _get_user_profile(db, current_user.id)
+    all_plans = (
+        db.query(MealPlan)
+        .filter(MealPlan.profile_id == profile.id)
+        .order_by(MealPlan.created_at.desc())
+        .all()
+    ) if profile else []
+
     from app.services.nutrition import get_effective_meal_times
     effective_meal_times = get_effective_meal_times(profile)
 
@@ -158,17 +200,25 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
         "has_shopping_list": meal_plan.shopping_list is not None,
         "error": request.query_params.get("error"),
         "effective_meal_times": effective_meal_times,
+        "current_user": current_user,
     })
 
 
 @router.post("/plan/{plan_id}/comida/{meal_id}/regenerar")
-def regenerar_comida(plan_id: int, meal_id: int, db: Session = Depends(get_db)):
+def regenerar_comida(plan_id: int, meal_id: int, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
     import json as _json
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
+    if not meal_plan:
+        return RedirectResponse("/plan", status_code=303)
+
     meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
     if not meal:
         return RedirectResponse(f"/plan/{plan_id}", status_code=303)
 
-    meal_plan = meal.meal_plan
     profile = meal_plan.profile
 
     calorie_pct = {"desayuno": 0.25, "media_manana": 0.10, "almuerzo": 0.35, "media_tarde": 0.10, "cena": 0.20}
@@ -204,8 +254,12 @@ def regenerar_comida(plan_id: int, meal_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/plan/{plan_id}/eliminar")
-def eliminar_plan(plan_id: int, db: Session = Depends(get_db)):
-    meal_plan = db.query(MealPlan).filter(MealPlan.id == plan_id).first()
+def eliminar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
     if meal_plan:
         db.delete(meal_plan)
         db.commit()
@@ -213,15 +267,19 @@ def eliminar_plan(plan_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/plan/{plan_id}/aprobar")
-def aprobar_plan(plan_id: int, db: Session = Depends(get_db)):
-    meal_plan = db.query(MealPlan).filter(MealPlan.id == plan_id).first()
+def aprobar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
     if meal_plan:
         meal_plan.status = "approved"
         db.commit()
     return RedirectResponse(f"/plan/{plan_id}", status_code=303)
 
 
-def _deduct_from_stock(db: Session, meal: Meal) -> None:
+def _deduct_from_stock(db: Session, meal: Meal, user_id: int) -> None:
     """Best-effort deduction of meal ingredients from stock when consumed."""
     ingredients = json.loads(meal.ingredients_json or "[]")
     for ing in ingredients:
@@ -230,7 +288,11 @@ def _deduct_from_stock(db: Session, meal: Meal) -> None:
         unit = ing.get("unidad", "")
         if not name or quantity <= 0:
             continue
-        stock_item = db.query(FoodStock).filter(FoodStock.name.ilike(name)).first()
+        stock_item = (
+            db.query(FoodStock)
+            .filter(FoodStock.name.ilike(name), FoodStock.user_id == user_id)
+            .first()
+        )
         if stock_item and stock_item.unit == unit:
             stock_item.quantity = max(0.0, stock_item.quantity - quantity)
             if stock_item.quantity == 0:
@@ -238,7 +300,15 @@ def _deduct_from_stock(db: Session, meal: Meal) -> None:
 
 
 @router.post("/plan/{plan_id}/comida/{meal_id}/consumir")
-def consumir_comida(plan_id: int, meal_id: int, db: Session = Depends(get_db)):
+def consumir_comida(plan_id: int, meal_id: int, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
+    if not meal_plan:
+        return RedirectResponse("/plan", status_code=303)
+
     meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
     if meal:
         meal.consumed = not meal.consumed
@@ -246,7 +316,7 @@ def consumir_comida(plan_id: int, meal_id: int, db: Session = Depends(get_db)):
             meal.actual_calories = None
             meal.actual_name = None
         else:
-            _deduct_from_stock(db, meal)
+            _deduct_from_stock(db, meal, current_user.id)
         db.commit()
     return RedirectResponse(f"/plan/{plan_id}", status_code=303)
 
@@ -267,10 +337,19 @@ async def foto_consumida_preview(plan_id: int, meal_id: int, foto: UploadFile = 
 async def confirmar_foto_consumida(
     plan_id: int,
     meal_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     nombre: str = Form(...),
     calorias: str = Form(default=""),
 ):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
+    if not meal_plan:
+        return RedirectResponse("/plan", status_code=303)
+
     meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
     if meal:
         already_consumed = meal.consumed
@@ -278,13 +357,21 @@ async def confirmar_foto_consumida(
         meal.actual_name = nombre.strip() or meal.name
         meal.actual_calories = int(calorias) if calorias.strip().isdigit() else None
         if not already_consumed:
-            _deduct_from_stock(db, meal)
+            _deduct_from_stock(db, meal, current_user.id)
         db.commit()
     return RedirectResponse(f"/plan/{plan_id}", status_code=303)
 
 
 @router.post("/plan/{plan_id}/comida/{meal_id}/receta")
-def generar_receta(plan_id: int, meal_id: int, db: Session = Depends(get_db)):
+def generar_receta(plan_id: int, meal_id: int, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
+    if not meal_plan:
+        return JSONResponse({"error": "Plan no encontrado"}, status_code=404)
+
     meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
     if not meal:
         return JSONResponse({"error": "Comida no encontrada"}, status_code=404)
@@ -308,10 +395,15 @@ def generar_receta(plan_id: int, meal_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/plan/{plan_id}/copiar")
-def copiar_plan(plan_id: int, db: Session = Depends(get_db)):
-    meal_plan = db.query(MealPlan).filter(MealPlan.id == plan_id).first()
+def copiar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
     if not meal_plan:
         return RedirectResponse("/plan", status_code=303)
+
     new_week_start = meal_plan.week_start + timedelta(days=7)
     new_plan = MealPlan(profile_id=meal_plan.profile_id, week_start=new_week_start, status="pending")
     db.add(new_plan)
@@ -336,8 +428,12 @@ def copiar_plan(plan_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/plan/{plan_id}/regenerar")
-def regenerar_plan(plan_id: int, db: Session = Depends(get_db)):
-    meal_plan = db.query(MealPlan).filter(MealPlan.id == plan_id).first()
+def regenerar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
     if not meal_plan:
         return RedirectResponse("/plan", status_code=303)
 

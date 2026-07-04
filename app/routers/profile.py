@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.profile import UserProfile
+from app.services.auth_service import get_current_user
 from app.services.nutrition import (
     calculate_bmr, calculate_tdee, calculate_target_calories,
     get_activity_days_list, get_effective_meal_times, DAYS_LETTERS, DAYS_OF_WEEK,
@@ -17,7 +18,11 @@ templates = Jinja2Templates(directory="app/templates")
 
 @router.get("/perfil")
 def perfil_form(request: Request, db: Session = Depends(get_db)):
-    profile = db.query(UserProfile).first()
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
     activity_days = get_activity_days_list(profile) if profile else []
 
     stats = None
@@ -49,13 +54,17 @@ def perfil_form(request: Request, db: Session = Depends(get_db)):
         "enabled_meals": enabled_meals,
         "meal_times": meal_times,
         "effective_meal_times": effective_meal_times,
+        "current_user": current_user,
     })
 
 
 @router.post("/perfil/proponer-horario")
-async def proponer_horario(db: Session = Depends(get_db)):
+async def proponer_horario(request: Request, db: Session = Depends(get_db)):
     from app.services.claude_service import propose_meal_schedule
-    profile = db.query(UserProfile).first()
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
     if not profile:
         return JSONResponse({"error": "Perfil no encontrado"}, status_code=404)
     try:
@@ -88,15 +97,19 @@ async def perfil_save(
     cooking_facilities: str = Form(default=""),
     max_meal_repeats: int = Form(default=2),
 ):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
     form_data = await request.form()
     activity_days = []
     for i in range(7):
         if form_data.get(f"day_{i}") == "1":
             activity_days.append(i)
 
-    profile = db.query(UserProfile).first()
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
     if not profile:
-        profile = UserProfile()
+        profile = UserProfile(user_id=current_user.id)
         db.add(profile)
 
     profile.name = name

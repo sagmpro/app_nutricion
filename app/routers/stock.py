@@ -5,6 +5,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.food_stock import FoodStock, STOCK_CATEGORIES
+from app.services.auth_service import get_current_user
 from app.services.claude_service import identify_stock_photo as claude_identify_photo
 
 router = APIRouter()
@@ -13,7 +14,16 @@ templates = Jinja2Templates(directory="app/templates")
 
 @router.get("/stock")
 def stock_list(request: Request, db: Session = Depends(get_db)):
-    items = db.query(FoodStock).order_by(FoodStock.category, FoodStock.name).all()
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    items = (
+        db.query(FoodStock)
+        .filter(FoodStock.user_id == current_user.id)
+        .order_by(FoodStock.category, FoodStock.name)
+        .all()
+    )
 
     categories: dict[str, list] = {}
     for item in items:
@@ -25,18 +35,28 @@ def stock_list(request: Request, db: Session = Depends(get_db)):
         "stock_categories": STOCK_CATEGORIES,
         "success": request.query_params.get("success"),
         "error": request.query_params.get("error"),
+        "current_user": current_user,
     })
 
 
 @router.post("/stock/nuevo")
 def stock_nuevo(
+    request: Request,
     db: Session = Depends(get_db),
     name: str = Form(...),
     quantity: float = Form(...),
     unit: str = Form(...),
     category: str = Form(...),
 ):
-    existing = db.query(FoodStock).filter(FoodStock.name.ilike(name)).first()
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    existing = (
+        db.query(FoodStock)
+        .filter(FoodStock.name.ilike(name), FoodStock.user_id == current_user.id)
+        .first()
+    )
     if existing:
         if existing.unit == unit:
             existing.quantity += quantity
@@ -45,7 +65,7 @@ def stock_nuevo(
             existing.unit = unit
         existing.updated_at = datetime.now()
     else:
-        db.add(FoodStock(name=name, quantity=quantity, unit=unit, category=category))
+        db.add(FoodStock(name=name, quantity=quantity, unit=unit, category=category, user_id=current_user.id))
     db.commit()
     return RedirectResponse("/stock?success=Item+agregado", status_code=303)
 
@@ -53,13 +73,18 @@ def stock_nuevo(
 @router.post("/stock/{item_id}/editar")
 def stock_editar(
     item_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     name: str = Form(...),
     quantity: float = Form(...),
     unit: str = Form(...),
     category: str = Form(...),
 ):
-    item = db.query(FoodStock).filter(FoodStock.id == item_id).first()
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    item = db.query(FoodStock).filter(FoodStock.id == item_id, FoodStock.user_id == current_user.id).first()
     if item:
         item.name = name
         item.quantity = quantity
@@ -71,8 +96,12 @@ def stock_editar(
 
 
 @router.post("/stock/{item_id}/eliminar")
-def stock_eliminar(item_id: int, db: Session = Depends(get_db)):
-    item = db.query(FoodStock).filter(FoodStock.id == item_id).first()
+def stock_eliminar(item_id: int, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    item = db.query(FoodStock).filter(FoodStock.id == item_id, FoodStock.user_id == current_user.id).first()
     if item:
         db.delete(item)
         db.commit()
@@ -81,6 +110,10 @@ def stock_eliminar(item_id: int, db: Session = Depends(get_db)):
 
 @router.post("/stock/editar-todos")
 async def stock_editar_todos(request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
     form = await request.form()
     count = int(form.get("count", 0))
     updated = 0
@@ -98,7 +131,7 @@ async def stock_editar_todos(request: Request, db: Session = Depends(get_db)):
             continue
         unit = (form.get(f"unit_{i}") or "").strip()
         category = (form.get(f"category_{i}") or "Otros").strip()
-        item = db.query(FoodStock).filter(FoodStock.id == item_id).first()
+        item = db.query(FoodStock).filter(FoodStock.id == item_id, FoodStock.user_id == current_user.id).first()
         if item:
             item.name = name
             item.quantity = quantity
@@ -112,12 +145,19 @@ async def stock_editar_todos(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/stock/eliminar-varios")
 async def stock_eliminar_varios(request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
     form = await request.form()
     ids = form.getlist("delete_ids")
     count = 0
     for id_str in ids:
         try:
-            item = db.query(FoodStock).filter(FoodStock.id == int(id_str)).first()
+            item = db.query(FoodStock).filter(
+                FoodStock.id == int(id_str),
+                FoodStock.user_id == current_user.id,
+            ).first()
             if item:
                 db.delete(item)
                 count += 1
@@ -129,6 +169,10 @@ async def stock_eliminar_varios(request: Request, db: Session = Depends(get_db))
 
 @router.post("/stock/desde-foto")
 async def stock_desde_foto(request: Request, db: Session = Depends(get_db), foto: UploadFile = File(...)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
     try:
         image_bytes = await foto.read()
         media_type = foto.content_type or "image/jpeg"
@@ -139,6 +183,7 @@ async def stock_desde_foto(request: Request, db: Session = Depends(get_db), foto
         return templates.TemplateResponse(request, "stock/review_foto.html", {
             "items": items,
             "stock_categories": STOCK_CATEGORIES,
+            "current_user": current_user,
         })
     except Exception as e:
         return RedirectResponse(f"/stock?error=Error+analizando+foto:+{str(e)[:60]}", status_code=303)
@@ -146,6 +191,10 @@ async def stock_desde_foto(request: Request, db: Session = Depends(get_db), foto
 
 @router.post("/stock/confirmar-foto")
 async def stock_confirmar_foto(request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
     form = await request.form()
     count = int(form.get("count", 0))
     includes = set(form.getlist("include"))
@@ -164,7 +213,11 @@ async def stock_confirmar_foto(request: Request, db: Session = Depends(get_db)):
         unit = (form.get(f"unit_{i}") or "unidades").strip()
         category = form.get(f"category_{i}") or "Otros"
 
-        existing = db.query(FoodStock).filter(FoodStock.name.ilike(name)).first()
+        existing = (
+            db.query(FoodStock)
+            .filter(FoodStock.name.ilike(name), FoodStock.user_id == current_user.id)
+            .first()
+        )
         if existing:
             if existing.unit == unit:
                 existing.quantity += quantity
@@ -173,8 +226,8 @@ async def stock_confirmar_foto(request: Request, db: Session = Depends(get_db)):
                 existing.unit = unit
             existing.updated_at = datetime.now()
         else:
-            db.add(FoodStock(name=name, quantity=quantity, unit=unit, category=category))
+            db.add(FoodStock(name=name, quantity=quantity, unit=unit, category=category, user_id=current_user.id))
         added += 1
 
     db.commit()
-    return RedirectResponse(f"/stock?success={added}+ingrediente(s)+añadidos+al+stock", status_code=303)
+    return RedirectResponse(f"/stock?success={added}+ingrediente(s)+anadidos+al+stock", status_code=303)

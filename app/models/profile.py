@@ -2,11 +2,12 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import sqlalchemy as sa
-from sqlalchemy import String, Float, Integer, DateTime, func
+from sqlalchemy import String, Float, Integer, DateTime, ForeignKey, func
 from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.meal_plan import MealPlan
+    from app.models.user import User
 
 
 class UserProfile(Base):
@@ -46,5 +47,8 @@ class UserProfile(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    user: Mapped[Optional["User"]] = relationship(back_populates="profile")
 
     meal_plans: Mapped[list["MealPlan"]] = relationship(back_populates="profile")
