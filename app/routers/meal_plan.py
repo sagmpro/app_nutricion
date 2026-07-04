@@ -10,6 +10,7 @@ from app.models.meal_plan import MealPlan
 from app.models.meal import Meal, MEAL_TYPE_ORDER, MEAL_TYPE_LABELS, MEAL_TYPES
 from app.models.food_stock import FoodStock
 from app.services.auth_service import get_current_user
+from app.services import household_service as hs
 from app.services.nutrition import (
     calculate_bmr, calculate_tdee, calculate_target_calories,
     get_activity_days_list, DAYS_OF_WEEK, DAYS_SHORT,
@@ -94,13 +95,24 @@ def _get_user_profile(db: Session, user_id: int):
 
 
 def _get_user_plan(db: Session, plan_id: int, user_id: int):
-    """Get a meal plan ensuring it belongs to the current user."""
-    return (
+    """Get a meal plan belonging to the user or a shared household plan."""
+    from app.models.household import HouseholdMember
+    plan = (
         db.query(MealPlan)
         .join(UserProfile)
         .filter(MealPlan.id == plan_id, UserProfile.user_id == user_id)
         .first()
     )
+    if plan:
+        return plan
+    member = db.query(HouseholdMember).filter(HouseholdMember.user_id == user_id).first()
+    if member:
+        return db.query(MealPlan).filter(
+            MealPlan.id == plan_id,
+            MealPlan.household_id == member.household_id,
+            MealPlan.is_shared == True,
+        ).first()
+    return None
 
 
 @router.get("/plan")
@@ -193,14 +205,18 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
     from app.services.nutrition import get_effective_meal_times
     effective_meal_times = get_effective_meal_times(profile)
 
+    household_member = hs.get_member(current_user.id, db)
+
     return templates.TemplateResponse(request, "meal_plan/view.html", {
         "meal_plan": meal_plan,
         "days": days,
         "all_plans": all_plans,
         "has_shopping_list": meal_plan.shopping_list is not None,
         "error": request.query_params.get("error"),
+        "success": request.query_params.get("success"),
         "effective_meal_times": effective_meal_times,
         "current_user": current_user,
+        "household_member": household_member,
     })
 
 
@@ -280,8 +296,9 @@ def aprobar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)):
 
 
 def _deduct_from_stock(db: Session, meal: Meal, user_id: int) -> None:
-    """Best-effort deduction of meal ingredients from stock when consumed."""
+    """Best-effort deduction of meal ingredients from household/personal stock when consumed."""
     ingredients = json.loads(meal.ingredients_json or "[]")
+    scope = hs.stock_filter(user_id, db)
     for ing in ingredients:
         name = ing.get("nombre", "").strip()
         quantity = float(ing.get("cantidad", 0))
@@ -290,7 +307,7 @@ def _deduct_from_stock(db: Session, meal: Meal, user_id: int) -> None:
             continue
         stock_item = (
             db.query(FoodStock)
-            .filter(FoodStock.name.ilike(name), FoodStock.user_id == user_id)
+            .filter(FoodStock.name.ilike(name), scope)
             .first()
         )
         if stock_item and stock_item.unit == unit:

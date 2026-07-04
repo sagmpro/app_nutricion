@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models.food_stock import FoodStock, STOCK_CATEGORIES
 from app.services.auth_service import get_current_user
 from app.services.claude_service import identify_stock_photo as claude_identify_photo
+from app.services import household_service as hs
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -20,7 +21,7 @@ def stock_list(request: Request, db: Session = Depends(get_db)):
 
     items = (
         db.query(FoodStock)
-        .filter(FoodStock.user_id == current_user.id)
+        .filter(hs.stock_filter(current_user.id, db))
         .order_by(FoodStock.category, FoodStock.name)
         .all()
     )
@@ -36,6 +37,7 @@ def stock_list(request: Request, db: Session = Depends(get_db)):
         "success": request.query_params.get("success"),
         "error": request.query_params.get("error"),
         "current_user": current_user,
+        "household": hs.get_member(current_user.id, db),
     })
 
 
@@ -54,9 +56,10 @@ def stock_nuevo(
 
     existing = (
         db.query(FoodStock)
-        .filter(FoodStock.name.ilike(name), FoodStock.user_id == current_user.id)
+        .filter(FoodStock.name.ilike(name), hs.stock_filter(current_user.id, db))
         .first()
     )
+    kwargs = hs.new_stock_kwargs(current_user.id, db)
     if existing:
         if existing.unit == unit:
             existing.quantity += quantity
@@ -65,7 +68,7 @@ def stock_nuevo(
             existing.unit = unit
         existing.updated_at = datetime.now()
     else:
-        db.add(FoodStock(name=name, quantity=quantity, unit=unit, category=category, user_id=current_user.id))
+        db.add(FoodStock(name=name, quantity=quantity, unit=unit, category=category, **kwargs))
     db.commit()
     return RedirectResponse("/stock?success=Item+agregado", status_code=303)
 
@@ -84,7 +87,9 @@ def stock_editar(
     if not current_user:
         return RedirectResponse("/login", status_code=303)
 
-    item = db.query(FoodStock).filter(FoodStock.id == item_id, FoodStock.user_id == current_user.id).first()
+    item = db.query(FoodStock).filter(
+        FoodStock.id == item_id, hs.stock_filter(current_user.id, db)
+    ).first()
     if item:
         item.name = name
         item.quantity = quantity
@@ -101,7 +106,9 @@ def stock_eliminar(item_id: int, request: Request, db: Session = Depends(get_db)
     if not current_user:
         return RedirectResponse("/login", status_code=303)
 
-    item = db.query(FoodStock).filter(FoodStock.id == item_id, FoodStock.user_id == current_user.id).first()
+    item = db.query(FoodStock).filter(
+        FoodStock.id == item_id, hs.stock_filter(current_user.id, db)
+    ).first()
     if item:
         db.delete(item)
         db.commit()
@@ -131,7 +138,9 @@ async def stock_editar_todos(request: Request, db: Session = Depends(get_db)):
             continue
         unit = (form.get(f"unit_{i}") or "").strip()
         category = (form.get(f"category_{i}") or "Otros").strip()
-        item = db.query(FoodStock).filter(FoodStock.id == item_id, FoodStock.user_id == current_user.id).first()
+        item = db.query(FoodStock).filter(
+            FoodStock.id == item_id, hs.stock_filter(current_user.id, db)
+        ).first()
         if item:
             item.name = name
             item.quantity = quantity
@@ -156,7 +165,7 @@ async def stock_eliminar_varios(request: Request, db: Session = Depends(get_db))
         try:
             item = db.query(FoodStock).filter(
                 FoodStock.id == int(id_str),
-                FoodStock.user_id == current_user.id,
+                hs.stock_filter(current_user.id, db),
             ).first()
             if item:
                 db.delete(item)
@@ -198,6 +207,7 @@ async def stock_confirmar_foto(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     count = int(form.get("count", 0))
     includes = set(form.getlist("include"))
+    kwargs = hs.new_stock_kwargs(current_user.id, db)
 
     added = 0
     for i in range(count):
@@ -215,7 +225,7 @@ async def stock_confirmar_foto(request: Request, db: Session = Depends(get_db)):
 
         existing = (
             db.query(FoodStock)
-            .filter(FoodStock.name.ilike(name), FoodStock.user_id == current_user.id)
+            .filter(FoodStock.name.ilike(name), hs.stock_filter(current_user.id, db))
             .first()
         )
         if existing:
@@ -226,7 +236,7 @@ async def stock_confirmar_foto(request: Request, db: Session = Depends(get_db)):
                 existing.unit = unit
             existing.updated_at = datetime.now()
         else:
-            db.add(FoodStock(name=name, quantity=quantity, unit=unit, category=category, user_id=current_user.id))
+            db.add(FoodStock(name=name, quantity=quantity, unit=unit, category=category, **kwargs))
         added += 1
 
     db.commit()

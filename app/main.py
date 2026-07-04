@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from app.routers import dashboard, profile, meal_plan, shopping, stock
 from app.routers import auth as auth_router
 from app.routers import admin as admin_router
+from app.routers import household as household_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
 
@@ -12,6 +13,7 @@ app = FastAPI(title="NutriPlan")
 
 app.include_router(auth_router.router)
 app.include_router(admin_router.router)
+app.include_router(household_router.router)
 app.include_router(dashboard.router)
 app.include_router(profile.router)
 app.include_router(meal_plan.router)

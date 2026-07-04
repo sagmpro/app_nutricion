@@ -15,6 +15,7 @@ class FoodStock(Base):
     category: Mapped[str] = mapped_column(String(100), default="Otros")
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    household_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("households.id"), nullable=True, index=True)
 
 STOCK_CATEGORIES = [
     "Frutas y Verduras",
