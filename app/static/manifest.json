@@ -1,0 +1,18 @@
+{
+  "name": "NutriPlan",
+  "short_name": "NutriPlan",
+  "description": "Tu planificador de nutrición personalizado con IA",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#16a34a",
+  "theme_color": "#16a34a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

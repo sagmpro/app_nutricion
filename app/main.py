@@ -2,6 +2,7 @@ import os
 import logging
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from app.routers import dashboard, profile, meal_plan, shopping, stock
 from app.routers import auth as auth_router
 from app.routers import admin as admin_router
@@ -10,6 +11,7 @@ from app.routers import household as household_router
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
 
 app = FastAPI(title="NutriPlan")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 app.include_router(auth_router.router)
 app.include_router(admin_router.router)
