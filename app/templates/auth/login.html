@@ -25,16 +25,20 @@
 <div class="w-full max-w-sm">
   <!-- Logo -->
   <div class="text-center mb-8">
-    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-600 mb-4 shadow-lg">
-      <span class="text-3xl">🥗</span>
+    <div id="logo-icon" class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-600 mb-4 shadow-lg transition-colors duration-300">
+      <span id="logo-emoji" class="text-3xl">🥗</span>
     </div>
     <h1 class="text-2xl font-bold text-gray-900">NutriPlan</h1>
-    <p class="text-gray-500 text-sm mt-1">Tu asistente de nutricion personalizado</p>
+    <p id="subtitle" class="text-gray-500 text-sm mt-1">Tu asistente de nutricion personalizado</p>
   </div>
 
   <!-- Card -->
-  <div class="bg-white rounded-2xl shadow border border-gray-200 p-8">
-    <h2 class="text-lg font-semibold text-gray-800 mb-6">Iniciar sesion</h2>
+  <div id="login-card" class="bg-white rounded-2xl shadow border border-gray-200 p-8 transition-all duration-300">
+    <!-- Mode badge -->
+    <div class="flex items-center justify-between mb-6">
+      <h2 id="card-title" class="text-lg font-semibold text-gray-800">Iniciar sesion</h2>
+      <span id="mode-badge" class="text-xs font-medium px-2.5 py-1 rounded-full bg-green-100 text-green-700">Usuario</span>
+    </div>
 
     {% if error %}
     <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
@@ -43,7 +47,7 @@
     {% endif %}
 
     <form method="POST" action="/login">
-      <input type="hidden" name="next" value="{{ next or '/dashboard' }}">
+      <input type="hidden" name="next" id="next-field" value="{{ next or '/dashboard' }}">
 
       <div class="mb-4">
         <label for="email" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
@@ -61,7 +65,7 @@
         >
       </div>
 
-      <div class="mb-6">
+      <div class="mb-5">
         <label for="password" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
           Contrasena
         </label>
@@ -76,7 +80,19 @@
         >
       </div>
 
+      <!-- Admin toggle -->
+      <div class="mb-5 flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200 cursor-pointer select-none" onclick="toggleAdmin()">
+        <div id="toggle-track" class="relative w-10 h-5 rounded-full bg-gray-300 transition-colors duration-200 flex-shrink-0">
+          <div id="toggle-thumb" class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"></div>
+        </div>
+        <div>
+          <p id="toggle-label" class="text-sm font-medium text-gray-700">Modo usuario</p>
+          <p id="toggle-desc" class="text-xs text-gray-400">Activar para acceso administrador</p>
+        </div>
+      </div>
+
       <button
+        id="submit-btn"
         type="submit"
         class="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold py-3 rounded-xl transition-all shadow-sm text-sm"
       >
@@ -89,6 +105,56 @@
     Para acceder necesitas una invitacion del administrador.
   </p>
 </div>
+
+<script>
+  let isAdmin = false;
+
+  function toggleAdmin() {
+    isAdmin = !isAdmin;
+    const track = document.getElementById('toggle-track');
+    const thumb = document.getElementById('toggle-thumb');
+    const badge = document.getElementById('mode-badge');
+    const label = document.getElementById('toggle-label');
+    const desc = document.getElementById('toggle-desc');
+    const logoIcon = document.getElementById('logo-icon');
+    const logoEmoji = document.getElementById('logo-emoji');
+    const subtitle = document.getElementById('subtitle');
+    const nextField = document.getElementById('next-field');
+    const submitBtn = document.getElementById('submit-btn');
+
+    if (isAdmin) {
+      track.classList.remove('bg-gray-300');
+      track.classList.add('bg-gray-700');
+      thumb.style.transform = 'translateX(20px)';
+      badge.textContent = 'Administrador';
+      badge.className = 'text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-700';
+      label.textContent = 'Modo administrador';
+      desc.textContent = 'Acceso al panel de gestion';
+      logoIcon.classList.remove('bg-green-600');
+      logoIcon.classList.add('bg-gray-800');
+      logoEmoji.textContent = '🔐';
+      subtitle.textContent = 'Panel de administracion';
+      nextField.value = '/admin/usuarios';
+      submitBtn.classList.remove('bg-green-600', 'hover:bg-green-700', 'active:bg-green-800');
+      submitBtn.classList.add('bg-gray-800', 'hover:bg-gray-900', 'active:bg-black');
+    } else {
+      track.classList.remove('bg-gray-700');
+      track.classList.add('bg-gray-300');
+      thumb.style.transform = 'translateX(0)';
+      badge.textContent = 'Usuario';
+      badge.className = 'text-xs font-medium px-2.5 py-1 rounded-full bg-green-100 text-green-700';
+      label.textContent = 'Modo usuario';
+      desc.textContent = 'Activar para acceso administrador';
+      logoIcon.classList.remove('bg-gray-800');
+      logoIcon.classList.add('bg-green-600');
+      logoEmoji.textContent = '🥗';
+      subtitle.textContent = 'Tu asistente de nutricion personalizado';
+      nextField.value = '/dashboard';
+      submitBtn.classList.remove('bg-gray-800', 'hover:bg-gray-900', 'active:bg-black');
+      submitBtn.classList.add('bg-green-600', 'hover:bg-green-700', 'active:bg-green-800');
+    }
+  }
+</script>
 
 </body>
 </html>

@@ -1,4 +1,4 @@
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional
@@ -7,15 +7,16 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models.user import User
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        return _bcrypt.checkpw(plain.encode(), hashed.encode())
+    except Exception:
+        return False
 
 
 def create_session_token(user_id: int) -> str:
