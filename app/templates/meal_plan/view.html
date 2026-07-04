@@ -355,7 +355,11 @@ function showDay(idx) {
 showDay(0);
 
 function togglePhotoForm(mealId) {
-  document.getElementById('photo-form-' + mealId).classList.toggle('hidden');
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    document.getElementById('foto-input-' + mealId).click();
+  } else {
+    document.getElementById('photo-form-' + mealId).classList.toggle('hidden');
+  }
 }
 
 function closeFotoModal() {

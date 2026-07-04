@@ -15,7 +15,7 @@
       ✏ <span class="hidden sm:inline">Editar</span>
     </button>
     {% endif %}
-    <button onclick="togglePanel('photo-form','add-form')" class="btn-secondary text-sm" title="Añadir desde foto">
+    <button onclick="openFotoOrPanel()" class="btn-secondary text-sm" title="Añadir desde foto">
       📷 <span class="hidden sm:inline">Añadir desde foto</span>
     </button>
     <button onclick="togglePanel('add-form','photo-form')" class="btn-primary text-sm" title="Agregar manual">
@@ -43,6 +43,14 @@
 {% if error %}
 <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-red-700 text-sm">{{ error }}</div>
 {% endif %}
+
+<!-- Mobile direct camera form (hidden, auto-submits on file select) -->
+<form id="mobile-foto-form" method="POST" action="/stock/desde-foto" enctype="multipart/form-data"
+      data-loading data-loading-title="Analizando foto..."
+      data-loading-subtitle="Claude está identificando los ingredientes en la imagen.">
+  <input type="file" id="mobile-foto-input" name="foto" accept="image/*" capture="environment"
+         class="hidden" onchange="this.form.submit()">
+</form>
 
 <!-- Photo upload form -->
 <div id="photo-form" class="hidden card mb-6 bg-purple-50 border border-purple-200">
@@ -192,6 +200,14 @@
 function togglePanel(showId, hideId) {
   document.getElementById(hideId).classList.add('hidden');
   document.getElementById(showId).classList.toggle('hidden');
+}
+
+function openFotoOrPanel() {
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    document.getElementById('mobile-foto-input').click();
+  } else {
+    togglePanel('photo-form', 'add-form');
+  }
 }
 
 function enterEditMode() {
