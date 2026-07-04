@@ -79,10 +79,15 @@
         <span class="flex-1 text-sm {{ 'line-through text-gray-400' if item.checked else 'text-gray-700' }}">
           {{ item.name }}
         </span>
-        <span class="text-sm text-gray-500 flex-shrink-0">
-          {{ item.quantity | int if item.quantity == item.quantity | int else item.quantity }}
-          {{ item.unit }}
-        </span>
+        <form method="POST" action="/compras/items/{{ item.id }}/cantidad"
+              class="flex items-center gap-1 flex-shrink-0">
+          <input type="number" name="quantity" step="0.01" min="0"
+                 value="{{ item.quantity | int if item.quantity == item.quantity | int else item.quantity }}"
+                 onchange="this.form.submit()"
+                 class="w-16 text-sm text-right border border-gray-200 rounded-lg px-2 py-0.5 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-green-400
+                        {{ 'text-gray-400' if item.checked else 'text-gray-700' }}">
+          <span class="text-sm text-gray-400 w-10">{{ item.unit }}</span>
+        </form>
         {% set stock = stock_map.get(item.name.lower()) %}
         {% if stock %}
         <span class="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded" title="Tienes {{ stock.quantity }} {{ stock.unit }} en stock">

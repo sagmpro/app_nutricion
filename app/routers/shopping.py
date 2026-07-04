@@ -95,6 +95,19 @@ def ver_lista(request: Request, list_id: int, db: Session = Depends(get_db)):
     })
 
 
+@router.post("/compras/items/{item_id}/cantidad")
+async def actualizar_cantidad(item_id: int, request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    item = db.query(ShoppingItem).filter(ShoppingItem.id == item_id).first()
+    if item:
+        try:
+            item.quantity = max(0.0, float(form.get("quantity", item.quantity)))
+            db.commit()
+        except (ValueError, TypeError):
+            pass
+    return RedirectResponse(f"/compras/{item.shopping_list_id}", status_code=303)
+
+
 @router.post("/compras/items/{item_id}/toggle")
 def toggle_item(item_id: int, db: Session = Depends(get_db)):
     item = db.query(ShoppingItem).filter(ShoppingItem.id == item_id).first()
