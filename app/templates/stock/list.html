@@ -3,13 +3,13 @@
 
 {% block content %}
 
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-  <div>
+<div class="flex items-center justify-between gap-3 mb-6">
+  <div class="min-w-0">
     <h1 class="text-2xl font-bold text-gray-800">Mi Despensa</h1>
     <p class="text-gray-500 text-sm">{{ all_items | length }} ingrediente(s) en stock</p>
   </div>
   <!-- View mode buttons -->
-  <div id="view-bar" class="flex gap-3 flex-wrap">
+  <div id="view-bar" class="flex gap-3 flex-wrap justify-end flex-shrink-0">
     {% if all_items %}
     <button onclick="enterEditMode()" class="btn-secondary text-sm" title="Editar">
       ✏ <span class="hidden sm:inline">Editar</span>
@@ -23,7 +23,7 @@
     </button>
   </div>
   <!-- Edit mode buttons -->
-  <div id="edit-bar" class="hidden flex gap-3 flex-wrap items-center">
+  <div id="edit-bar" class="hidden flex gap-3 flex-wrap items-center justify-end flex-shrink-0">
     <button type="button" onclick="submitSave()" class="btn-primary text-sm" title="Guardar todo">
       💾 <span class="hidden sm:inline">Guardar todo</span>
     </button>
