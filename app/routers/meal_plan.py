@@ -147,6 +147,9 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
 
     days = _build_days_data(meal_plan)
     all_plans = db.query(MealPlan).order_by(MealPlan.created_at.desc()).all()
+    profile = db.query(UserProfile).first()
+    from app.services.nutrition import get_effective_meal_times
+    effective_meal_times = get_effective_meal_times(profile)
 
     return templates.TemplateResponse(request, "meal_plan/view.html", {
         "meal_plan": meal_plan,
@@ -154,6 +157,7 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
         "all_plans": all_plans,
         "has_shopping_list": meal_plan.shopping_list is not None,
         "error": request.query_params.get("error"),
+        "effective_meal_times": effective_meal_times,
     })
 
 

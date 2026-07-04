@@ -81,7 +81,8 @@
     <p class="text-gray-500 text-sm mb-4">Claude ajustará las comidas pre y post entreno</p>
     <div class="flex items-center gap-3">
       <input type="time" name="training_time" class="input max-w-[160px]"
-             value="{{ profile.training_time if profile and profile.training_time else '' }}">
+             value="{{ profile.training_time if profile and profile.training_time else '' }}"
+             oninput="refreshAutoTimes()">
       <span class="text-sm text-gray-400">Dejar vacío si no entrenas a una hora fija</span>
     </div>
   </div>
@@ -234,7 +235,9 @@
     <div class="space-y-2">
       {% for meal_id, icon, label, default_time in meal_defs %}
       {% set is_on = meal_id in enabled_meals %}
-      {% set saved_time = meal_times.get(meal_id, default_time) %}
+      {% set raw_time = meal_times.get(meal_id, "") %}
+      {% set is_auto = raw_time == "auto" %}
+      {% set saved_time = raw_time if not is_auto else "" %}
       <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-white transition-colors">
         <!-- Toggle -->
         <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
@@ -254,12 +257,35 @@
               class="flex-1 text-sm font-medium {{ 'text-gray-400 line-through' if not is_on else 'text-gray-800' }}">
           {{ label }}
         </span>
-        <!-- Time input -->
-        <input type="time" name="meal_time_{{ meal_id }}"
-               id="meal-time-{{ meal_id }}"
-               value="{{ saved_time }}"
-               {{ "disabled" if not is_on }}
-               class="input max-w-[110px] text-sm py-1.5 {{ 'opacity-30 cursor-not-allowed' if not is_on }}">
+        <!-- Time section -->
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <!-- Manual time input (hidden when auto) -->
+          <input type="time" name="meal_time_{{ meal_id }}"
+                 id="meal-time-{{ meal_id }}"
+                 value="{{ saved_time }}"
+                 {{ "disabled" if not is_on or is_auto }}
+                 class="input max-w-[100px] text-sm py-1.5
+                        {{ 'opacity-30 cursor-not-allowed' if not is_on }}
+                        {{ 'hidden' if is_auto }}">
+          <!-- Auto calculated time display -->
+          <span id="meal-autotime-{{ meal_id }}"
+                class="text-sm font-mono font-semibold text-green-700 min-w-[52px] text-right {{ 'hidden' if not is_auto }}">
+            {{ effective_meal_times.get(meal_id, '') if is_auto else '' }}
+          </span>
+          <!-- Hidden flag for auto mode -->
+          <input type="hidden" id="meal-automode-{{ meal_id }}" name="meal_automode_{{ meal_id }}"
+                 value="{{ '1' if is_auto else '0' }}">
+          <!-- Auto toggle button -->
+          <button type="button" id="meal-autobtn-{{ meal_id }}"
+                  onclick="toggleAutoTime('{{ meal_id }}')"
+                  data-auto="{{ '1' if is_auto else '0' }}"
+                  {{ "disabled" if not is_on }}
+                  class="text-xs px-2 py-1.5 rounded-lg border transition-colors whitespace-nowrap flex-shrink-0
+                         {{ 'opacity-30 cursor-not-allowed pointer-events-none' if not is_on }}
+                         {{ 'bg-green-100 border-green-400 text-green-700 font-semibold' if is_auto else 'border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700' }}">
+            Auto
+          </button>
+        </div>
       </div>
       {% endfor %}
     </div>
@@ -362,77 +388,144 @@ document.querySelectorAll('.diet-card').forEach(card => {
 document.addEventListener('DOMContentLoaded', () => {
   updateGoalUI();
   updateActivityCount();
+  // Populate auto-time displays for meals already set to auto
+  document.querySelectorAll('[id^="meal-autobtn-"]').forEach(btn => {
+    if (btn.dataset.auto === '1') {
+      const mealId = btn.id.replace('meal-autobtn-', '');
+      const disp = document.getElementById('meal-autotime-' + mealId);
+      if (disp) disp.textContent = getAutoTime(mealId);
+    }
+  });
 });
 
-function proposeSchedule() {
-  const trainingVal = document.querySelector('[name=training_time]')?.value || '';
-  const fmt = m => {
-    m = Math.max(300, Math.min(1380, Math.round(m / 15) * 15)); // clamp 5:00-23:00, round to 15min
-    return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
-  };
+async function proposeSchedule() {
+  const btn = document.getElementById('propose-btn');
+  const noteEl = document.getElementById('schedule-note');
+  btn.disabled = true;
+  btn.innerHTML = '<svg class="w-3 h-3 animate-spin inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Consultando...';
+  noteEl.classList.add('hidden');
 
-  let times, note;
-  if (!trainingVal) {
-    times = { desayuno: '07:00', media_manana: '10:30', almuerzo: '13:30', media_tarde: '17:00', cena: '20:30' };
-    note = 'Horario equilibrado estándar. Configura tu hora de entrenamiento para ajustar automáticamente.';
-  } else {
-    const [th, tm] = trainingVal.split(':').map(Number);
-    const tr = th * 60 + tm;
-    if (tr < 720) { // Morning training (before 12:00)
-      times = {
-        desayuno:     fmt(tr - 90),
-        media_manana: fmt(tr + 45),
-        almuerzo:     fmt(tr + 195),
-        media_tarde:  fmt(tr + 375),
-        cena:         fmt(tr + 555),
-      };
-      note = `Entrenamiento a las ${trainingVal}: desayuno 1h30 antes, comida post-entreno 45 min después.`;
-    } else if (tr < 1080) { // Afternoon (12:00-18:00)
-      times = {
-        desayuno:     '07:00',
-        media_manana: '10:30',
-        almuerzo:     fmt(tr - 90),
-        media_tarde:  fmt(tr + 45),
-        cena:         fmt(tr + 210),
-      };
-      note = `Entrenamiento a las ${trainingVal}: almuerzo ligero 1h30 antes, merienda post-entreno 45 min después.`;
-    } else { // Evening (18:00+)
-      times = {
-        desayuno:     '07:00',
-        media_manana: '10:30',
-        almuerzo:     '13:30',
-        media_tarde:  fmt(tr - 90),
-        cena:         fmt(tr + 45),
-      };
-      note = `Entrenamiento a las ${trainingVal}: merienda 1h30 antes, cena post-entreno 45 min después.`;
+  try {
+    const resp = await fetch('/perfil/proponer-horario', { method: 'POST' });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    const allMeals = ['desayuno', 'media_manana', 'almuerzo', 'media_tarde', 'cena'];
+
+    // Apply enabled/disabled state
+    allMeals.forEach(meal => {
+      const cb = document.getElementById('meal-cb-' + meal);
+      if (!cb) return;
+      const shouldEnable = (data.enabled_meals || allMeals).includes(meal);
+      if (cb.checked !== shouldEnable) {
+        cb.checked = shouldEnable;
+        toggleMeal(meal, shouldEnable);
+      }
+    });
+
+    // Apply times (only to enabled inputs)
+    if (data.meal_times) {
+      Object.entries(data.meal_times).forEach(([meal, time]) => {
+        const inp = document.getElementById('meal-time-' + meal);
+        if (inp) inp.value = time;
+      });
     }
+
+    noteEl.textContent = '✓ ' + (data.explicacion || 'Horario propuesto.');
+    noteEl.classList.remove('hidden');
+  } catch(e) {
+    noteEl.className = 'text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3';
+    noteEl.textContent = '❌ Error: ' + e.message;
+    noteEl.classList.remove('hidden');
   }
 
-  Object.entries(times).forEach(([meal, time]) => {
-    const inp = document.getElementById('meal-time-' + meal);
-    if (inp && !inp.disabled) inp.value = time;
-  });
+  btn.disabled = false;
+  btn.innerHTML = '✨ Proponer automático';
+}
 
-  const noteEl = document.getElementById('schedule-note');
-  noteEl.textContent = '✓ ' + note;
-  noteEl.classList.remove('hidden');
+function getAutoTime(mealId) {
+  const trainingVal = document.querySelector('[name=training_time]')?.value || '';
+  const fmt = m => {
+    m = Math.max(300, Math.min(1380, Math.round(m / 15) * 15));
+    return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  };
+  const defaults = { desayuno: '07:00', media_manana: '10:30', almuerzo: '13:30', media_tarde: '17:00', cena: '20:30' };
+  if (!trainingVal) return defaults[mealId] || '12:00';
+  const [th, tm] = trainingVal.split(':').map(Number);
+  const tr = th * 60 + tm;
+  let times;
+  if (tr < 720) {
+    times = { desayuno: tr-90, media_manana: tr+45, almuerzo: tr+195, media_tarde: tr+375, cena: tr+555 };
+    return fmt(times[mealId] ?? 480);
+  } else if (tr < 1080) {
+    const fixed = { desayuno: '07:00', media_manana: '10:30' };
+    if (fixed[mealId]) return fixed[mealId];
+    times = { almuerzo: tr-90, media_tarde: tr+45, cena: tr+210 };
+    return fmt(times[mealId] ?? 480);
+  } else {
+    const fixed = { desayuno: '07:00', media_manana: '10:30', almuerzo: '13:30' };
+    if (fixed[mealId]) return fixed[mealId];
+    times = { media_tarde: tr-90, cena: tr+45 };
+    return fmt(times[mealId] ?? 480);
+  }
+}
+
+function refreshAutoTimes() {
+  document.querySelectorAll('[id^="meal-autobtn-"]').forEach(btn => {
+    if (btn.dataset.auto === '1') {
+      const mealId = btn.id.replace('meal-autobtn-', '');
+      const disp = document.getElementById('meal-autotime-' + mealId);
+      if (disp) disp.textContent = getAutoTime(mealId);
+    }
+  });
+}
+
+function toggleAutoTime(mealId) {
+  const btn       = document.getElementById('meal-autobtn-' + mealId);
+  const timeInput = document.getElementById('meal-time-' + mealId);
+  const autoDisp  = document.getElementById('meal-autotime-' + mealId);
+  const autoMode  = document.getElementById('meal-automode-' + mealId);
+  const isAuto    = btn.dataset.auto === '1';
+
+  if (isAuto) {
+    btn.dataset.auto = '0';
+    autoMode.value = '0';
+    btn.className = btn.className.replace('bg-green-100 border-green-400 text-green-700 font-semibold', 'border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700');
+    timeInput.classList.remove('hidden');
+    timeInput.disabled = false;
+    autoDisp.classList.add('hidden');
+  } else {
+    btn.dataset.auto = '1';
+    autoMode.value = '1';
+    btn.className = btn.className.replace('border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700', 'bg-green-100 border-green-400 text-green-700 font-semibold');
+    timeInput.classList.add('hidden');
+    timeInput.disabled = true;
+    autoDisp.textContent = getAutoTime(mealId);
+    autoDisp.classList.remove('hidden');
+  }
 }
 
 function toggleMeal(mealId, enabled) {
   const label    = document.getElementById('meal-label-' + mealId);
   const timeInput = document.getElementById('meal-time-' + mealId);
+  const autoBtn  = document.getElementById('meal-autobtn-' + mealId);
   const thumb    = document.getElementById('meal-thumb-' + mealId);
   if (enabled) {
     label.classList.remove('text-gray-400', 'line-through');
     label.classList.add('text-gray-800');
-    timeInput.disabled = false;
-    timeInput.classList.remove('opacity-30', 'cursor-not-allowed');
+    const isAuto = autoBtn?.dataset.auto === '1';
+    if (!isAuto) {
+      timeInput.disabled = false;
+      timeInput.classList.remove('opacity-30', 'cursor-not-allowed');
+    }
+    if (autoBtn) autoBtn.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
     thumb.classList.add('translate-x-5');
   } else {
     label.classList.add('text-gray-400', 'line-through');
     label.classList.remove('text-gray-800');
     timeInput.disabled = true;
     timeInput.classList.add('opacity-30', 'cursor-not-allowed');
+    if (autoBtn) autoBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
     thumb.classList.remove('translate-x-5');
   }
 }

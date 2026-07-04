@@ -144,6 +144,9 @@
         <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold {{ bg_color }} {{ text_color }} flex-shrink-0 whitespace-nowrap">
           {{ meal.type_label }}
         </span>
+        {% if effective_meal_times and effective_meal_times.get(meal.type) %}
+        <span class="text-xs text-gray-400 flex-shrink-0 font-mono">{{ effective_meal_times[meal.type] }}</span>
+        {% endif %}
         <span class="flex-1 font-medium text-gray-800 text-sm truncate">
           {% if meal.consumed and meal.actual_name and meal.actual_name != meal.name %}
             <span class="line-through text-gray-400 mr-1">{{ meal.name }}</span>{{ meal.actual_name }}

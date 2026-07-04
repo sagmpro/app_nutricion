@@ -28,6 +28,44 @@ def calculate_tdee(bmr: float, activity_days_count: int) -> float:
     return bmr * multiplier
 
 
+def calculate_auto_meal_times(training_time: "str | None") -> dict:
+    defaults = {"desayuno": "07:00", "media_manana": "10:30", "almuerzo": "13:30", "media_tarde": "17:00", "cena": "20:30"}
+    if not training_time:
+        return defaults
+    try:
+        h, m = map(int, training_time.split(":"))
+    except Exception:
+        return defaults
+    tr = h * 60 + m
+
+    def fmt(mins: int) -> str:
+        mins = max(300, min(1380, round(mins / 15) * 15))
+        return f"{mins // 60:02d}:{mins % 60:02d}"
+
+    if tr < 720:
+        return {"desayuno": fmt(tr - 90), "media_manana": fmt(tr + 45), "almuerzo": fmt(tr + 195), "media_tarde": fmt(tr + 375), "cena": fmt(tr + 555)}
+    if tr < 1080:
+        return {"desayuno": "07:00", "media_manana": "10:30", "almuerzo": fmt(tr - 90), "media_tarde": fmt(tr + 45), "cena": fmt(tr + 210)}
+    return {"desayuno": "07:00", "media_manana": "10:30", "almuerzo": "13:30", "media_tarde": fmt(tr - 90), "cena": fmt(tr + 45)}
+
+
+def get_effective_meal_times(profile: "UserProfile") -> dict:
+    """Returns display times for all meals, resolving 'auto' values based on training_time."""
+    try:
+        stored = json.loads(profile.meal_times) if profile and profile.meal_times else {}
+    except Exception:
+        stored = {}
+    auto_times = calculate_auto_meal_times(profile.training_time if profile else None)
+    result = {}
+    for meal in ["desayuno", "media_manana", "almuerzo", "media_tarde", "cena"]:
+        val = stored.get(meal, "")
+        if val == "auto":
+            result[meal] = auto_times[meal]
+        elif val:
+            result[meal] = val
+    return result
+
+
 def calculate_target_calories(profile: "UserProfile", tdee: float) -> float:
     if profile.goal_type == "caloric_deficit":
         return float(profile.target_calories) if profile.target_calories else tdee - 500
