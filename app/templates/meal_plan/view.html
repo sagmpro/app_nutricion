@@ -29,63 +29,70 @@
   </div>
 
   <!-- Action toolbar -->
-  <div class="flex flex-wrap items-center gap-2 p-3 bg-white rounded-2xl border border-gray-100 shadow-sm">
+  <div class="flex items-center justify-between gap-3 p-3 bg-white rounded-2xl border border-gray-100 shadow-sm flex-wrap">
 
-    <!-- Primary action -->
-    {% if meal_plan.status == "approved" %}
-      {% if has_shopping_list %}
-        <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-primary text-sm">
-          🛒 Ver compras
-        </a>
+    <!-- Left group: primary + secondary actions -->
+    <div class="flex items-center gap-2 flex-wrap">
+
+      <!-- Primary -->
+      {% if meal_plan.status == "approved" %}
+        {% if has_shopping_list %}
+          <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-primary text-sm">🛒 Ver compras</a>
+        {% else %}
+          <form method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
+                data-loading data-loading-title="Generando lista de compras..."
+                data-loading-subtitle="Claude está consolidando los ingredientes de toda la semana.">
+            <button class="btn-primary text-sm">🛒 Generar compras</button>
+          </form>
+        {% endif %}
       {% else %}
-        <form method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
-              data-loading data-loading-title="Generando lista de compras..."
-              data-loading-subtitle="Claude está consolidando los ingredientes de toda la semana.">
-          <button class="btn-primary text-sm">🛒 Generar compras</button>
+        <form method="POST" action="/plan/{{ meal_plan.id }}/aprobar">
+          <button class="btn-primary text-sm">✓ Aprobar plan</button>
         </form>
       {% endif %}
-    {% else %}
-      <form method="POST" action="/plan/{{ meal_plan.id }}/aprobar">
-        <button class="btn-primary text-sm">✓ Aprobar plan</button>
+
+      <!-- Divider -->
+      <div class="w-px h-6 bg-gray-200"></div>
+
+      <!-- Secondary: copy to next week -->
+      <form method="POST" action="/plan/{{ meal_plan.id }}/copiar"
+            data-loading data-loading-title="Copiando plan..."
+            data-loading-subtitle="Creando una copia del plan para la próxima semana.">
+        <button class="btn-secondary text-sm">📋 Próxima semana</button>
       </form>
-    {% endif %}
 
-    <!-- Divider -->
-    <div class="w-px h-6 bg-gray-200 mx-1 hidden sm:block"></div>
+      <!-- Secondary: regenerate -->
+      <form method="POST" action="/plan/{{ meal_plan.id }}/regenerar"
+            data-loading data-loading-title="Regenerando plan..."
+            data-loading-subtitle="Claude está creando un nuevo plan para ti.">
+        <button class="btn-secondary text-sm">↺ Regenerar</button>
+      </form>
 
-    <!-- Secondary actions -->
-    <form method="POST" action="/plan/{{ meal_plan.id }}/copiar"
-          data-loading data-loading-title="Copiando plan..."
-          data-loading-subtitle="Creando una copia del plan para la próxima semana.">
-      <button class="btn-secondary text-sm">📋 Próxima semana</button>
-    </form>
-
-    <form method="POST" action="/plan/{{ meal_plan.id }}/regenerar"
-          data-loading data-loading-title="Regenerando plan..."
-          data-loading-subtitle="Claude está creando un nuevo plan para ti.">
-      <button class="btn-secondary text-sm">↺ Regenerar</button>
-    </form>
-
-    {% if meal_plan.status != "approved" %}
-      {% if has_shopping_list %}
-        <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-secondary text-sm hidden sm:inline-flex">🛒 Ver compras</a>
-      {% else %}
-        <form method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
-              data-loading data-loading-title="Generando lista de compras..."
-              data-loading-subtitle="Claude está consolidando los ingredientes de toda la semana."
-              class="hidden sm:block">
-          <button class="btn-secondary text-sm">🛒 Generar compras</button>
-        </form>
+      <!-- Secondary: shopping (only when pending) -->
+      {% if meal_plan.status != "approved" %}
+        {% if has_shopping_list %}
+          <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-secondary text-sm hidden sm:inline-flex">🛒 Ver compras</a>
+        {% else %}
+          <form method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
+                data-loading data-loading-title="Generando lista de compras..."
+                data-loading-subtitle="Claude está consolidando los ingredientes."
+                class="hidden sm:block">
+            <button class="btn-secondary text-sm">🛒 Generar compras</button>
+          </form>
+        {% endif %}
       {% endif %}
-    {% endif %}
 
-    <a href="/plan" class="btn-secondary text-sm hidden sm:inline-flex">+ Nuevo</a>
+      <a href="/plan" class="btn-secondary text-sm hidden sm:inline-flex">+ Nuevo</a>
+    </div>
 
-    <!-- Divider + destructive -->
-    <div class="w-px h-6 bg-gray-200 mx-1 ml-auto hidden sm:block"></div>
+    <!-- Right group: destructive -->
     <form method="POST" action="/plan/{{ meal_plan.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar este plan? Esta acción no se puede deshacer.')">
-      <button class="btn-ghost text-red-400 hover:text-red-600 hover:bg-red-50 text-sm">🗑</button>
+      <button class="btn-ghost text-red-400 hover:text-red-600 hover:bg-red-50 text-sm px-3 py-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+      </button>
     </form>
   </div>
 </div>
