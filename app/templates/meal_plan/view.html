@@ -156,7 +156,7 @@
         <!-- Marcar consumida icon (stops details toggle) -->
         <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/consumir" class="flex-shrink-0">
           <button type="button"
-            class="tip w-6 h-6 flex items-center justify-center rounded-md transition-all
+            class="tip tip-right w-6 h-6 flex items-center justify-center rounded-md transition-all
                    {{ 'text-green-500 bg-green-50 hover:bg-green-100' if meal.consumed else 'text-gray-300 hover:text-green-500 hover:bg-green-50' }}"
             data-tip="{{ 'Consumida ✓ — clic para desmarcar' if meal.consumed else 'Marcar como consumida' }}"
             onclick="event.stopPropagation(); this.form.submit()">
