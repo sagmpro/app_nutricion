@@ -1,5 +1,6 @@
 import json
 import os
+import base64
 import logging
 import anthropic
 from app.config import settings
@@ -60,6 +61,15 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float)
         prefs_lines.append(f"- Alimentos favoritos (incluir cuando sea posible): {profile.preferred_foods}")
     prefs_section = "\n".join(prefs_lines) if prefs_lines else "- Sin restricciones adicionales"
 
+    lifestyle_lines = []
+    if getattr(profile, "training_time", None):
+        lifestyle_lines.append(f"- Hora de entrenamiento: {profile.training_time} (sugiere comidas apropiadas antes/después)")
+    if getattr(profile, "cooking_facilities", None):
+        lifestyle_lines.append(f"- Facilidades de cocina: {profile.cooking_facilities}")
+    max_repeats = getattr(profile, "max_meal_repeats", 2)
+    lifestyle_lines.append(f"- Máximo de veces que puede repetirse una receta de desayuno/almuerzo/cena en la semana: {max_repeats}")
+    lifestyle_section = "\n".join(lifestyle_lines)
+
     prompt = f"""Genera un plan de alimentación para una semana completa (lunes a domingo).
 
 Datos de la persona:
@@ -72,6 +82,9 @@ Datos de la persona:
 
 Preferencias alimentarias:
 {prefs_section}
+
+Estilo de vida:
+{lifestyle_section}
 
 Distribución calórica por comida:
 - Desayuno: ~25% | Media mañana: ~10% | Almuerzo: ~35% | Media tarde: ~10% | Cena: ~20%
@@ -215,4 +228,69 @@ Categorías a usar: Frutas y Verduras, Proteínas, Lácteos y Huevos, Cereales y
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("generate_shopping_list", message)
+    return _parse_json(message.content[0].text)
+
+
+def analyze_food_photo(image_bytes: bytes, media_type: str) -> dict:
+    """Analyze a food photo or nutrition label and estimate calories/macros."""
+    image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
+    client = _get_client()
+    message = client.messages.create(
+        model=MODEL,
+        max_tokens=500,
+        messages=[{"role": "user", "content": [
+            {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_data}},
+            {"type": "text", "text": """Analiza esta imagen. Puede ser una foto de comida o una etiqueta nutricional.
+Estima las calorías y macronutrientes.
+Responde ÚNICAMENTE con JSON válido:
+{"nombre": "Nombre del alimento", "calorias": 350, "proteinas_g": 25, "carbohidratos_g": 40, "grasas_g": 10}"""},
+        ]}],
+    )
+    _log_usage("analyze_food_photo", message)
+    return _parse_json(message.content[0].text)
+
+
+def generate_recipe(meal_name: str, ingredients: list, meal_type: str, description: str = "") -> dict:
+    """Generate step-by-step cooking instructions for a meal. Uses Haiku to save tokens."""
+    ing_str = ", ".join(
+        f"{i['nombre']} ({i['cantidad']} {i['unidad']})" for i in ingredients
+    ) if ingredients else "ingredientes del plato"
+
+    prompt = f"""Genera una receta paso a paso para: {meal_name}
+Tipo: {meal_type}{f' | {description}' if description else ''}
+Ingredientes: {ing_str}
+
+Responde ÚNICAMENTE con JSON válido:
+{{"pasos": ["Paso 1...", "Paso 2..."], "tiempo_prep": 10, "tiempo_coccion": 20, "porciones": 1}}
+
+Máximo 8 pasos concisos. Cocina española/latinoamericana."""
+
+    client = _get_client()
+    message = client.messages.create(
+        model=MODEL_HAIKU,
+        max_tokens=800,
+        system="Eres un chef experto. Responde siempre con JSON válido, sin texto adicional.",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    _log_usage("generate_recipe", message)
+    return _parse_json(message.content[0].text)
+
+
+def identify_stock_photo(image_bytes: bytes, media_type: str) -> dict:
+    """Identify food items in a photo and return them as stock items."""
+    image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
+    client = _get_client()
+    message = client.messages.create(
+        model=MODEL,
+        max_tokens=1000,
+        messages=[{"role": "user", "content": [
+            {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_data}},
+            {"type": "text", "text": """Identifica todos los alimentos o ingredientes visibles en esta imagen.
+Estima cantidades aproximadas para cada uno.
+Responde ÚNICAMENTE con JSON válido:
+{"items": [{"nombre": "Tomate", "cantidad": 3, "unidad": "unidades", "categoria": "Frutas y Verduras"}]}
+Categorías: Frutas y Verduras, Proteínas, Lácteos y Huevos, Cereales y Legumbres, Aceites y Condimentos, Otros"""},
+        ]}],
+    )
+    _log_usage("identify_stock_photo", message)
     return _parse_json(message.content[0].text)

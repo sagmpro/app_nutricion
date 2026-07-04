@@ -5,7 +5,6 @@
 
 <!-- Header -->
 <div class="mb-6">
-  <!-- Title row -->
   <div class="flex items-start justify-between gap-3 mb-4">
     <div>
       <div class="flex items-center gap-2 mb-0.5">
@@ -36,13 +35,13 @@
     {% if meal_plan.status == "approved" %}
       {% if has_shopping_list %}
         <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-primary text-sm">
-          🛒 Ver lista de compras
+          🛒 Ver compras
         </a>
       {% else %}
         <form method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
               data-loading data-loading-title="Generando lista de compras..."
               data-loading-subtitle="Claude está consolidando los ingredientes de toda la semana.">
-          <button class="btn-primary text-sm">🛒 Generar lista de compras</button>
+          <button class="btn-primary text-sm">🛒 Generar compras</button>
         </form>
       {% endif %}
     {% else %}
@@ -52,36 +51,41 @@
     {% endif %}
 
     <!-- Divider -->
-    <div class="w-px h-6 bg-gray-200 mx-1"></div>
+    <div class="w-px h-6 bg-gray-200 mx-1 hidden sm:block"></div>
 
     <!-- Secondary actions -->
+    <form method="POST" action="/plan/{{ meal_plan.id }}/copiar"
+          data-loading data-loading-title="Copiando plan..."
+          data-loading-subtitle="Creando una copia del plan para la próxima semana.">
+      <button class="btn-secondary text-sm">📋 Próxima semana</button>
+    </form>
+
     <form method="POST" action="/plan/{{ meal_plan.id }}/regenerar"
           data-loading data-loading-title="Regenerando plan..."
           data-loading-subtitle="Claude está creando un nuevo plan para ti.">
-      <button class="btn-secondary text-sm">↺ Regenerar todo</button>
+      <button class="btn-secondary text-sm">↺ Regenerar</button>
     </form>
 
     {% if meal_plan.status != "approved" %}
       {% if has_shopping_list %}
-        <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-secondary text-sm">🛒 Ver compras</a>
+        <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-secondary text-sm hidden sm:inline-flex">🛒 Ver compras</a>
       {% else %}
         <form method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
               data-loading data-loading-title="Generando lista de compras..."
-              data-loading-subtitle="Claude está consolidando los ingredientes de toda la semana.">
+              data-loading-subtitle="Claude está consolidando los ingredientes de toda la semana."
+              class="hidden sm:block">
           <button class="btn-secondary text-sm">🛒 Generar compras</button>
         </form>
       {% endif %}
     {% endif %}
 
-    <a href="/plan" class="btn-secondary text-sm">+ Nuevo plan</a>
+    <a href="/plan" class="btn-secondary text-sm hidden sm:inline-flex">+ Nuevo</a>
 
-    <!-- Divider -->
-    <div class="w-px h-6 bg-gray-200 mx-1 ml-auto"></div>
-
-    <!-- Destructive -->
+    <!-- Divider + destructive -->
+    <div class="w-px h-6 bg-gray-200 mx-1 ml-auto hidden sm:block"></div>
     <form method="POST" action="/plan/{{ meal_plan.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar este plan? Esta acción no se puede deshacer.')">
-      <button class="btn-ghost text-red-400 hover:text-red-600 hover:bg-red-50 text-sm">🗑 Eliminar</button>
+      <button class="btn-ghost text-red-400 hover:text-red-600 hover:bg-red-50 text-sm">🗑</button>
     </form>
   </div>
 </div>
@@ -97,6 +101,9 @@
     class="day-tab flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all text-center min-w-[72px]">
     <span class="block font-semibold">{{ day.short }}</span>
     <span class="block text-xs opacity-70 mt-0.5">{{ day.total_calories }} kcal</span>
+    {% if day.consumed_calories > 0 %}
+    <span class="block text-xs text-green-500 font-semibold">🔥 {{ day.consumed_calories }}</span>
+    {% endif %}
   </button>
   {% endfor %}
 </div>
@@ -118,29 +125,48 @@
     {% set border_color = colors.split()[0] %}
     {% set bg_color = colors.split()[1] %}
     {% set text_color = colors.split()[2] %}
-    <details class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group" id="meal-{{ meal.id }}">
-      <!-- Collapsed: always visible -->
+    <details class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group {{ 'ring-2 ring-green-200' if meal.consumed }}" id="meal-{{ meal.id }}">
+      <!-- Collapsed summary -->
       <summary class="border-l-4 {{ border_color }} px-4 py-3 flex items-center gap-3 cursor-pointer select-none list-none hover:bg-gray-50 transition-colors">
+        {% if meal.consumed %}
+          <span class="w-5 h-5 rounded-full bg-green-100 text-green-600 flex-shrink-0 flex items-center justify-center text-xs font-bold">✓</span>
+        {% endif %}
         <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold {{ bg_color }} {{ text_color }} flex-shrink-0 whitespace-nowrap">
           {{ meal.type_label }}
         </span>
-        <span class="flex-1 font-medium text-gray-800 text-sm truncate">{{ meal.name }}</span>
-        <span class="text-sm font-bold text-gray-600 flex-shrink-0">{{ meal.calories }} kcal</span>
+        <span class="flex-1 font-medium text-gray-800 text-sm truncate">
+          {% if meal.consumed and meal.actual_name and meal.actual_name != meal.name %}
+            <span class="line-through text-gray-400 mr-1">{{ meal.name }}</span>{{ meal.actual_name }}
+          {% else %}
+            {{ meal.name }}
+          {% endif %}
+        </span>
+        <span class="text-sm font-bold text-gray-600 flex-shrink-0">
+          {% if meal.consumed and meal.actual_calories %}
+            <span class="text-green-600">{{ meal.actual_calories }}</span><span class="text-gray-400 text-xs">/{{ meal.calories }}</span>
+          {% else %}
+            {{ meal.calories }}
+          {% endif %}
+          kcal
+        </span>
         <svg class="w-4 h-4 text-gray-300 flex-shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
         </svg>
       </summary>
-      <!-- Expanded: detail content -->
+
+      <!-- Expanded content -->
       <div class="border-l-4 {{ border_color }} px-4 pb-4 pt-1">
         {% if meal.description %}
         <p class="text-sm text-gray-400 mb-3">{{ meal.description }}</p>
         {% endif %}
+
         <!-- Macros -->
         <div class="flex gap-2 flex-wrap mb-3">
           <span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg font-medium">P {{ meal.protein_g }}g</span>
           <span class="text-xs px-2 py-0.5 bg-orange-50 text-orange-600 rounded-lg font-medium">C {{ meal.carbs_g }}g</span>
           <span class="text-xs px-2 py-0.5 bg-yellow-50 text-yellow-600 rounded-lg font-medium">G {{ meal.fat_g }}g</span>
         </div>
+
         <!-- Ingredients -->
         {% if meal.ingredients %}
         <ul class="grid grid-cols-2 gap-x-4 gap-y-1 mb-3">
@@ -152,17 +178,89 @@
           {% endfor %}
         </ul>
         {% endif %}
-        <!-- Regenerate -->
-        <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/regenerar"
-              data-loading data-loading-title="Buscando alternativa..."
-              data-loading-subtitle="Claude está generando una nueva opción para {{ meal.type_label | lower }}.">
-          <button type="submit" class="text-xs text-gray-400 hover:text-green-600 hover:bg-green-50 px-2 py-1 rounded-lg transition-all flex items-center gap-1">
+
+        <!-- Recipe box (hidden until loaded) -->
+        <div id="recipe-box-{{ meal.id }}" class="hidden mt-2 mb-3 p-3 bg-purple-50 rounded-xl border border-purple-100">
+          <p class="text-xs font-semibold text-purple-700 mb-2">📋 Receta paso a paso</p>
+          <ol id="recipe-steps-{{ meal.id }}" class="text-xs text-gray-700 space-y-1 list-decimal list-inside leading-relaxed"></ol>
+          <p class="text-xs text-gray-400 mt-2" id="recipe-time-{{ meal.id }}"></p>
+        </div>
+
+        <!-- Action buttons row -->
+        <div class="flex flex-wrap gap-2 mt-2">
+          <!-- Regenerate -->
+          <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/regenerar"
+                data-loading data-loading-title="Buscando alternativa..."
+                data-loading-subtitle="Claude está generando una nueva opción.">
+            <button type="submit" class="text-xs text-gray-400 hover:text-green-600 hover:bg-green-50 px-2 py-1 rounded-lg transition-all flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              Otra opción
+            </button>
+          </form>
+
+          <!-- Recipe button (AJAX) -->
+          <button type="button" onclick="toggleRecipe({{ meal_plan.id }}, {{ meal.id }})"
+                  id="recipe-btn-{{ meal.id }}"
+                  class="text-xs text-gray-400 hover:text-purple-600 hover:bg-purple-50 px-2 py-1 rounded-lg transition-all flex items-center gap-1">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
             </svg>
-            Pedir otra opción
+            {{ "Receta guardada" if meal.has_recipe else "Ver receta" }}
           </button>
-        </form>
+
+          <!-- Consume toggle -->
+          <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/consumir">
+            <button type="submit"
+                    class="text-xs px-2 py-1 rounded-lg transition-all flex items-center gap-1
+                           {{ 'text-green-600 bg-green-50 hover:bg-green-100' if meal.consumed else 'text-gray-400 hover:text-green-600 hover:bg-green-50' }}">
+              {% if meal.consumed %}
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                Consumida
+              {% else %}
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Marcar consumida
+              {% endif %}
+            </button>
+          </form>
+        </div>
+
+        <!-- Photo upload: eaten something different -->
+        <div class="mt-3 pt-3 border-t border-gray-100">
+          <button type="button" onclick="togglePhotoForm({{ meal.id }})"
+                  class="text-xs text-gray-400 hover:text-orange-600 flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            {% if meal.consumed and meal.actual_name %}
+              Volver a analizar foto
+            {% else %}
+              ¿Comiste algo diferente? Sube una foto
+            {% endif %}
+          </button>
+          <div id="photo-form-{{ meal.id }}" class="hidden mt-2">
+            <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/foto-consumida"
+                  enctype="multipart/form-data"
+                  data-loading data-loading-title="Analizando foto..."
+                  data-loading-subtitle="Claude está identificando el alimento y estimando calorías."
+                  class="flex flex-wrap items-end gap-2">
+              <div>
+                <label class="label text-xs">Foto de la comida o tabla nutricional</label>
+                <input type="file" name="foto" accept="image/*" capture="environment" class="input text-xs py-1" required>
+              </div>
+              <button type="submit" class="btn-primary text-xs px-3 py-1.5">Analizar</button>
+            </form>
+            {% if meal.consumed and meal.actual_name %}
+            <p class="text-xs text-green-600 mt-1">✓ Registrado: {{ meal.actual_name }} ({{ meal.actual_calories or '?' }} kcal)</p>
+            {% endif %}
+          </div>
+        </div>
       </div>
     </details>
     {% else %}
@@ -170,12 +268,25 @@
     {% endfor %}
   </div>
 
-  <!-- Daily total -->
-  <div class="mt-4 p-4 bg-green-600 rounded-2xl text-white text-sm flex flex-wrap gap-x-6 gap-y-1">
-    <span class="font-semibold">Total: {{ day.total_calories }} kcal</span>
-    <span class="text-green-200">P: {{ day.total_protein }}g</span>
-    <span class="text-green-200">C: {{ day.total_carbs }}g</span>
-    <span class="text-green-200">G: {{ day.total_fat }}g</span>
+  <!-- Daily total + consumed progress -->
+  <div class="mt-4 p-4 bg-green-600 rounded-2xl text-white text-sm">
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-2">
+      <span class="font-semibold text-base">{{ day.total_calories }} kcal planificadas</span>
+      {% if day.consumed_calories > 0 %}
+      <span class="text-green-200 font-medium">🔥 {{ day.consumed_calories }} consumidas</span>
+      {% endif %}
+    </div>
+    {% if day.consumed_calories > 0 %}
+    <div class="w-full bg-green-800 rounded-full h-1.5 mb-2">
+      <div class="bg-white rounded-full h-1.5 transition-all"
+           style="width: {{ [[(day.consumed_calories / day.total_calories * 100) | int, 100] | min, 0] | max }}%"></div>
+    </div>
+    {% endif %}
+    <div class="flex flex-wrap gap-x-6 gap-y-1 text-green-200 text-xs">
+      <span>P: {{ day.total_protein }}g</span>
+      <span>C: {{ day.total_carbs }}g</span>
+      <span>G: {{ day.total_fat }}g</span>
+    </div>
   </div>
 </div>
 {% endfor %}
@@ -196,5 +307,46 @@ function showDay(idx) {
   });
 }
 showDay(0);
+
+function togglePhotoForm(mealId) {
+  document.getElementById('photo-form-' + mealId).classList.toggle('hidden');
+}
+
+async function toggleRecipe(planId, mealId) {
+  const btn = document.getElementById('recipe-btn-' + mealId);
+  const box = document.getElementById('recipe-box-' + mealId);
+
+  if (!box.classList.contains('hidden')) {
+    box.classList.add('hidden');
+    return;
+  }
+
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Generando...';
+  btn.disabled = true;
+
+  try {
+    const resp = await fetch('/plan/' + planId + '/comida/' + mealId + '/receta', {method: 'POST'});
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    const stepsEl = document.getElementById('recipe-steps-' + mealId);
+    stepsEl.innerHTML = (data.pasos || []).map(p => `<li>${p}</li>`).join('');
+
+    const timeEl = document.getElementById('recipe-time-' + mealId);
+    const parts = [];
+    if (data.tiempo_prep) parts.push('Prep: ' + data.tiempo_prep + ' min');
+    if (data.tiempo_coccion) parts.push('Cocción: ' + data.tiempo_coccion + ' min');
+    if (data.porciones) parts.push(data.porciones + ' porción(es)');
+    timeEl.textContent = parts.join(' · ');
+
+    box.classList.remove('hidden');
+    btn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg> Ocultar receta';
+  } catch(e) {
+    btn.innerHTML = '❌ Error';
+    setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+  }
+  btn.disabled = false;
+}
 </script>
 {% endblock %}

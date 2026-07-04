@@ -1,18 +1,24 @@
 import json
-from datetime import date, datetime
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import RedirectResponse
+from datetime import date, datetime, timedelta
+from fastapi import APIRouter, Depends, Request, UploadFile, File
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.profile import UserProfile
 from app.models.meal_plan import MealPlan
 from app.models.meal import Meal, MEAL_TYPE_ORDER, MEAL_TYPE_LABELS, MEAL_TYPES
+from app.models.food_stock import FoodStock
 from app.services.nutrition import (
     calculate_bmr, calculate_tdee, calculate_target_calories,
     get_activity_days_list, DAYS_OF_WEEK, DAYS_SHORT,
 )
-from app.services.claude_service import generate_meal_plan as claude_generate, generate_single_meal as claude_single_meal
+from app.services.claude_service import (
+    generate_meal_plan as claude_generate,
+    generate_single_meal as claude_single_meal,
+    analyze_food_photo as claude_analyze_photo,
+    generate_recipe as claude_generate_recipe,
+)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -24,6 +30,9 @@ def _build_days_data(meal_plan: MealPlan) -> list[dict]:
         day_meals = sorted(
             [m for m in meal_plan.meals if m.day_of_week == day_num],
             key=lambda m: m.meal_order,
+        )
+        consumed_cals = sum(
+            (m.actual_calories or m.calories) for m in day_meals if m.consumed
         )
         days.append({
             "name": DAYS_OF_WEEK[day_num],
@@ -41,10 +50,15 @@ def _build_days_data(meal_plan: MealPlan) -> list[dict]:
                     "carbs_g": round(m.carbs_g, 1),
                     "fat_g": round(m.fat_g, 1),
                     "ingredients": json.loads(m.ingredients_json or "[]"),
+                    "consumed": m.consumed,
+                    "actual_calories": m.actual_calories,
+                    "actual_name": m.actual_name,
+                    "has_recipe": bool(m.recipe_text),
                 }
                 for m in day_meals
             ],
             "total_calories": sum(m.calories for m in day_meals),
+            "consumed_calories": consumed_cals,
             "total_protein": round(sum(m.protein_g for m in day_meals), 1),
             "total_carbs": round(sum(m.carbs_g for m in day_meals), 1),
             "total_fat": round(sum(m.fat_g for m in day_meals), 1),
@@ -92,10 +106,8 @@ async def generar_plan(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/perfil?error=Completa+tu+perfil+primero", status_code=303)
 
     form = await request.form()
-    profile.dietary_type = form.get("dietary_type", "omnivoro")
-    profile.food_intolerances = form.get("food_intolerances", "").strip() or None
-    profile.disliked_foods = form.get("disliked_foods", "").strip() or None
-    profile.preferred_foods = form.get("preferred_foods", "").strip() or None
+    if form.get("dietary_type"):
+        profile.dietary_type = form.get("dietary_type")
     db.commit()
 
     week_start_str = form.get("week_start", "")
@@ -203,6 +215,106 @@ def aprobar_plan(plan_id: int, db: Session = Depends(get_db)):
         meal_plan.status = "approved"
         db.commit()
     return RedirectResponse(f"/plan/{plan_id}", status_code=303)
+
+
+def _deduct_from_stock(db: Session, meal: Meal) -> None:
+    """Best-effort deduction of meal ingredients from stock when consumed."""
+    ingredients = json.loads(meal.ingredients_json or "[]")
+    for ing in ingredients:
+        name = ing.get("nombre", "").strip()
+        quantity = float(ing.get("cantidad", 0))
+        unit = ing.get("unidad", "")
+        if not name or quantity <= 0:
+            continue
+        stock_item = db.query(FoodStock).filter(FoodStock.name.ilike(name)).first()
+        if stock_item and stock_item.unit == unit:
+            stock_item.quantity = max(0.0, stock_item.quantity - quantity)
+            if stock_item.quantity == 0:
+                db.delete(stock_item)
+
+
+@router.post("/plan/{plan_id}/comida/{meal_id}/consumir")
+def consumir_comida(plan_id: int, meal_id: int, db: Session = Depends(get_db)):
+    meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    if meal:
+        meal.consumed = not meal.consumed
+        if not meal.consumed:
+            meal.actual_calories = None
+            meal.actual_name = None
+        else:
+            _deduct_from_stock(db, meal)
+        db.commit()
+    return RedirectResponse(f"/plan/{plan_id}", status_code=303)
+
+
+@router.post("/plan/{plan_id}/comida/{meal_id}/foto-consumida")
+async def foto_consumida(plan_id: int, meal_id: int, db: Session = Depends(get_db), foto: UploadFile = File(...)):
+    meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    if not meal:
+        return RedirectResponse(f"/plan/{plan_id}", status_code=303)
+    try:
+        image_bytes = await foto.read()
+        media_type = foto.content_type or "image/jpeg"
+        result = claude_analyze_photo(image_bytes, media_type)
+        meal.consumed = True
+        meal.actual_name = result.get("nombre", meal.name)
+        meal.actual_calories = int(result.get("calorias", 0))
+        db.commit()
+    except Exception as e:
+        return RedirectResponse(f"/plan/{plan_id}?error=Error+analizando+foto:+{str(e)[:60]}", status_code=303)
+    return RedirectResponse(f"/plan/{plan_id}", status_code=303)
+
+
+@router.post("/plan/{plan_id}/comida/{meal_id}/receta")
+def generar_receta(plan_id: int, meal_id: int, db: Session = Depends(get_db)):
+    meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    if not meal:
+        return JSONResponse({"error": "Comida no encontrada"}, status_code=404)
+    if meal.recipe_text:
+        try:
+            return JSONResponse(json.loads(meal.recipe_text))
+        except Exception:
+            pass
+    try:
+        ingredients = json.loads(meal.ingredients_json or "[]")
+        result = claude_generate_recipe(
+            meal.name, ingredients,
+            MEAL_TYPE_LABELS.get(meal.meal_type, meal.meal_type),
+            meal.description or "",
+        )
+        meal.recipe_text = json.dumps(result)
+        db.commit()
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"error": str(e)[:100]}, status_code=500)
+
+
+@router.post("/plan/{plan_id}/copiar")
+def copiar_plan(plan_id: int, db: Session = Depends(get_db)):
+    meal_plan = db.query(MealPlan).filter(MealPlan.id == plan_id).first()
+    if not meal_plan:
+        return RedirectResponse("/plan", status_code=303)
+    new_week_start = meal_plan.week_start + timedelta(days=7)
+    new_plan = MealPlan(profile_id=meal_plan.profile_id, week_start=new_week_start, status="pending")
+    db.add(new_plan)
+    db.commit()
+    db.refresh(new_plan)
+    for m in meal_plan.meals:
+        db.add(Meal(
+            meal_plan_id=new_plan.id,
+            day_of_week=m.day_of_week,
+            meal_type=m.meal_type,
+            meal_order=m.meal_order,
+            name=m.name,
+            description=m.description,
+            calories=m.calories,
+            protein_g=m.protein_g,
+            carbs_g=m.carbs_g,
+            fat_g=m.fat_g,
+            ingredients_json=m.ingredients_json,
+        ))
+    db.commit()
+    return RedirectResponse(f"/plan/{new_plan.id}", status_code=303)
 
 
 @router.post("/plan/{plan_id}/regenerar")

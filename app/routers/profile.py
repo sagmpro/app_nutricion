@@ -51,6 +51,13 @@ async def perfil_save(
     current_fat_pct: str = Form(default=""),
     target_fat_pct: str = Form(default=""),
     target_days: str = Form(default=""),
+    dietary_type: str = Form(default="omnivoro"),
+    food_intolerances: str = Form(default=""),
+    disliked_foods: str = Form(default=""),
+    preferred_foods: str = Form(default=""),
+    training_time: str = Form(default=""),
+    cooking_facilities: str = Form(default=""),
+    max_meal_repeats: int = Form(default=2),
 ):
     form_data = await request.form()
     activity_days = []
@@ -74,6 +81,13 @@ async def perfil_save(
     profile.target_fat_pct = float(target_fat_pct) if target_fat_pct.strip() else None
     profile.target_days = int(target_days) if target_days.strip() else None
     profile.activity_days = json.dumps(activity_days)
+    profile.dietary_type = dietary_type
+    profile.food_intolerances = food_intolerances.strip() or None
+    profile.disliked_foods = disliked_foods.strip() or None
+    profile.preferred_foods = preferred_foods.strip() or None
+    profile.training_time = training_time.strip() or None
+    profile.cooking_facilities = cooking_facilities.strip() or None
+    profile.max_meal_repeats = max(1, min(7, max_meal_repeats))
     profile.updated_at = datetime.now()
 
     db.commit()

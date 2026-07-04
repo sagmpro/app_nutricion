@@ -53,32 +53,19 @@
     </div>
   </div>
 
-  <!-- Preferencias y restricciones -->
-  <div class="card space-y-4">
-    <h2 class="text-base font-semibold text-gray-800">Preferencias alimentarias</h2>
-
+  <!-- Preferences reminder -->
+  <div class="card bg-blue-50 border border-blue-100 text-sm text-blue-700 flex items-start gap-3">
+    <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
     <div>
-      <label class="label">Alimentos favoritos <span class="text-gray-400 font-normal">(opcional)</span></label>
-      <input type="text" name="preferred_foods" class="input"
-             value="{{ profile.preferred_foods or '' }}"
-             placeholder="Ej: pollo, arroz, aguacate, huevos...">
-      <p class="text-xs text-gray-400 mt-1">Claude los incluirá cuando sea posible</p>
-    </div>
-
-    <div>
-      <label class="label">Alimentos que NO te gustan <span class="text-gray-400 font-normal">(opcional)</span></label>
-      <input type="text" name="disliked_foods" class="input"
-             value="{{ profile.disliked_foods or '' }}"
-             placeholder="Ej: hígado, coliflor, sardinas...">
-      <p class="text-xs text-gray-400 mt-1">Se evitarán en el plan</p>
-    </div>
-
-    <div>
-      <label class="label">Alergias e intolerancias <span class="text-gray-400 font-normal">(opcional)</span></label>
-      <input type="text" name="food_intolerances" class="input"
-             value="{{ profile.food_intolerances or '' }}"
-             placeholder="Ej: lactosa, gluten, frutos secos...">
-      <p class="text-xs text-gray-400 mt-1">Se excluirán estrictamente</p>
+      Claude usará tus preferencias alimentarias, facilidades de cocina y hora de entreno de tu
+      <a href="/perfil" class="font-semibold underline">Configuración</a>.
+      {% if profile.preferred_foods or profile.food_intolerances %}
+      Actualmente: <span class="font-medium">{{ profile.dietary_type }}</span>
+      {% if profile.food_intolerances %} · Sin: {{ profile.food_intolerances }}{% endif %}
+      {% if profile.preferred_foods %} · Favoritos: {{ profile.preferred_foods }}{% endif %}
+      {% endif %}
     </div>
   </div>
 

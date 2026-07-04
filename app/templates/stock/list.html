@@ -8,8 +8,12 @@
     <h1 class="text-2xl font-bold text-gray-800">Mi Despensa</h1>
     <p class="text-gray-500 text-sm">{{ all_items | length }} ingrediente(s) en stock</p>
   </div>
-  <button onclick="document.getElementById('add-form').classList.toggle('hidden')"
-    class="btn-primary text-sm">+ Agregar ingrediente</button>
+  <div class="flex gap-2 flex-wrap">
+    <button onclick="document.getElementById('photo-form').classList.toggle('hidden');document.getElementById('add-form').classList.add('hidden')"
+      class="btn-secondary text-sm">📷 Añadir desde foto</button>
+    <button onclick="document.getElementById('add-form').classList.toggle('hidden');document.getElementById('photo-form').classList.add('hidden')"
+      class="btn-primary text-sm">+ Agregar manual</button>
+  </div>
 </div>
 
 {% if success %}
@@ -18,6 +22,25 @@
 {% if error %}
 <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-red-700 text-sm">{{ error }}</div>
 {% endif %}
+
+<!-- Photo upload form -->
+<div id="photo-form" class="hidden card mb-6 bg-purple-50 border border-purple-200">
+  <h2 class="text-sm font-semibold text-gray-700 mb-2">Identificar ingredientes desde foto</h2>
+  <p class="text-xs text-gray-500 mb-4">Sube una foto de tus ingredientes o despensa y Claude los identificará automáticamente.</p>
+  <form method="POST" action="/stock/desde-foto" enctype="multipart/form-data"
+        data-loading data-loading-title="Analizando foto..."
+        data-loading-subtitle="Claude está identificando los ingredientes en la imagen."
+        class="flex flex-wrap items-end gap-3">
+    <div class="flex-1 min-w-[200px]">
+      <label class="label">Foto de ingredientes</label>
+      <input type="file" name="foto" accept="image/*" capture="environment" class="input" required>
+    </div>
+    <div class="flex gap-2">
+      <button type="submit" class="btn-primary text-sm">Identificar</button>
+      <button type="button" onclick="document.getElementById('photo-form').classList.add('hidden')" class="btn-secondary text-sm">Cancelar</button>
+    </div>
+  </form>
+</div>
 
 <!-- Add form -->
 <div id="add-form" class="hidden card mb-6 bg-green-50 border border-green-200">

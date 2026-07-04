@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Mi Perfil - NutriPlan{% endblock %}
+{% block title %}Configuración - NutriPlan{% endblock %}
 
 {% block content %}
 <div class="mb-6">
-  <h1 class="text-2xl font-bold text-gray-800">Mi Perfil Nutricional</h1>
-  <p class="text-gray-500 text-sm mt-1">Configura tus datos y objetivos para generar planes personalizados</p>
+  <h1 class="text-2xl font-bold text-gray-800">Configuración</h1>
+  <p class="text-gray-500 text-sm mt-1">Tus datos, objetivos y preferencias para generar planes personalizados</p>
 </div>
 
 {% if success %}
 <div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-6 text-green-700 text-sm">
-  ✓ Perfil guardado correctamente.
+  ✓ Configuración guardada correctamente.
 </div>
 {% endif %}
 
@@ -75,6 +75,17 @@
     </p>
   </div>
 
+  <!-- Training time -->
+  <div class="card">
+    <h2 class="text-base font-semibold text-gray-800 mb-1">Hora de entrenamiento</h2>
+    <p class="text-gray-500 text-sm mb-4">Claude ajustará las comidas pre y post entreno</p>
+    <div class="flex items-center gap-3">
+      <input type="time" name="training_time" class="input max-w-[160px]"
+             value="{{ profile.training_time if profile and profile.training_time else '' }}">
+      <span class="text-sm text-gray-400">Dejar vacío si no entrenas a una hora fija</span>
+    </div>
+  </div>
+
   <!-- Goal -->
   <div class="card">
     <h2 class="text-base font-semibold text-gray-800 mb-4">Objetivo nutricional</h2>
@@ -95,7 +106,6 @@
       </label>
     </div>
 
-    <!-- Caloric deficit fields -->
     <div id="fields-caloric">
       <label class="label">Calorías objetivo por día (kcal)</label>
       <input type="number" name="target_calories" class="input max-w-xs" min="1000" max="5000"
@@ -104,7 +114,6 @@
       <p class="text-xs text-gray-400 mt-1">Deja vacío para usar TDEE − 500 kcal</p>
     </div>
 
-    <!-- Fat loss fields -->
     <div id="fields-fat" class="hidden space-y-4">
       <div class="grid grid-cols-3 gap-4">
         <div>
@@ -148,7 +157,81 @@
     </div>
   </div>
 
-  <button type="submit" class="btn-primary w-full sm:w-auto px-8">Guardar perfil</button>
+  <!-- Food preferences -->
+  <div class="card space-y-5">
+    <div>
+      <h2 class="text-base font-semibold text-gray-800 mb-1">Tipo de dieta</h2>
+      <p class="text-gray-500 text-sm mb-4">Claude seguirá este estilo en todos tus planes</p>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {% set diet_options = [
+          ("omnivoro",     "🍖", "Omnívoro"),
+          ("vegetariano",  "🥗", "Vegetariano"),
+          ("vegano",       "🌱", "Vegano"),
+          ("pescetariano", "🐟", "Pescetariano"),
+        ] %}
+        {% for val, icon, label in diet_options %}
+        <label class="diet-card border-2 rounded-xl p-3 cursor-pointer text-center transition-colors hover:border-green-400
+                      {{ 'border-green-500 bg-green-50' if (profile and profile.dietary_type == val) or (not profile and val == 'omnivoro') else 'border-gray-200' }}">
+          <input type="radio" name="dietary_type" value="{{ val }}" class="sr-only"
+                 {{ "checked" if (profile and profile.dietary_type == val) or (not profile and val == 'omnivoro') }}>
+          <div class="text-2xl mb-1">{{ icon }}</div>
+          <div class="text-xs font-medium text-gray-700">{{ label }}</div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div>
+      <h2 class="text-base font-semibold text-gray-800 mb-1">Preferencias y restricciones</h2>
+      <p class="text-gray-500 text-sm mb-4">Claude usará esto en cada plan que generes</p>
+      <div class="space-y-4">
+        <div>
+          <label class="label">Alimentos favoritos <span class="text-gray-400 font-normal">(opcional)</span></label>
+          <input type="text" name="preferred_foods" class="input"
+                 value="{{ profile.preferred_foods or '' if profile else '' }}"
+                 placeholder="Ej: pollo, arroz, aguacate, huevos...">
+          <p class="text-xs text-gray-400 mt-1">Se incluirán cuando sea posible</p>
+        </div>
+        <div>
+          <label class="label">Alimentos que NO te gustan <span class="text-gray-400 font-normal">(opcional)</span></label>
+          <input type="text" name="disliked_foods" class="input"
+                 value="{{ profile.disliked_foods or '' if profile else '' }}"
+                 placeholder="Ej: hígado, coliflor, sardinas...">
+          <p class="text-xs text-gray-400 mt-1">Se evitarán en el plan</p>
+        </div>
+        <div>
+          <label class="label">Alergias e intolerancias <span class="text-gray-400 font-normal">(opcional)</span></label>
+          <input type="text" name="food_intolerances" class="input"
+                 value="{{ profile.food_intolerances or '' if profile else '' }}"
+                 placeholder="Ej: lactosa, gluten, frutos secos...">
+          <p class="text-xs text-gray-400 mt-1">Se excluirán estrictamente</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cooking & lifestyle -->
+  <div class="card space-y-5">
+    <div>
+      <h2 class="text-base font-semibold text-gray-800 mb-1">Facilidades de cocina</h2>
+      <p class="text-gray-500 text-sm mb-3">Equipamiento disponible para preparar comidas</p>
+      <textarea name="cooking_facilities" class="input min-h-[80px] resize-none" rows="3"
+                placeholder="Ej: tengo horno, microondas y freidora de aire. Sin estufa de gas. Poco tiempo en el desayuno (máx 10 min).">{{ profile.cooking_facilities or '' if profile else '' }}</textarea>
+    </div>
+
+    <div>
+      <h2 class="text-base font-semibold text-gray-800 mb-1">Repetición de comidas</h2>
+      <p class="text-gray-500 text-sm mb-3">¿Cuántas veces puedes repetir el mismo plato en la semana?</p>
+      <div class="flex items-center gap-3">
+        <input type="number" name="max_meal_repeats" class="input max-w-[80px] text-center text-lg font-bold"
+               min="1" max="7" value="{{ profile.max_meal_repeats if profile else 2 }}">
+        <span class="text-sm text-gray-500">veces máximo por receta (desayuno/almuerzo/cena)</span>
+      </div>
+      <p class="text-xs text-gray-400 mt-1">Los snacks siempre se repiten para optimizar tokens</p>
+    </div>
+  </div>
+
+  <button type="submit" class="btn-primary w-full sm:w-auto px-8">Guardar configuración</button>
 </form>
 {% endblock %}
 
@@ -204,13 +287,22 @@ function updateGoalUI() {
   const isCaloric = document.querySelector('[name=goal_type][value=caloric_deficit]').checked;
   document.getElementById('fields-caloric').classList.toggle('hidden', !isCaloric);
   document.getElementById('fields-fat').classList.toggle('hidden', isCaloric);
-
-  // Card border highlight
   document.getElementById('goal-card-caloric').classList.toggle('border-green-500', isCaloric);
   document.getElementById('goal-card-caloric').classList.toggle('border-gray-200', !isCaloric);
   document.getElementById('goal-card-fat').classList.toggle('border-green-500', !isCaloric);
   document.getElementById('goal-card-fat').classList.toggle('border-gray-200', isCaloric);
 }
+
+document.querySelectorAll('.diet-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.diet-card').forEach(c => {
+      c.classList.remove('border-green-500', 'bg-green-50');
+      c.classList.add('border-gray-200');
+    });
+    card.classList.add('border-green-500', 'bg-green-50');
+    card.classList.remove('border-gray-200');
+  });
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   updateGoalUI();

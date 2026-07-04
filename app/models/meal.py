@@ -33,4 +33,10 @@ class Meal(Base):
     fat_g: Mapped[float] = mapped_column(Float, default=0.0)
     ingredients_json: Mapped[str] = mapped_column(Text, default="[]")
 
+    # Consumption tracking
+    consumed: Mapped[bool] = mapped_column(default=False)
+    actual_calories: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    actual_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    recipe_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     meal_plan: Mapped["MealPlan"] = relationship(back_populates="meals")
