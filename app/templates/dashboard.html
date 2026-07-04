@@ -27,26 +27,47 @@
 
 <!-- Stats row -->
 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+
   <div class="bg-green-600 rounded-2xl p-4 text-white">
-    <p class="text-xs font-medium text-green-200 mb-1">🎯 Objetivo diario</p>
+    <p class="text-xs font-medium text-green-200 mb-1 flex items-center gap-1">
+      🎯 Objetivo diario
+      <span class="tip text-green-300 hover:text-white ml-0.5"
+            data-tip="Calorías que debes consumir al día para alcanzar tu meta. Se calcula restando el déficit a tu TDEE.">ⓘ</span>
+    </p>
     <p class="text-3xl font-bold">{{ stats.target_calories }}</p>
     <p class="text-xs text-green-200 mt-0.5">kcal/día</p>
   </div>
+
   <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-    <p class="text-xs font-medium text-gray-400 mb-1">⚡ TDEE</p>
+    <p class="text-xs font-medium text-gray-400 mb-1 flex items-center gap-1">
+      ⚡ TDEE
+      <span class="tip text-gray-300 hover:text-gray-600 ml-0.5"
+            data-tip="Total Daily Energy Expenditure: calorías totales que quemas al día incluyendo actividad física. Es tu punto de equilibrio calórico.">ⓘ</span>
+    </p>
     <p class="text-3xl font-bold text-gray-800">{{ stats.tdee }}</p>
     <p class="text-xs text-gray-400 mt-0.5">kcal/día</p>
   </div>
+
   <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-    <p class="text-xs font-medium text-gray-400 mb-1">🔥 TMB</p>
+    <p class="text-xs font-medium text-gray-400 mb-1 flex items-center gap-1">
+      🔥 TMB
+      <span class="tip text-gray-300 hover:text-gray-600 ml-0.5"
+            data-tip="Tasa Metabólica Basal: calorías mínimas que tu cuerpo necesita en reposo absoluto para funcionar (respirar, circulación, órganos). Nunca deberías comer menos que esto.">ⓘ</span>
+    </p>
     <p class="text-3xl font-bold text-gray-800">{{ stats.bmr }}</p>
     <p class="text-xs text-gray-400 mt-0.5">kcal/día</p>
   </div>
+
   <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-    <p class="text-xs font-medium text-gray-400 mb-1">🏃 Días activos</p>
+    <p class="text-xs font-medium text-gray-400 mb-1 flex items-center gap-1">
+      🏃 Días activos
+      <span class="tip text-gray-300 hover:text-gray-600 ml-0.5"
+            data-tip="Días a la semana que haces ejercicio. Más días activos = mayor TDEE, ya que quemas más calorías.">ⓘ</span>
+    </p>
     <p class="text-3xl font-bold text-gray-800">{{ stats.activity_days | length }}</p>
     <p class="text-xs text-gray-400 mt-0.5">días/semana</p>
   </div>
+
 </div>
 
 <!-- Main grid -->

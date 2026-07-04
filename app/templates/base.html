@@ -19,6 +19,33 @@
     .badge-green  { @apply inline-flex items-center gap-1 px-2.5 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full; }
     .badge-yellow { @apply inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full; }
     .badge-gray   { @apply inline-flex items-center gap-1 px-2.5 py-0.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full; }
+
+    /* CSS-only tooltips via data-tip attribute */
+    .tip { position: relative; display: inline-flex; align-items: center; cursor: help; }
+    .tip::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #111827;
+      color: #f3f4f6;
+      font-size: 11px;
+      line-height: 1.5;
+      padding: 7px 11px;
+      border-radius: 8px;
+      width: 230px;
+      white-space: normal;
+      text-align: center;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 100;
+      pointer-events: none;
+      font-weight: normal;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+    .tip:hover::after { visibility: visible; opacity: 1; }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
