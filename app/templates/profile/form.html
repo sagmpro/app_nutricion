@@ -13,164 +13,190 @@
 </div>
 {% endif %}
 
-<form method="POST" action="/perfil" class="space-y-6 max-w-2xl">
+<form method="POST" action="/perfil" class="space-y-5 max-w-2xl">
 
   <!-- Personal data -->
-  <div class="card space-y-4">
-    <h2 class="text-base font-semibold text-gray-800">Datos personales</h2>
-    <div>
-      <label class="label">Nombre</label>
-      <input type="text" name="name" class="input" value="{{ profile.name if profile else '' }}" placeholder="Tu nombre" required>
+  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
+      <span class="text-xl leading-none">👤</span>
+      <h2 class="text-sm font-semibold text-gray-800">Datos personales</h2>
     </div>
-    <div class="grid grid-cols-2 gap-4">
+    <div class="p-6 space-y-4">
       <div>
-        <label class="label">Edad</label>
-        <input type="number" name="age" id="age" class="input" value="{{ profile.age if profile else '' }}" min="15" max="99" placeholder="30" required oninput="calcBMR()">
+        <label class="label">Nombre</label>
+        <input type="text" name="name" class="input" value="{{ profile.name if profile else '' }}" placeholder="Tu nombre" required>
       </div>
-      <div>
-        <label class="label">Género</label>
-        <div class="flex gap-4 pt-1">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="gender" value="male" class="accent-green-600"
-              {{ "checked" if not profile or profile.gender == "male" }} onchange="calcBMR()">
-            <span class="text-sm text-gray-700">Hombre</span>
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="gender" value="female" class="accent-green-600"
-              {{ "checked" if profile and profile.gender == "female" }} onchange="calcBMR()">
-            <span class="text-sm text-gray-700">Mujer</span>
-          </label>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="label">Edad</label>
+          <input type="number" name="age" id="age" class="input" value="{{ profile.age if profile else '' }}" min="15" max="99" placeholder="30" required oninput="calcBMR()">
         </div>
-      </div>
-      <div>
-        <label class="label">Peso (kg)</label>
-        <input type="number" name="weight_kg" id="weight" class="input" step="0.1"
-          value="{{ profile.weight_kg if profile else '' }}" placeholder="70" required oninput="calcBMR()">
-      </div>
-      <div>
-        <label class="label">Altura (cm)</label>
-        <input type="number" name="height_cm" id="height" class="input"
-          value="{{ profile.height_cm if profile else '' }}" placeholder="170" required oninput="calcBMR()">
+        <div>
+          <label class="label">Género</label>
+          <div class="flex gap-4 pt-2">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="gender" value="male" class="accent-green-600"
+                {{ "checked" if not profile or profile.gender == "male" }} onchange="calcBMR()">
+              <span class="text-sm text-gray-700">Hombre</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="gender" value="female" class="accent-green-600"
+                {{ "checked" if profile and profile.gender == "female" }} onchange="calcBMR()">
+              <span class="text-sm text-gray-700">Mujer</span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="label">Peso (kg)</label>
+          <input type="number" name="weight_kg" id="weight" class="input" step="0.1"
+            value="{{ profile.weight_kg if profile else '' }}" placeholder="70" required oninput="calcBMR()">
+        </div>
+        <div>
+          <label class="label">Altura (cm)</label>
+          <input type="number" name="height_cm" id="height" class="input"
+            value="{{ profile.height_cm if profile else '' }}" placeholder="170" required oninput="calcBMR()">
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Activity days -->
-  <div class="card">
-    <h2 class="text-base font-semibold text-gray-800 mb-1">Días de actividad física</h2>
-    <p class="text-gray-500 text-sm mb-4">Selecciona los días que realizas ejercicio</p>
-    <div class="flex gap-2 flex-wrap">
-      {% for i in range(7) %}
-      <input type="hidden" name="day_{{ i }}" id="day-input-{{ i }}" value="{{ '1' if i in activity_days else '0' }}">
-      <button type="button" onclick="toggleDay({{ i }})" id="day-btn-{{ i }}"
-        class="w-11 h-11 rounded-full border-2 font-semibold text-sm transition-colors
-               {{ 'bg-green-600 text-white border-green-600' if i in activity_days else 'bg-white text-gray-600 border-gray-300 hover:border-green-400' }}"
-        title="{{ days_names[i] }}">
-        {{ days_letters[i] }}
-      </button>
-      {% endfor %}
+  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
+      <span class="text-xl leading-none">🏃</span>
+      <h2 class="text-sm font-semibold text-gray-800">Actividad física</h2>
     </div>
-    <p class="text-xs text-gray-400 mt-3" id="activity-count">
-      {{ activity_days | length }} día(s) seleccionado(s)
-    </p>
+    <div class="p-6">
+      <p class="text-gray-500 text-sm mb-4">Selecciona los días que realizas ejercicio</p>
+      <div class="flex gap-2 flex-wrap">
+        {% for i in range(7) %}
+        <input type="hidden" name="day_{{ i }}" id="day-input-{{ i }}" value="{{ '1' if i in activity_days else '0' }}">
+        <button type="button" onclick="toggleDay({{ i }})" id="day-btn-{{ i }}"
+          class="w-11 h-11 rounded-full border-2 font-semibold text-sm transition-colors
+                 {{ 'bg-green-600 text-white border-green-600' if i in activity_days else 'bg-white text-gray-600 border-gray-300 hover:border-green-400' }}"
+          title="{{ days_names[i] }}">
+          {{ days_letters[i] }}
+        </button>
+        {% endfor %}
+      </div>
+      <p class="text-xs text-gray-400 mt-3" id="activity-count">
+        {{ activity_days | length }} día(s) seleccionado(s)
+      </p>
+    </div>
   </div>
 
   <!-- Training time -->
-  <div class="card space-y-4">
-    <div>
-      <h2 class="text-base font-semibold text-gray-800">Hora de entrenamiento</h2>
-      <p class="text-gray-500 text-sm mt-0.5">Claude ajustará las comidas pre y post entreno. Dejar vacío si no tienes horario fijo.</p>
+  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
+      <span class="text-xl leading-none">⏰</span>
+      <h2 class="text-sm font-semibold text-gray-800">Hora de entrenamiento</h2>
     </div>
-    <div class="grid grid-cols-2 gap-4 max-w-xs">
-      <div>
-        <label class="label">Desde</label>
-        <input type="time" name="training_time" class="input"
-               value="{{ profile.training_time if profile and profile.training_time else '' }}"
-               oninput="refreshAutoTimes()">
-      </div>
-      <div>
-        <label class="label">Hasta</label>
-        <input type="time" name="training_end" class="input"
-               value="{{ profile.training_end if profile and profile.training_end else '' }}">
+    <div class="p-6">
+      <p class="text-gray-500 text-sm mb-4">Claude ajustará las comidas pre y post entreno. Dejar vacío si no tienes horario fijo.</p>
+      <div class="grid grid-cols-2 gap-4 max-w-xs">
+        <div>
+          <label class="label">Desde</label>
+          <input type="time" name="training_time" class="input"
+                 value="{{ profile.training_time if profile and profile.training_time else '' }}"
+                 oninput="refreshAutoTimes()">
+        </div>
+        <div>
+          <label class="label">Hasta</label>
+          <input type="time" name="training_end" class="input"
+                 value="{{ profile.training_end if profile and profile.training_end else '' }}">
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Goal -->
-  <div class="card">
-    <h2 class="text-base font-semibold text-gray-800 mb-4">Objetivo nutricional</h2>
-    <div class="flex gap-4 mb-5">
-      <label class="flex-1 border-2 rounded-xl p-4 cursor-pointer transition-colors hover:border-green-400" id="goal-card-caloric">
-        <input type="radio" name="goal_type" value="caloric_deficit" class="sr-only"
-          {{ "checked" if not profile or profile.goal_type == "caloric_deficit" }} onchange="updateGoalUI()">
-        <div class="text-2xl mb-1">🔥</div>
-        <div class="font-semibold text-sm text-gray-800">Déficit calórico</div>
-        <div class="text-xs text-gray-500 mt-1">Establece una meta de calorías por día</div>
-      </label>
-      <label class="flex-1 border-2 rounded-xl p-4 cursor-pointer transition-colors hover:border-green-400" id="goal-card-fat">
-        <input type="radio" name="goal_type" value="fat_loss" class="sr-only"
-          {{ "checked" if profile and profile.goal_type == "fat_loss" }} onchange="updateGoalUI()">
-        <div class="text-2xl mb-1">📉</div>
-        <div class="font-semibold text-sm text-gray-800">Reducir % grasa</div>
-        <div class="text-xs text-gray-500 mt-1">Define tu % de grasa actual y objetivo</div>
-      </label>
+  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
+      <span class="text-xl leading-none">🎯</span>
+      <h2 class="text-sm font-semibold text-gray-800">Objetivo nutricional</h2>
     </div>
+    <div class="p-6">
+      <div class="flex gap-4 mb-5">
+        <label class="flex-1 border-2 rounded-xl p-4 cursor-pointer transition-colors hover:border-green-400" id="goal-card-caloric">
+          <input type="radio" name="goal_type" value="caloric_deficit" class="sr-only"
+            {{ "checked" if not profile or profile.goal_type == "caloric_deficit" }} onchange="updateGoalUI()">
+          <div class="text-2xl mb-1">🔥</div>
+          <div class="font-semibold text-sm text-gray-800">Déficit calórico</div>
+          <div class="text-xs text-gray-500 mt-1">Establece una meta de calorías por día</div>
+        </label>
+        <label class="flex-1 border-2 rounded-xl p-4 cursor-pointer transition-colors hover:border-green-400" id="goal-card-fat">
+          <input type="radio" name="goal_type" value="fat_loss" class="sr-only"
+            {{ "checked" if profile and profile.goal_type == "fat_loss" }} onchange="updateGoalUI()">
+          <div class="text-2xl mb-1">📉</div>
+          <div class="font-semibold text-sm text-gray-800">Reducir % grasa</div>
+          <div class="text-xs text-gray-500 mt-1">Define tu % de grasa actual y objetivo</div>
+        </label>
+      </div>
 
-    <div id="fields-caloric">
-      <label class="label">Calorías objetivo por día (kcal)</label>
-      <input type="number" name="target_calories" class="input max-w-xs" min="1000" max="5000"
-        value="{{ profile.target_calories if profile and profile.target_calories else '' }}"
-        placeholder="Ej: 1800">
-      <p class="text-xs text-gray-400 mt-1">Deja vacío para usar TDEE − 500 kcal</p>
-    </div>
+      <div id="fields-caloric">
+        <label class="label">Calorías objetivo por día (kcal)</label>
+        <input type="number" name="target_calories" class="input max-w-xs" min="1000" max="5000"
+          value="{{ profile.target_calories if profile and profile.target_calories else '' }}"
+          placeholder="Ej: 1800">
+        <p class="text-xs text-gray-400 mt-1">Deja vacío para usar TDEE − 500 kcal</p>
+      </div>
 
-    <div id="fields-fat" class="hidden space-y-4">
-      <div class="grid grid-cols-3 gap-4">
-        <div>
-          <label class="label">% Grasa actual</label>
-          <input type="number" name="current_fat_pct" class="input" step="0.1" min="5" max="60"
-            value="{{ profile.current_fat_pct if profile and profile.current_fat_pct else '' }}"
-            placeholder="Ej: 22">
-        </div>
-        <div>
-          <label class="label">% Grasa objetivo</label>
-          <input type="number" name="target_fat_pct" class="input" step="0.1" min="5" max="60"
-            value="{{ profile.target_fat_pct if profile and profile.target_fat_pct else '' }}"
-            placeholder="Ej: 15">
-        </div>
-        <div>
-          <label class="label">En cuántos días</label>
-          <input type="number" name="target_days" class="input" min="30" max="365"
-            value="{{ profile.target_days if profile and profile.target_days else '' }}"
-            placeholder="Ej: 90">
+      <div id="fields-fat" class="hidden space-y-4">
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="label">% Grasa actual</label>
+            <input type="number" name="current_fat_pct" class="input" step="0.1" min="5" max="60"
+              value="{{ profile.current_fat_pct if profile and profile.current_fat_pct else '' }}"
+              placeholder="Ej: 22">
+          </div>
+          <div>
+            <label class="label">% Grasa objetivo</label>
+            <input type="number" name="target_fat_pct" class="input" step="0.1" min="5" max="60"
+              value="{{ profile.target_fat_pct if profile and profile.target_fat_pct else '' }}"
+              placeholder="Ej: 15">
+          </div>
+          <div>
+            <label class="label">En cuántos días</label>
+            <input type="number" name="target_days" class="input" min="30" max="365"
+              value="{{ profile.target_days if profile and profile.target_days else '' }}"
+              placeholder="Ej: 90">
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <!-- BMR/TDEE preview -->
-  <div id="calc-section" class="{{ 'block' if profile else 'hidden' }} card bg-green-50 border border-green-200">
-    <h3 class="text-sm font-semibold text-green-800 mb-3">Cálculo estimado</h3>
-    <div class="grid grid-cols-3 gap-4 text-center">
-      <div>
-        <p class="text-xl font-bold text-green-700" id="bmr-display">{{ stats.bmr if stats else '—' }}</p>
-        <p class="text-xs text-green-600">TMB (kcal)</p>
-      </div>
-      <div>
-        <p class="text-xl font-bold text-green-700" id="tdee-display">{{ stats.tdee if stats else '—' }}</p>
-        <p class="text-xs text-green-600">TDEE (kcal)</p>
-      </div>
-      <div>
-        <p class="text-xl font-bold text-green-700" id="target-display">{{ stats.target_calories if stats else '—' }}</p>
-        <p class="text-xs text-green-600">Objetivo (kcal)</p>
+  <div id="calc-section" class="{{ 'block' if profile else 'hidden' }} bg-green-50 rounded-2xl shadow border border-green-200 overflow-hidden">
+    <div class="border-b border-green-200 px-6 py-4 bg-green-100 flex items-center gap-3">
+      <span class="text-xl leading-none">🧮</span>
+      <h2 class="text-sm font-semibold text-green-800">Cálculo estimado</h2>
+    </div>
+    <div class="p-6">
+      <div class="grid grid-cols-3 gap-4 text-center">
+        <div>
+          <p class="text-xl font-bold text-green-700" id="bmr-display">{{ stats.bmr if stats else '—' }}</p>
+          <p class="text-xs text-green-600">TMB (kcal)</p>
+        </div>
+        <div>
+          <p class="text-xl font-bold text-green-700" id="tdee-display">{{ stats.tdee if stats else '—' }}</p>
+          <p class="text-xs text-green-600">TDEE (kcal)</p>
+        </div>
+        <div>
+          <p class="text-xl font-bold text-green-700" id="target-display">{{ stats.target_calories if stats else '—' }}</p>
+          <p class="text-xs text-green-600">Objetivo (kcal)</p>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Food preferences -->
-  <div class="card space-y-6">
-    <div>
-      <h2 class="text-base font-semibold text-gray-800 mb-0.5">Tipo de dieta</h2>
+  <!-- Diet type -->
+  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
+      <span class="text-xl leading-none">🥗</span>
+      <h2 class="text-sm font-semibold text-gray-800">Tipo de dieta</h2>
+    </div>
+    <div class="p-6">
       <p class="text-gray-500 text-sm mb-4">Claude seguirá este estilo en todos tus planes</p>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {% set diet_options = [
@@ -190,125 +216,143 @@
         {% endfor %}
       </div>
     </div>
+  </div>
 
-    <div>
-      <h2 class="text-base font-semibold text-gray-800 mb-1">Preferencias y restricciones</h2>
-      <p class="text-gray-500 text-sm mb-4">Claude usará esto en cada plan que generes</p>
-      <div class="space-y-5">
-        <div>
-          <label class="label">Alimentos favoritos <span class="text-gray-400 normal-case font-normal">(opcional)</span></label>
-          <input type="text" name="preferred_foods" class="input"
-                 value="{{ profile.preferred_foods or '' if profile else '' }}"
-                 placeholder="Ej: pollo, arroz, aguacate, huevos...">
-          <p class="text-xs text-gray-400 mt-1">Se incluirán cuando sea posible</p>
-        </div>
-        <div>
-          <label class="label">Alimentos que NO te gustan <span class="text-gray-400 normal-case font-normal">(opcional)</span></label>
-          <input type="text" name="disliked_foods" class="input"
-                 value="{{ profile.disliked_foods or '' if profile else '' }}"
-                 placeholder="Ej: hígado, coliflor, sardinas...">
-          <p class="text-xs text-gray-400 mt-1">Se evitarán en el plan</p>
-        </div>
-        <div>
-          <label class="label">Alergias e intolerancias <span class="text-gray-400 normal-case font-normal">(opcional)</span></label>
-          <input type="text" name="food_intolerances" class="input"
-                 value="{{ profile.food_intolerances or '' if profile else '' }}"
-                 placeholder="Ej: lactosa, gluten, frutos secos...">
-          <p class="text-xs text-gray-400 mt-1">Se excluirán estrictamente</p>
-        </div>
+  <!-- Food preferences -->
+  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
+      <span class="text-xl leading-none">🚫</span>
+      <h2 class="text-sm font-semibold text-gray-800">Preferencias y restricciones</h2>
+    </div>
+    <div class="p-6 space-y-5">
+      <p class="text-gray-500 text-sm -mt-1">Claude usará esto en cada plan que generes</p>
+      <div>
+        <label class="label">Alimentos favoritos <span class="text-gray-400 normal-case font-normal">(opcional)</span></label>
+        <input type="text" name="preferred_foods" class="input"
+               value="{{ profile.preferred_foods or '' if profile else '' }}"
+               placeholder="Ej: pollo, arroz, aguacate, huevos...">
+        <p class="text-xs text-gray-400 mt-1">Se incluirán cuando sea posible</p>
+      </div>
+      <div>
+        <label class="label">Alimentos que NO te gustan <span class="text-gray-400 normal-case font-normal">(opcional)</span></label>
+        <input type="text" name="disliked_foods" class="input"
+               value="{{ profile.disliked_foods or '' if profile else '' }}"
+               placeholder="Ej: hígado, coliflor, sardinas...">
+        <p class="text-xs text-gray-400 mt-1">Se evitarán en el plan</p>
+      </div>
+      <div>
+        <label class="label">Alergias e intolerancias <span class="text-gray-400 normal-case font-normal">(opcional)</span></label>
+        <input type="text" name="food_intolerances" class="input"
+               value="{{ profile.food_intolerances or '' if profile else '' }}"
+               placeholder="Ej: lactosa, gluten, frutos secos...">
+        <p class="text-xs text-gray-400 mt-1">Se excluirán estrictamente</p>
       </div>
     </div>
   </div>
 
   <!-- Meal schedule -->
-  <div class="card">
-    <h2 class="text-base font-semibold text-gray-800 mb-1">Horario de comidas</h2>
-    <p class="text-gray-500 text-sm mb-4">Activa las comidas que haces normalmente y asigna su hora. Usa <strong>Auto</strong> para calcular según tu hora de entrenamiento.</p>
+  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
+      <span class="text-xl leading-none">🕐</span>
+      <h2 class="text-sm font-semibold text-gray-800">Horario de comidas</h2>
+    </div>
+    <div class="p-6">
+      <p class="text-gray-500 text-sm mb-4">Activa las comidas que haces normalmente y asigna su hora. Usa <strong>Auto</strong> para calcular según tu hora de entrenamiento.</p>
 
-    {% set meal_defs = [
-      ("desayuno",     "🌅", "Desayuno",      "07:00"),
-      ("media_manana", "🍎", "Media mañana",  "10:30"),
-      ("almuerzo",     "🍽", "Almuerzo",      "13:30"),
-      ("media_tarde",  "🥜", "Media tarde",   "17:00"),
-      ("cena",         "🌙", "Cena",          "20:30"),
-    ] %}
-    <div class="space-y-2">
-      {% for meal_id, icon, label, default_time in meal_defs %}
-      {% set is_on = meal_id in enabled_meals %}
-      {% set raw_time = meal_times.get(meal_id, "") %}
-      {% set is_auto = raw_time == "auto" %}
-      {% set saved_time = raw_time if not is_auto else "" %}
-      <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-white transition-colors">
-        <!-- Toggle -->
-        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
-          <input type="checkbox" name="meal_enabled_{{ meal_id }}" value="1"
-                 id="meal-cb-{{ meal_id }}"
-                 {{ "checked" if is_on }}
-                 onchange="toggleMeal('{{ meal_id }}', this.checked)"
-                 class="sr-only peer">
-          <div class="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-green-500 transition-colors relative">
-            <div id="meal-thumb-{{ meal_id }}"
-                 class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-all {{ 'translate-x-5' if is_on }}"></div>
-          </div>
-        </label>
-        <!-- Icon + name -->
-        <span class="text-lg flex-shrink-0">{{ icon }}</span>
-        <span id="meal-label-{{ meal_id }}"
-              class="flex-1 text-sm font-medium {{ 'text-gray-400 line-through' if not is_on else 'text-gray-800' }}">
-          {{ label }}
-        </span>
-        <!-- Time section -->
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <!-- Manual time input (hidden when auto) -->
-          <input type="time" name="meal_time_{{ meal_id }}"
-                 id="meal-time-{{ meal_id }}"
-                 value="{{ saved_time }}"
-                 {{ "disabled" if not is_on or is_auto }}
-                 class="input max-w-[100px] text-sm py-1.5
-                        {{ 'opacity-30 cursor-not-allowed' if not is_on }}
-                        {{ 'hidden' if is_auto }}">
-          <!-- Auto calculated time display -->
-          <span id="meal-autotime-{{ meal_id }}"
-                class="text-sm font-mono font-semibold text-green-700 min-w-[52px] text-right {{ 'hidden' if not is_auto }}">
-            {{ effective_meal_times.get(meal_id, '') if is_auto else '' }}
+      {% set meal_defs = [
+        ("desayuno",     "🌅", "Desayuno",      "07:00"),
+        ("media_manana", "🍎", "Media mañana",  "10:30"),
+        ("almuerzo",     "🍽", "Almuerzo",      "13:30"),
+        ("media_tarde",  "🥜", "Media tarde",   "17:00"),
+        ("cena",         "🌙", "Cena",          "20:30"),
+      ] %}
+      <div class="space-y-2">
+        {% for meal_id, icon, label, default_time in meal_defs %}
+        {% set is_on = meal_id in enabled_meals %}
+        {% set raw_time = meal_times.get(meal_id, "") %}
+        {% set is_auto = raw_time == "auto" %}
+        {% set saved_time = raw_time if not is_auto else "" %}
+        <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-white transition-colors">
+          <!-- Toggle -->
+          <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+            <input type="checkbox" name="meal_enabled_{{ meal_id }}" value="1"
+                   id="meal-cb-{{ meal_id }}"
+                   {{ "checked" if is_on }}
+                   onchange="toggleMeal('{{ meal_id }}', this.checked)"
+                   class="sr-only peer">
+            <div class="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-green-500 transition-colors relative">
+              <div id="meal-thumb-{{ meal_id }}"
+                   class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-all {{ 'translate-x-5' if is_on }}"></div>
+            </div>
+          </label>
+          <!-- Icon + name -->
+          <span class="text-lg flex-shrink-0">{{ icon }}</span>
+          <span id="meal-label-{{ meal_id }}"
+                class="flex-1 text-sm font-medium {{ 'text-gray-400 line-through' if not is_on else 'text-gray-800' }}">
+            {{ label }}
           </span>
-          <!-- Hidden flag for auto mode -->
-          <input type="hidden" id="meal-automode-{{ meal_id }}" name="meal_automode_{{ meal_id }}"
-                 value="{{ '1' if is_auto else '0' }}">
-          <!-- Auto toggle button -->
-          <button type="button" id="meal-autobtn-{{ meal_id }}"
-                  onclick="toggleAutoTime('{{ meal_id }}')"
-                  data-auto="{{ '1' if is_auto else '0' }}"
-                  {{ "disabled" if not is_on }}
-                  class="text-xs px-2 py-1.5 rounded-lg border transition-colors whitespace-nowrap flex-shrink-0
-                         {{ 'opacity-30 cursor-not-allowed pointer-events-none' if not is_on }}
-                         {{ 'bg-green-100 border-green-400 text-green-700 font-semibold' if is_auto else 'border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700' }}">
-            Auto
-          </button>
+          <!-- Time section -->
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <!-- Manual time input (hidden when auto) -->
+            <input type="time" name="meal_time_{{ meal_id }}"
+                   id="meal-time-{{ meal_id }}"
+                   value="{{ saved_time }}"
+                   {{ "disabled" if not is_on or is_auto }}
+                   class="input max-w-[100px] text-sm py-1.5
+                          {{ 'opacity-30 cursor-not-allowed' if not is_on }}
+                          {{ 'hidden' if is_auto }}">
+            <!-- Auto calculated time display -->
+            <span id="meal-autotime-{{ meal_id }}"
+                  class="text-sm font-mono font-semibold text-green-700 min-w-[52px] text-right {{ 'hidden' if not is_auto }}">
+              {{ effective_meal_times.get(meal_id, '') if is_auto else '' }}
+            </span>
+            <!-- Hidden flag for auto mode -->
+            <input type="hidden" id="meal-automode-{{ meal_id }}" name="meal_automode_{{ meal_id }}"
+                   value="{{ '1' if is_auto else '0' }}">
+            <!-- Auto toggle button -->
+            <button type="button" id="meal-autobtn-{{ meal_id }}"
+                    onclick="toggleAutoTime('{{ meal_id }}')"
+                    data-auto="{{ '1' if is_auto else '0' }}"
+                    {{ "disabled" if not is_on }}
+                    class="text-xs px-2 py-1.5 rounded-lg border transition-colors whitespace-nowrap flex-shrink-0
+                           {{ 'opacity-30 cursor-not-allowed pointer-events-none' if not is_on }}
+                           {{ 'bg-green-100 border-green-400 text-green-700 font-semibold' if is_auto else 'border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700' }}">
+              Auto
+            </button>
+          </div>
         </div>
+        {% endfor %}
       </div>
-      {% endfor %}
     </div>
   </div>
 
-  <!-- Cooking & lifestyle -->
-  <div class="card space-y-5">
-    <div>
-      <h2 class="text-base font-semibold text-gray-800 mb-1">Facilidades de cocina</h2>
-      <p class="text-gray-500 text-sm mb-3">Equipamiento disponible para preparar comidas</p>
+  <!-- Cooking facilities -->
+  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
+      <span class="text-xl leading-none">🍳</span>
+      <h2 class="text-sm font-semibold text-gray-800">Facilidades de cocina</h2>
+    </div>
+    <div class="p-6">
+      <p class="text-gray-500 text-sm mb-4">Equipamiento disponible para preparar comidas</p>
       <textarea name="cooking_facilities" class="input w-full min-h-[80px] resize-y" rows="3"
                 placeholder="Ej: tengo horno, microondas y freidora de aire. Sin estufa de gas. Poco tiempo en el desayuno (máx 10 min).">{{ profile.cooking_facilities or '' if profile else '' }}</textarea>
     </div>
+  </div>
 
-    <div>
-      <h2 class="text-base font-semibold text-gray-800 mb-1">Repetición de comidas</h2>
-      <p class="text-gray-500 text-sm mb-3">¿Cuántas veces puedes repetir el mismo plato en la semana?</p>
+  <!-- Meal repeats -->
+  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
+      <span class="text-xl leading-none">🔄</span>
+      <h2 class="text-sm font-semibold text-gray-800">Repetición de comidas</h2>
+    </div>
+    <div class="p-6">
+      <p class="text-gray-500 text-sm mb-4">¿Cuántas veces puedes repetir el mismo plato en la semana?</p>
       <div class="flex items-center gap-3">
         <input type="number" name="max_meal_repeats" class="input max-w-[80px] text-center text-lg font-bold"
                min="1" max="7" value="{{ profile.max_meal_repeats if profile else 2 }}">
         <span class="text-sm text-gray-500">veces máximo por receta (desayuno/almuerzo/cena)</span>
       </div>
-      <p class="text-xs text-gray-400 mt-1">Los snacks siempre se repiten para optimizar tokens</p>
+      <p class="text-xs text-gray-400 mt-2">Los snacks siempre se repiten para optimizar tokens</p>
     </div>
   </div>
 
@@ -388,7 +432,6 @@ document.querySelectorAll('.diet-card').forEach(card => {
 document.addEventListener('DOMContentLoaded', () => {
   updateGoalUI();
   updateActivityCount();
-  // Populate auto-time displays for meals already set to auto
   document.querySelectorAll('[id^="meal-autobtn-"]').forEach(btn => {
     if (btn.dataset.auto === '1') {
       const mealId = btn.id.replace('meal-autobtn-', '');
@@ -397,7 +440,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
-
 
 function getAutoTime(mealId) {
   const trainingVal = document.querySelector('[name=training_time]')?.value || '';
