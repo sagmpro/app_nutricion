@@ -11,19 +11,29 @@
   <!-- View mode buttons -->
   <div id="view-bar" class="flex gap-2 flex-wrap">
     {% if all_items %}
-    <button onclick="enterEditMode()" class="btn-secondary text-sm">✏ Editar</button>
+    <button onclick="enterEditMode()" class="btn-secondary text-sm" title="Editar">
+      ✏ <span class="hidden sm:inline">Editar</span>
+    </button>
     {% endif %}
-    <button onclick="togglePanel('photo-form','add-form')" class="btn-secondary text-sm">📷 Añadir desde foto</button>
-    <button onclick="togglePanel('add-form','photo-form')" class="btn-primary text-sm">+ Agregar manual</button>
+    <button onclick="togglePanel('photo-form','add-form')" class="btn-secondary text-sm" title="Añadir desde foto">
+      📷 <span class="hidden sm:inline">Añadir desde foto</span>
+    </button>
+    <button onclick="togglePanel('add-form','photo-form')" class="btn-primary text-sm" title="Agregar manual">
+      + <span class="hidden sm:inline">Agregar manual</span>
+    </button>
   </div>
   <!-- Edit mode buttons -->
   <div id="edit-bar" class="hidden flex gap-2 flex-wrap items-center">
-    <button type="button" onclick="submitSave()" class="btn-primary text-sm">💾 Guardar todo</button>
-    <button type="button" id="delete-btn" onclick="submitDelete()"
-            class="btn-danger text-sm opacity-40 cursor-not-allowed" disabled>
-      🗑 Eliminar seleccionados
+    <button type="button" onclick="submitSave()" class="btn-primary text-sm" title="Guardar todo">
+      💾 <span class="hidden sm:inline">Guardar todo</span>
     </button>
-    <button type="button" onclick="exitEditMode()" class="btn-secondary text-sm">✕ Cancelar</button>
+    <button type="button" id="delete-btn" onclick="submitDelete()"
+            class="btn-danger text-sm opacity-40 cursor-not-allowed" disabled title="Eliminar seleccionados">
+      🗑 <span id="delete-text" class="hidden sm:inline">Eliminar seleccionados</span>
+    </button>
+    <button type="button" onclick="exitEditMode()" class="btn-secondary text-sm" title="Cancelar">
+      ✕ <span class="hidden sm:inline">Cancelar</span>
+    </button>
   </div>
 </div>
 
@@ -214,7 +224,8 @@ function toggleAll(master) {
 function updateDeleteBtn() {
   const count = document.querySelectorAll('input[name="delete_ids"]:checked').length;
   const btn = document.getElementById('delete-btn');
-  btn.textContent = count > 0 ? `🗑 Eliminar (${count})` : '🗑 Eliminar seleccionados';
+  const textEl = document.getElementById('delete-text');
+  if (textEl) textEl.textContent = count > 0 ? `Eliminar (${count})` : 'Eliminar seleccionados';
   btn.disabled = count === 0;
   btn.classList.toggle('opacity-40', count === 0);
   btn.classList.toggle('cursor-not-allowed', count === 0);
