@@ -28,7 +28,8 @@
     .btn-ghost { @apply text-gray-500 hover:text-gray-800 hover:bg-gray-100 px-3 py-1.5 rounded-lg text-sm font-medium transition-all inline-flex items-center justify-center gap-1; }
     .card { @apply bg-white rounded-2xl shadow border border-gray-200 p-6; }
     .card-flat { @apply bg-white rounded-xl border border-gray-200 p-4; }
-    .input { display: block; width: 100%; border-radius: 0.75rem; @apply border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-gray-50 focus:bg-white transition-colors shadow-sm; }
+    .input { display: block; width: 100%; border-radius: 0.75rem; padding: 0.75rem 1rem; font-size: 0.875rem; background-color: #f9fafb; border: 1px solid #d1d5db; outline: none; transition: all 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .input:focus { border-color: transparent; box-shadow: 0 0 0 2px #22c55e; background-color: #ffffff; }
     .label { display: block; @apply text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5; }
     .badge-green  { @apply inline-flex items-center gap-1 px-2.5 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full; }
     .badge-yellow { @apply inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full; }
