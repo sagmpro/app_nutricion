@@ -156,6 +156,15 @@
         {% if meal.consumed %}
           <span class="w-5 h-5 rounded-full bg-green-100 text-green-600 flex-shrink-0 flex items-center justify-center text-xs font-bold">✓</span>
         {% endif %}
+        <!-- Cambiar comida icon (stops details toggle) -->
+        <button type="button"
+          class="tip flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-all"
+          data-tip="Cambiar comida"
+          onclick="event.stopPropagation(); openBuscarPlato({{ meal_plan.id }}, {{ meal.id }}, '{{ meal.name | e }}', '{{ meal.type }}')">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 5H4m0 0l4 4m-4-4l4-4"/>
+          </svg>
+        </button>
         {% if effective_meal_times and effective_meal_times.get(meal.type) %}
         <span class="text-xs text-gray-400 flex-shrink-0 font-mono w-10 text-right">{{ effective_meal_times[meal.type] }}</span>
         {% endif %}
@@ -216,19 +225,17 @@
 
         <!-- Action buttons row -->
         <div class="flex flex-wrap gap-2 mt-2">
-          <!-- Regenerate -->
-          <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/regenerar"
-                data-loading data-loading-title="Buscando alternativa..."
-                data-loading-subtitle="Claude está generando una nueva opción.">
-            <button type="submit" class="text-xs text-gray-400 hover:text-green-600 hover:bg-green-50 px-2 py-1 rounded-lg transition-all flex items-center gap-1">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              Otra opción
-            </button>
-          </form>
+          <!-- Cambiar comida (unified: sugerir + stock + buscar) -->
+          <button type="button"
+                  onclick="openBuscarPlato({{ meal_plan.id }}, {{ meal.id }}, '{{ meal.name | e }}', '{{ meal.type }}')"
+                  class="text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-lg transition-all flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 5H4m0 0l4 4m-4-4l4-4"/>
+            </svg>
+            Cambiar comida
+          </button>
 
-          <!-- Recipe button (AJAX) -->
+          <!-- Ver receta (AJAX) -->
           <button type="button" onclick="toggleRecipe({{ meal_plan.id }}, {{ meal.id }})"
                   id="recipe-btn-{{ meal.id }}"
                   class="text-xs text-gray-400 hover:text-purple-600 hover:bg-purple-50 px-2 py-1 rounded-lg transition-all flex items-center gap-1">
@@ -238,32 +245,19 @@
             {{ "Receta guardada" if meal.has_recipe else "Ver receta" }}
           </button>
 
-          <!-- Search / replace dish -->
-          <button type="button"
-                  onclick="openBuscarPlato({{ meal_plan.id }}, {{ meal.id }}, '{{ meal.name | e }}', '{{ meal.type }}')"
-                  class="text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-lg transition-all flex items-center gap-1">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-            </svg>
-            Cambiar plato
-          </button>
-
-          <!-- Consume toggle -->
+          <!-- Marcar consumida -->
           <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/consumir">
             <button type="submit"
                     class="text-xs px-2 py-1 rounded-lg transition-all flex items-center gap-1
                            {{ 'text-green-600 bg-green-50 hover:bg-green-100' if meal.consumed else 'text-gray-400 hover:text-green-600 hover:bg-green-50' }}">
-              {% if meal.consumed %}
-                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                </svg>
-                Consumida
-              {% else %}
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                Marcar consumida
-              {% endif %}
+              <svg class="w-3 h-3" fill="{{ 'currentColor' if meal.consumed else 'none' }}" stroke="{{ 'none' if meal.consumed else 'currentColor' }}" viewBox="0 0 24 24">
+                {% if meal.consumed %}
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                {% else %}
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                {% endif %}
+              </svg>
+              {{ "Consumida" if meal.consumed else "Marcar consumida" }}
             </button>
           </form>
         </div>
@@ -339,24 +333,33 @@
 
       <!-- Mode tabs -->
       <div class="flex rounded-xl overflow-hidden border border-gray-200 mb-4">
+        <button id="tab-sugerir" onclick="setBuscarMode('sugerir')"
+                class="flex-1 py-2 text-sm font-medium transition-all bg-purple-600 text-white">
+          ✨ Sugerir
+        </button>
         <button id="tab-stock" onclick="setBuscarMode('stock')"
-                class="flex-1 py-2 text-sm font-medium transition-all bg-green-600 text-white">
-          🏪 Usar mi stock
+                class="flex-1 py-2 text-sm font-medium transition-all text-gray-500 hover:bg-gray-50">
+          🏪 Del stock
         </button>
         <button id="tab-buscar" onclick="setBuscarMode('buscar')"
                 class="flex-1 py-2 text-sm font-medium transition-all text-gray-500 hover:bg-gray-50">
-          🔍 Buscar por nombre
+          🔍 Por nombre
         </button>
       </div>
 
-      <!-- Stock mode explanation -->
-      <div id="mode-stock-info" class="text-xs text-gray-500 bg-green-50 border border-green-100 rounded-xl p-3 mb-3">
-        Claude generará un plato usando los ingredientes que tienes disponibles en tu stock. El plato será adaptado a tu perfil y objetivos calóricos.
+      <!-- Sugerir mode -->
+      <div id="mode-sugerir-info" class="text-xs text-gray-500 bg-purple-50 border border-purple-100 rounded-xl p-3 mb-3">
+        Claude sugerirá una alternativa diferente adaptada a tu perfil, objetivos y el resto de comidas del día.
       </div>
 
-      <!-- Name search mode explanation -->
+      <!-- Stock mode -->
+      <div id="mode-stock-info" class="hidden text-xs text-gray-500 bg-green-50 border border-green-100 rounded-xl p-3 mb-3">
+        Claude generará un plato usando los ingredientes que tienes disponibles en tu stock.
+      </div>
+
+      <!-- Name search mode -->
       <div id="mode-buscar-info" class="hidden text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-xl p-3 mb-3">
-        Escribe el nombre del plato que deseas. Claude lo buscará en internet y te dará la receta con ingredientes y valores nutricionales.
+        Escribe el nombre del plato que deseas. Claude buscará la receta completa con ingredientes y valores nutricionales.
       </div>
 
       <!-- Search input (only for buscar mode) -->
@@ -368,8 +371,8 @@
 
       <button id="buscar-btn" onclick="buscarPlato()"
               class="w-full py-2 rounded-xl text-sm font-medium transition-all"
-              style="background:#16a34a;color:#fff;">
-        Generar plato con mi stock
+              style="background:#9333ea;color:#fff;">
+        ✨ Sugerir alternativa
       </button>
     </div>
 
@@ -526,9 +529,8 @@ let _buscarPlanId = null, _buscarMealId = null, _buscarMode = 'stock';
 function openBuscarPlato(planId, mealId, mealName, mealType) {
   _buscarPlanId = planId;
   _buscarMealId = mealId;
-  _buscarMode = 'stock';
   document.getElementById('buscar-nombre-input').value = mealName;
-  setBuscarMode('stock');
+  setBuscarMode('sugerir');
   document.getElementById('buscar-resultado').classList.add('hidden');
   document.getElementById('buscar-data').classList.add('hidden');
   document.getElementById('buscar-error').classList.add('hidden');
@@ -542,20 +544,24 @@ function closeBuscarModal() {
 
 function setBuscarMode(mode) {
   _buscarMode = mode;
-  const isStock = mode === 'stock';
-  document.getElementById('tab-stock').style.cssText = isStock ? 'background:#16a34a;color:#fff;flex:1;padding:0.5rem;font-size:0.875rem;font-weight:500;' : 'flex:1;padding:0.5rem;font-size:0.875rem;font-weight:500;color:#6b7280;';
-  document.getElementById('tab-buscar').style.cssText = !isStock ? 'background:#2563eb;color:#fff;flex:1;padding:0.5rem;font-size:0.875rem;font-weight:500;' : 'flex:1;padding:0.5rem;font-size:0.875rem;font-weight:500;color:#6b7280;';
-  document.getElementById('mode-stock-info').classList.toggle('hidden', !isStock);
-  document.getElementById('mode-buscar-info').classList.toggle('hidden', isStock);
-  document.getElementById('nombre-input-row').classList.toggle('hidden', isStock);
+  const base = 'flex:1;padding:0.5rem;font-size:0.875rem;font-weight:500;';
+  const gray = base + 'color:#6b7280;background:transparent;';
+  document.getElementById('tab-sugerir').style.cssText = mode === 'sugerir' ? base + 'background:#9333ea;color:#fff;' : gray;
+  document.getElementById('tab-stock').style.cssText   = mode === 'stock'   ? base + 'background:#16a34a;color:#fff;' : gray;
+  document.getElementById('tab-buscar').style.cssText  = mode === 'buscar'  ? base + 'background:#2563eb;color:#fff;' : gray;
+  document.getElementById('mode-sugerir-info').classList.toggle('hidden', mode !== 'sugerir');
+  document.getElementById('mode-stock-info').classList.toggle('hidden', mode !== 'stock');
+  document.getElementById('mode-buscar-info').classList.toggle('hidden', mode !== 'buscar');
+  document.getElementById('nombre-input-row').classList.toggle('hidden', mode !== 'buscar');
   const btn = document.getElementById('buscar-btn');
-  if (isStock) {
-    btn.textContent = 'Generar plato con mi stock';
-    btn.style.cssText = 'width:100%;padding:0.5rem;border-radius:0.75rem;font-size:0.875rem;font-weight:500;background:#16a34a;color:#fff;';
-  } else {
-    btn.textContent = '🔍 Buscar plato';
-    btn.style.cssText = 'width:100%;padding:0.5rem;border-radius:0.75rem;font-size:0.875rem;font-weight:500;background:#2563eb;color:#fff;';
-  }
+  const configs = {
+    sugerir: ['✨ Sugerir alternativa', '#9333ea'],
+    stock:   ['🏪 Generar con mi stock', '#16a34a'],
+    buscar:  ['🔍 Buscar plato', '#2563eb'],
+  };
+  const [txt, bg] = configs[mode] || configs.sugerir;
+  btn.textContent = txt;
+  btn.style.cssText = `width:100%;padding:0.5rem;border-radius:0.75rem;font-size:0.875rem;font-weight:500;background:${bg};color:#fff;`;
 }
 
 async function buscarPlato() {
@@ -571,9 +577,12 @@ async function buscarPlato() {
   document.getElementById('buscar-error').classList.add('hidden');
 
   const formData = new FormData();
-  const nombreEnvio = _buscarMode === 'stock' ? 'Genera un plato saludable con los ingredientes disponibles en el stock' : nombre;
+  const modeMap = { sugerir: 'sugerir', stock: 'si', buscar: 'no' };
+  const nombreEnvio = _buscarMode === 'stock'
+    ? 'Genera un plato saludable con los ingredientes disponibles en el stock'
+    : (_buscarMode === 'sugerir' ? 'sugerir' : nombre);
   formData.append('nombre', nombreEnvio);
-  formData.append('usar_stock', _buscarMode === 'stock' ? 'si' : 'no');
+  formData.append('usar_stock', modeMap[_buscarMode] || 'no');
 
   try {
     const resp = await fetch(`/plan/${_buscarPlanId}/comida/${_buscarMealId}/buscar-plato`, {

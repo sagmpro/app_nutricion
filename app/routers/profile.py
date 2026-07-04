@@ -6,6 +6,8 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.profile import UserProfile
+from app.models.saved_meal import SavedMeal, classify_health
+from app.models.meal import MEAL_TYPE_LABELS
 from app.services.auth_service import get_current_user
 from app.services.nutrition import (
     calculate_bmr, calculate_tdee, calculate_target_calories,
@@ -148,3 +150,66 @@ async def perfil_save(
     profile.updated_at = datetime.now()
     db.commit()
     return RedirectResponse("/perfil?success=1", status_code=303)
+
+
+# ---- Recetario ----
+
+@router.get("/perfil/recetario")
+def recetario(request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    meals = (
+        db.query(SavedMeal)
+        .filter(SavedMeal.user_id == current_user.id)
+        .order_by(SavedMeal.last_served_at.desc())
+        .all()
+    )
+    return templates.TemplateResponse(request, "profile/recetario.html", {
+        "current_user": current_user,
+        "saved_meals": meals,
+        "meal_type_labels": MEAL_TYPE_LABELS,
+        "success": request.query_params.get("success"),
+    })
+
+
+@router.post("/perfil/recetario/{meal_id}/rating")
+async def rate_meal(
+    meal_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    rating: int = Form(...),
+):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+    meal = db.query(SavedMeal).filter(SavedMeal.id == meal_id, SavedMeal.user_id == current_user.id).first()
+    if meal:
+        meal.rating = max(1, min(5, rating))
+        db.commit()
+    return RedirectResponse("/perfil/recetario", status_code=303)
+
+
+@router.post("/perfil/recetario/{meal_id}/toggle-excluir")
+async def toggle_excluir(meal_id: int, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+    meal = db.query(SavedMeal).filter(SavedMeal.id == meal_id, SavedMeal.user_id == current_user.id).first()
+    if meal:
+        meal.is_excluded = not meal.is_excluded
+        db.commit()
+    return RedirectResponse("/perfil/recetario", status_code=303)
+
+
+@router.post("/perfil/recetario/{meal_id}/eliminar")
+async def eliminar_receta(meal_id: int, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+    meal = db.query(SavedMeal).filter(SavedMeal.id == meal_id, SavedMeal.user_id == current_user.id).first()
+    if meal:
+        db.delete(meal)
+        db.commit()
+    return RedirectResponse("/perfil/recetario", status_code=303)

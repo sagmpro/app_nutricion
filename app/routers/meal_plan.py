@@ -70,7 +70,8 @@ def _build_days_data(meal_plan: MealPlan) -> list[dict]:
     return days
 
 
-def _save_meals_from_response(db: Session, plan_id: int, result: dict):
+def _save_meals_from_response(db: Session, plan_id: int, result: dict, user_id: int = None):
+    from app.models.saved_meal import upsert_saved_meal
     for day_data in result.get("plan", []):
         day_num = day_data.get("dia_numero", 0)
         for meal_data in day_data.get("comidas", []):
@@ -89,6 +90,8 @@ def _save_meals_from_response(db: Session, plan_id: int, result: dict):
                 ingredients_json=json.dumps(meal_data.get("ingredientes", [])),
             )
             db.add(meal)
+            if user_id:
+                upsert_saved_meal(db, user_id, meal)
 
 
 def _get_user_profile(db: Session, user_id: int):
@@ -175,7 +178,7 @@ async def generar_plan(request: Request, db: Session = Depends(get_db)):
 
         result = claude_generate(profile, bmr, tdee, target)
         meal_plan.raw_json = json.dumps(result)
-        _save_meals_from_response(db, meal_plan.id, result)
+        _save_meals_from_response(db, meal_plan.id, result, user_id=current_user.id)
         db.commit()
         return RedirectResponse(f"/plan/{meal_plan.id}", status_code=303)
 
@@ -457,19 +460,33 @@ async def buscar_plato(
     target_total = calculate_target_calories(profile, tdee)
     target_calories = int(target_total * calorie_pct.get(meal.meal_type, 0.20))
 
-    stock_items = None
-    if usar_stock == "si":
-        raw_stock = db.query(FoodStock).filter(hs.stock_filter(current_user.id, db)).all()
-        stock_items = [{"nombre": s.name, "cantidad": s.quantity, "unidad": s.unit} for s in raw_stock]
-
     try:
-        result = claude_buscar_plato(
-            nombre=nombre.strip(),
-            meal_type=meal.meal_type,
-            target_calories=target_calories,
-            stock_items=stock_items,
-            profile=profile,
-        )
+        if usar_stock == "sugerir":
+            other_meals = db.query(Meal).filter(
+                Meal.meal_plan_id == plan_id,
+                Meal.day_of_week == meal.day_of_week,
+                Meal.id != meal_id,
+            ).all()
+            result = claude_single_meal(
+                profile=profile,
+                meal_type=meal.meal_type,
+                day_name=DAYS_OF_WEEK[meal.day_of_week] if meal.day_of_week < len(DAYS_OF_WEEK) else "Lunes",
+                target_calories=target_calories,
+                current_meal_name=meal.name,
+                other_meals=[m.name for m in other_meals],
+            )
+        else:
+            stock_items = None
+            if usar_stock == "si":
+                raw_stock = db.query(FoodStock).filter(hs.stock_filter(current_user.id, db)).all()
+                stock_items = [{"nombre": s.name, "cantidad": s.quantity, "unidad": s.unit} for s in raw_stock]
+            result = claude_buscar_plato(
+                nombre=nombre.strip(),
+                meal_type=meal.meal_type,
+                target_calories=target_calories,
+                stock_items=stock_items if usar_stock == "si" else None,
+                profile=profile,
+            )
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"error": str(e)[:100]}, status_code=500)
@@ -580,7 +597,7 @@ def regenerar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)
         result = claude_generate(profile, bmr, tdee, target)
         meal_plan.raw_json = json.dumps(result)
         meal_plan.status = "pending"
-        _save_meals_from_response(db, meal_plan.id, result)
+        _save_meals_from_response(db, meal_plan.id, result, user_id=current_user.id)
         db.commit()
         return RedirectResponse(f"/plan/{plan_id}", status_code=303)
 

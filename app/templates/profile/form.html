@@ -2,9 +2,21 @@
 {% block title %}Configuración - NutriPlan{% endblock %}
 
 {% block content %}
-<div class="mb-6">
+<div class="mb-5">
   <h1 class="text-2xl font-bold text-gray-800">Configuración</h1>
-  <p class="text-gray-500 text-sm mt-1">Tus datos, objetivos y preferencias para generar planes personalizados</p>
+  <p class="text-gray-500 text-sm mt-1">Tus datos, objetivos y preferencias</p>
+</div>
+
+<!-- Tabs -->
+<div class="flex gap-1 border-b border-gray-200 mb-6">
+  <a href="/perfil"
+     class="px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-green-600 text-green-700 bg-white -mb-px">
+    ⚙️ Perfil
+  </a>
+  <a href="/perfil/recetario"
+     class="px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors">
+    📚 Recetario
+  </a>
 </div>
 
 {% if success %}
@@ -13,7 +25,7 @@
 </div>
 {% endif %}
 
-<form method="POST" action="/perfil" class="space-y-5 max-w-2xl">
+<form method="POST" action="/perfil" class="space-y-5">
 
   <!-- Personal data -->
   <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">

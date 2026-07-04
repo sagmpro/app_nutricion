@@ -7,10 +7,12 @@ from app.models.food_stock import FoodStock
 from app.models.user import User
 from app.models.invitation import Invitation
 from app.models.household import Household, HouseholdMember
+from app.models.saved_meal import SavedMeal
 
 __all__ = [
     "UserProfile", "MealPlan", "Meal",
     "ShoppingList", "ShoppingItem", "FoodStock",
     "User", "Invitation",
     "Household", "HouseholdMember",
+    "SavedMeal",
 ]
