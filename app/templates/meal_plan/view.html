@@ -121,7 +121,7 @@
     <details class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group" id="meal-{{ meal.id }}">
       <!-- Collapsed: always visible -->
       <summary class="border-l-4 {{ border_color }} px-4 py-3 flex items-center gap-3 cursor-pointer select-none list-none hover:bg-gray-50 transition-colors">
-        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold {{ bg_color }} {{ text_color }} flex-shrink-0 w-24 justify-center">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold {{ bg_color }} {{ text_color }} flex-shrink-0 whitespace-nowrap">
           {{ meal.type_label }}
         </span>
         <span class="flex-1 font-medium text-gray-800 text-sm truncate">{{ meal.name }}</span>

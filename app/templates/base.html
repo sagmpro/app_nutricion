@@ -27,30 +27,67 @@
 <nav class="bg-green-700 shadow-lg sticky top-0 z-40">
   <div class="max-w-6xl mx-auto px-4">
     <div class="flex items-center justify-between h-14">
-      <a href="/dashboard" class="font-bold text-lg text-white flex items-center gap-2">
+      <!-- Logo -->
+      <a href="/dashboard" class="font-bold text-lg text-white flex items-center gap-2 flex-shrink-0">
         <span class="text-xl">🥗</span> NutriPlan
       </a>
+      <!-- Desktop nav -->
       <div class="hidden md:flex items-center gap-1">
-        <a href="/dashboard" class="nav-link {% if request.url.path == '/dashboard' %}active{% endif %}">Dashboard</a>
-        <a href="/perfil"    class="nav-link {% if request.url.path == '/perfil' %}active{% endif %}">Mi Perfil</a>
-        <a href="/plan"      class="nav-link {% if '/plan' in request.url.path %}active{% endif %}">Plan Semanal</a>
-        <a href="/compras"   class="nav-link {% if '/compras' in request.url.path %}active{% endif %}">Compras</a>
-        <a href="/stock"     class="nav-link {% if request.url.path == '/stock' %}active{% endif %}">Mi Stock</a>
+
+        {% set nav_items = [
+          ("/dashboard", request.url.path == "/dashboard", "Dashboard",
+           '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>'),
+          ("/perfil", request.url.path == "/perfil", "Mi Perfil",
+           '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>'),
+          ("/plan", "/plan" in request.url.path, "Plan",
+           '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>'),
+          ("/compras", "/compras" in request.url.path, "Compras",
+           '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>'),
+          ("/stock", request.url.path == "/stock", "Mi Stock",
+           '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>'),
+        ] %}
+
+        {% for href, is_active, label, icon_path in nav_items %}
+        <a href="{{ href }}"
+           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all
+                  {{ 'bg-white/20 text-white' if is_active else 'text-green-100 hover:bg-white/10 hover:text-white' }}">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">{{ icon_path }}</svg>
+          {{ label }}
+        </a>
+        {% endfor %}
+
       </div>
-      <button id="menu-btn" class="md:hidden text-white p-2">
-        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <!-- Mobile hamburger -->
+      <button id="menu-btn" class="md:hidden text-white p-2 rounded-lg hover:bg-white/10">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
         </svg>
       </button>
     </div>
   </div>
+  <!-- Mobile menu -->
   <div id="mobile-menu" class="hidden md:hidden border-t border-green-600">
-    <div class="px-4 py-2 space-y-1">
-      <a href="/dashboard" class="block nav-link">Dashboard</a>
-      <a href="/perfil"    class="block nav-link">Mi Perfil</a>
-      <a href="/plan"      class="block nav-link">Plan Semanal</a>
-      <a href="/compras"   class="block nav-link">Compras</a>
-      <a href="/stock"     class="block nav-link">Mi Stock</a>
+    <div class="px-4 py-3 grid grid-cols-2 gap-2">
+      <a href="/dashboard" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-green-100 hover:bg-white/10 hover:text-white">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Dashboard
+      </a>
+      <a href="/perfil" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-green-100 hover:bg-white/10 hover:text-white">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        Mi Perfil
+      </a>
+      <a href="/plan" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-green-100 hover:bg-white/10 hover:text-white">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Plan Semanal
+      </a>
+      <a href="/compras" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-green-100 hover:bg-white/10 hover:text-white">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        Compras
+      </a>
+      <a href="/stock" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-green-100 hover:bg-white/10 hover:text-white">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        Mi Stock
+      </a>
     </div>
   </div>
 </nav>
