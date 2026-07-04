@@ -163,7 +163,7 @@ Respeta estrictamente las preferencias alimentarias indicadas. Comidas típicas 
     message = client.messages.create(
         model=MODEL,
         max_tokens=16000,
-        system="Eres un nutricionista experto. Responde siempre con JSON válido, sin texto adicional ni bloques de código markdown.",
+        system="Eres un nutricionista deportivo experto con amplio conocimiento en rendimiento atlético, recuperación muscular, periodización nutricional y planificación de comidas para personas activas. Ajusta los planes considerando el momento del entrenamiento (pre/post-workout). Responde siempre con JSON válido, sin texto adicional ni bloques de código markdown.",
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("generate_meal_plan", message)
@@ -220,7 +220,7 @@ Usa nombres de ingredientes específicos y consistentes: indica el estado cuando
     message = client.messages.create(
         model=MODEL,
         max_tokens=1000,
-        system="Eres un nutricionista experto. Responde siempre con JSON válido, sin texto adicional.",
+        system="Eres un nutricionista deportivo experto. Responde siempre con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("generate_single_meal", message)

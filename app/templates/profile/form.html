@@ -212,8 +212,17 @@
 
   <!-- Meal schedule -->
   <div class="card">
-    <h2 class="text-base font-semibold text-gray-800 mb-1">Horario de comidas</h2>
-    <p class="text-gray-500 text-sm mb-4">Activa las comidas que haces normalmente y asigna su hora</p>
+    <div class="flex items-start justify-between gap-3 mb-4">
+      <div>
+        <h2 class="text-base font-semibold text-gray-800 mb-1">Horario de comidas</h2>
+        <p class="text-gray-500 text-sm">Activa las comidas que haces normalmente y asigna su hora</p>
+      </div>
+      <button type="button" onclick="proposeSchedule()"
+              class="btn-secondary text-xs flex-shrink-0 px-3 py-2 whitespace-nowrap">
+        ✨ Proponer automático
+      </button>
+    </div>
+    <p id="schedule-note" class="hidden text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-3"></p>
 
     {% set meal_defs = [
       ("desayuno",     "🌅", "Desayuno",      "07:00"),
@@ -354,6 +363,60 @@ document.addEventListener('DOMContentLoaded', () => {
   updateGoalUI();
   updateActivityCount();
 });
+
+function proposeSchedule() {
+  const trainingVal = document.querySelector('[name=training_time]')?.value || '';
+  const fmt = m => {
+    m = Math.max(300, Math.min(1380, Math.round(m / 15) * 15)); // clamp 5:00-23:00, round to 15min
+    return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  };
+
+  let times, note;
+  if (!trainingVal) {
+    times = { desayuno: '07:00', media_manana: '10:30', almuerzo: '13:30', media_tarde: '17:00', cena: '20:30' };
+    note = 'Horario equilibrado estándar. Configura tu hora de entrenamiento para ajustar automáticamente.';
+  } else {
+    const [th, tm] = trainingVal.split(':').map(Number);
+    const tr = th * 60 + tm;
+    if (tr < 720) { // Morning training (before 12:00)
+      times = {
+        desayuno:     fmt(tr - 90),
+        media_manana: fmt(tr + 45),
+        almuerzo:     fmt(tr + 195),
+        media_tarde:  fmt(tr + 375),
+        cena:         fmt(tr + 555),
+      };
+      note = `Entrenamiento a las ${trainingVal}: desayuno 1h30 antes, comida post-entreno 45 min después.`;
+    } else if (tr < 1080) { // Afternoon (12:00-18:00)
+      times = {
+        desayuno:     '07:00',
+        media_manana: '10:30',
+        almuerzo:     fmt(tr - 90),
+        media_tarde:  fmt(tr + 45),
+        cena:         fmt(tr + 210),
+      };
+      note = `Entrenamiento a las ${trainingVal}: almuerzo ligero 1h30 antes, merienda post-entreno 45 min después.`;
+    } else { // Evening (18:00+)
+      times = {
+        desayuno:     '07:00',
+        media_manana: '10:30',
+        almuerzo:     '13:30',
+        media_tarde:  fmt(tr - 90),
+        cena:         fmt(tr + 45),
+      };
+      note = `Entrenamiento a las ${trainingVal}: merienda 1h30 antes, cena post-entreno 45 min después.`;
+    }
+  }
+
+  Object.entries(times).forEach(([meal, time]) => {
+    const inp = document.getElementById('meal-time-' + meal);
+    if (inp && !inp.disabled) inp.value = time;
+  });
+
+  const noteEl = document.getElementById('schedule-note');
+  noteEl.textContent = '✓ ' + note;
+  noteEl.classList.remove('hidden');
+}
 
 function toggleMeal(mealId, enabled) {
   const label    = document.getElementById('meal-label-' + mealId);
