@@ -86,6 +86,7 @@ async def perfil_save(
     weight_kg: float = Form(...),
     height_cm: float = Form(...),
     goal_type: str = Form(...),
+    goal_description: str = Form(default=""),
     target_calories: str = Form(default=""),
     current_fat_pct: str = Form(default=""),
     target_fat_pct: str = Form(default=""),
@@ -120,6 +121,7 @@ async def perfil_save(
     profile.weight_kg = weight_kg
     profile.height_cm = height_cm
     profile.goal_type = goal_type
+    profile.goal_description = goal_description.strip() or None
     profile.target_calories = int(target_calories) if target_calories.strip() else None
     profile.current_fat_pct = float(current_fat_pct) if current_fat_pct.strip() else None
     profile.target_fat_pct = float(target_fat_pct) if target_fat_pct.strip() else None

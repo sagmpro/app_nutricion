@@ -78,4 +78,8 @@ def calculate_target_calories(profile: "UserProfile", tdee: float) -> float:
             fat_to_lose_kg = profile.weight_kg * (profile.current_fat_pct - profile.target_fat_pct) / 100
             daily_deficit = (fat_to_lose_kg * 7700) / profile.target_days
             return max(tdee - daily_deficit, 1200)
+    if profile.goal_type == "muscle_gain":
+        return tdee + 350
+    if profile.goal_type == "performance":
+        return tdee + 150
     return tdee

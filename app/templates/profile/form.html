@@ -128,32 +128,38 @@
       <h2 class="text-sm font-semibold text-gray-800">Objetivo nutricional</h2>
     </div>
     <div class="p-6">
-      <div class="flex gap-4 mb-5">
-        <label class="flex-1 border-2 rounded-xl p-4 cursor-pointer transition-colors hover:border-green-400" id="goal-card-caloric">
-          <input type="radio" name="goal_type" value="caloric_deficit" class="sr-only"
-            {{ "checked" if not profile or profile.goal_type == "caloric_deficit" }} onchange="updateGoalUI()">
-          <div class="text-2xl mb-1">🔥</div>
-          <div class="font-semibold text-sm text-gray-800">Déficit calórico</div>
-          <div class="text-xs text-gray-500 mt-1">Establece una meta de calorías por día</div>
+      {% set cur_goal = profile.goal_type if profile else "caloric_deficit" %}
+      {% set goals = [
+        ("caloric_deficit", "🔥", "Déficit calórico",      "Establece una meta de calorías diaria"),
+        ("fat_loss",        "📉", "Reducir % grasa",        "Define tu grasa actual y objetivo"),
+        ("muscle_gain",     "💪", "Ganancia muscular",      "Superávit de ~350 kcal sobre tu TDEE"),
+        ("maintenance",     "⚖️", "Mantenimiento",          "Mantén tu peso actual sin cambios"),
+        ("performance",     "🏃", "Rendimiento deportivo",  "Superávit ligero para recuperación"),
+        ("custom",          "✏️", "Personalizado",          "Describe tu objetivo con texto libre"),
+      ] %}
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+        {% for val, icon, label, hint in goals %}
+        <label class="goal-card border-2 rounded-xl p-3 cursor-pointer transition-colors hover:border-green-400
+                      {{ 'border-green-500 bg-green-50' if cur_goal == val else 'border-gray-200' }}"
+               id="goal-card-{{ val }}">
+          <input type="radio" name="goal_type" value="{{ val }}" class="sr-only"
+            {{ "checked" if cur_goal == val }} onchange="updateGoalUI()">
+          <div class="text-xl mb-1">{{ icon }}</div>
+          <div class="font-semibold text-sm text-gray-800">{{ label }}</div>
+          <div class="text-xs text-gray-400 mt-0.5 leading-snug">{{ hint }}</div>
         </label>
-        <label class="flex-1 border-2 rounded-xl p-4 cursor-pointer transition-colors hover:border-green-400" id="goal-card-fat">
-          <input type="radio" name="goal_type" value="fat_loss" class="sr-only"
-            {{ "checked" if profile and profile.goal_type == "fat_loss" }} onchange="updateGoalUI()">
-          <div class="text-2xl mb-1">📉</div>
-          <div class="font-semibold text-sm text-gray-800">Reducir % grasa</div>
-          <div class="text-xs text-gray-500 mt-1">Define tu % de grasa actual y objetivo</div>
-        </label>
+        {% endfor %}
       </div>
 
-      <div id="fields-caloric">
+      <div id="fields-caloric_deficit" class="{{ 'hidden' if cur_goal != 'caloric_deficit' }}">
         <label class="label">Calorías objetivo por día (kcal)</label>
         <input type="number" name="target_calories" class="input max-w-xs" min="1000" max="5000"
           value="{{ profile.target_calories if profile and profile.target_calories else '' }}"
-          placeholder="Ej: 1800">
-        <p class="text-xs text-gray-400 mt-1">Deja vacío para usar TDEE − 500 kcal</p>
+          placeholder="Ej: 1800" oninput="calcBMR()">
+        <p class="text-xs text-gray-400 mt-1">Deja vacío para usar TDEE − 500 kcal automáticamente</p>
       </div>
 
-      <div id="fields-fat" class="hidden space-y-4">
+      <div id="fields-fat_loss" class="{{ '' if cur_goal == 'fat_loss' else 'hidden' }} space-y-4">
         <div class="grid grid-cols-3 gap-4">
           <div>
             <label class="label">% Grasa actual</label>
@@ -174,6 +180,31 @@
               placeholder="Ej: 90">
           </div>
         </div>
+      </div>
+
+      <div id="fields-muscle_gain" class="{{ '' if cur_goal == 'muscle_gain' else 'hidden' }}">
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+          💪 Claude generará un plan con <strong>TDEE + 350 kcal</strong> para favorecer la hipertrofia con proteína alta y distribución de macros orientada a masa muscular.
+        </div>
+      </div>
+
+      <div id="fields-maintenance" class="{{ '' if cur_goal == 'maintenance' else 'hidden' }}">
+        <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-600">
+          ⚖️ Claude ajustará el plan a tu <strong>TDEE exacto</strong>, sin déficit ni superávit, para mantener el peso actual con una alimentación equilibrada.
+        </div>
+      </div>
+
+      <div id="fields-performance" class="{{ '' if cur_goal == 'performance' else 'hidden' }}">
+        <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 text-sm text-orange-700 mb-3">
+          🏃 Claude generará un plan con <strong>TDEE + 150 kcal</strong>, priorizando carbohidratos de calidad para energía y recuperación deportiva.
+        </div>
+      </div>
+
+      <div id="fields-custom" class="{{ '' if cur_goal == 'custom' else 'hidden' }}">
+        <label class="label">Describe tu objetivo</label>
+        <textarea name="goal_description" class="input w-full min-h-[90px] resize-y" rows="3"
+                  placeholder="Ej: Quiero bajar de peso pero sin sacrificar músculo. Tengo una maratón en 3 meses y necesito energía para entrenar 5 días por semana...">{{ profile.goal_description or '' if profile else '' }}</textarea>
+        <p class="text-xs text-gray-400 mt-1">Claude adaptará el plan exactamente a lo que describes</p>
       </div>
     </div>
   </div>
@@ -445,7 +476,18 @@ function calcBMR() {
   for (let i = 0; i < 7; i++) if (document.getElementById('day-input-' + i)?.value === '1') active++;
   const mults = [1.2,1.375,1.375,1.55,1.55,1.725,1.725,1.9];
   const tdee = bmr * mults[Math.min(active, 7)];
-  const tc = parseFloat(document.querySelector('[name=target_calories]')?.value) || (tdee - 500);
+
+  const goal = document.querySelector('[name=goal_type]:checked')?.value || 'caloric_deficit';
+  let tc;
+  if (goal === 'caloric_deficit') {
+    tc = parseFloat(document.querySelector('[name=target_calories]')?.value) || (tdee - 500);
+  } else if (goal === 'muscle_gain') {
+    tc = tdee + 350;
+  } else if (goal === 'performance') {
+    tc = tdee + 150;
+  } else {
+    tc = tdee;
+  }
 
   document.getElementById('bmr-display').textContent    = Math.round(bmr);
   document.getElementById('tdee-display').textContent   = Math.round(tdee);
@@ -453,14 +495,21 @@ function calcBMR() {
   document.getElementById('calc-section').classList.remove('hidden');
 }
 
+const GOAL_TYPES = ['caloric_deficit', 'fat_loss', 'muscle_gain', 'maintenance', 'performance', 'custom'];
+
 function updateGoalUI() {
-  const isCaloric = document.querySelector('[name=goal_type][value=caloric_deficit]').checked;
-  document.getElementById('fields-caloric').classList.toggle('hidden', !isCaloric);
-  document.getElementById('fields-fat').classList.toggle('hidden', isCaloric);
-  document.getElementById('goal-card-caloric').classList.toggle('border-green-500', isCaloric);
-  document.getElementById('goal-card-caloric').classList.toggle('border-gray-200', !isCaloric);
-  document.getElementById('goal-card-fat').classList.toggle('border-green-500', !isCaloric);
-  document.getElementById('goal-card-fat').classList.toggle('border-gray-200', isCaloric);
+  const selected = document.querySelector('[name=goal_type]:checked')?.value;
+  GOAL_TYPES.forEach(val => {
+    const card = document.getElementById('goal-card-' + val);
+    const fields = document.getElementById('fields-' + val);
+    if (card) {
+      card.classList.toggle('border-green-500', val === selected);
+      card.classList.toggle('bg-green-50', val === selected);
+      card.classList.toggle('border-gray-200', val !== selected);
+    }
+    if (fields) fields.classList.toggle('hidden', val !== selected);
+  });
+  calcBMR();
 }
 
 document.querySelectorAll('.diet-card').forEach(card => {

@@ -41,11 +41,9 @@ def upgrade():
             sa.Column("last_served_at", sa.DateTime, nullable=True),
             sa.Column("created_at", sa.DateTime, server_default=sa.func.now()),
         )
-        op.create_index("ix_saved_meals_user_id", "saved_meals", ["user_id"])
 
 
 def downgrade():
     conn = op.get_bind()
     if _table_exists(conn, "saved_meals"):
-        op.drop_index("ix_saved_meals_user_id", "saved_meals")
         op.drop_table("saved_meals")

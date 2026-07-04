@@ -20,11 +20,12 @@ class UserProfile(Base):
     weight_kg: Mapped[float] = mapped_column(Float, default=70.0)
     height_cm: Mapped[float] = mapped_column(Float, default=170.0)
 
-    goal_type: Mapped[str] = mapped_column(String(20), default="caloric_deficit")
+    goal_type: Mapped[str] = mapped_column(String(30), default="caloric_deficit")
     target_calories: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     current_fat_pct: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     target_fat_pct: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     target_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    goal_description: Mapped[Optional[str]] = mapped_column(sa.Text(), nullable=True)
 
     # JSON array of ints: [0,2,4] = Mon,Wed,Fri
     activity_days: Mapped[str] = mapped_column(String(50), default="[]")
