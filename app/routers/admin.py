@@ -7,6 +7,14 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.models.invitation import Invitation
+from app.models.profile import UserProfile
+from app.models.meal_plan import MealPlan
+from app.models.meal import Meal
+from app.models.shopping_list import ShoppingList
+from app.models.shopping_item import ShoppingItem
+from app.models.food_stock import FoodStock
+from app.models.saved_meal import SavedMeal
+from app.models.household import HouseholdMember
 from app.services.auth_service import get_current_user
 from app.services.email_service import send_invitation_email
 from app.config import settings
@@ -71,6 +79,37 @@ async def invitar_usuario(request: Request, db: Session = Depends(get_db), email
         f"/admin/usuarios?success={msg}link+disponible&invite_link={invite_url}",
         status_code=303,
     )
+
+
+@router.post("/admin/usuarios/{user_id}/eliminar")
+def eliminar_usuario(user_id: int, request: Request, db: Session = Depends(get_db)):
+    current = _require_admin(request, db)
+    if isinstance(current, RedirectResponse):
+        return current
+    if user_id == current.id:
+        return RedirectResponse("/admin/usuarios?error=No+puedes+eliminar+tu+propia+cuenta", status_code=303)
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return RedirectResponse("/admin/usuarios?error=Usuario+no+encontrado", status_code=303)
+
+    # Delete all user data in dependency order
+    db.query(SavedMeal).filter(SavedMeal.user_id == user_id).delete()
+    db.query(FoodStock).filter(FoodStock.user_id == user_id).delete()
+    db.query(HouseholdMember).filter(HouseholdMember.user_id == user_id).delete()
+    profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+    if profile:
+        plan_ids = [p.id for p in db.query(MealPlan.id).filter(MealPlan.profile_id == profile.id).all()]
+        if plan_ids:
+            list_ids = [s.id for s in db.query(ShoppingList.id).filter(ShoppingList.meal_plan_id.in_(plan_ids)).all()]
+            if list_ids:
+                db.query(ShoppingItem).filter(ShoppingItem.shopping_list_id.in_(list_ids)).delete()
+            db.query(ShoppingList).filter(ShoppingList.meal_plan_id.in_(plan_ids)).delete()
+            db.query(Meal).filter(Meal.meal_plan_id.in_(plan_ids)).delete()
+            db.query(MealPlan).filter(MealPlan.id.in_(plan_ids)).delete()
+        db.delete(profile)
+    db.delete(user)
+    db.commit()
+    return RedirectResponse(f"/admin/usuarios?success=Usuario+{user.email}+eliminado", status_code=303)
 
 
 @router.post("/admin/usuarios/{user_id}/toggle")

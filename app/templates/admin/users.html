@@ -52,7 +52,7 @@
         Copiar
       </button>
     </div>
-    <p class="text-blue-600 text-xs mt-2">Este enlace expira en 7 dias. Configura RESEND_API_KEY para enviar emails automaticamente.</p>
+    <p class="text-blue-600 text-xs mt-2">Este enlace expira en 7 días. Configura <strong>GMAIL_USER</strong> + <strong>GMAIL_APP_PASSWORD</strong> (o RESEND_API_KEY) en Railway para enviar emails automáticamente.</p>
   </div>
   {% endif %}
 
@@ -121,18 +121,25 @@
           </div>
         </div>
         {% if u.id != current_user.id %}
-        <form method="POST" action="/admin/usuarios/{{ u.id }}/toggle" class="flex-shrink-0 ml-4">
-          <button
-            type="submit"
-            class="text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors
-              {% if u.is_active %}border-red-200 text-red-600 hover:bg-red-50{% else %}border-green-200 text-green-600 hover:bg-green-50{% endif %}"
-            onclick="return confirm('{% if u.is_active %}Desactivar{% else %}Activar{% endif %} a {{ u.email }}?')"
-          >
-            {% if u.is_active %}Desactivar{% else %}Activar{% endif %}
-          </button>
-        </form>
+        <div class="flex items-center gap-2 flex-shrink-0 ml-4">
+          <form method="POST" action="/admin/usuarios/{{ u.id }}/toggle">
+            <button type="submit"
+              class="text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors
+                {% if u.is_active %}border-orange-200 text-orange-600 hover:bg-orange-50{% else %}border-green-200 text-green-600 hover:bg-green-50{% endif %}"
+              onclick="return confirm('{% if u.is_active %}Desactivar{% else %}Activar{% endif %} a {{ u.email }}?')">
+              {% if u.is_active %}Desactivar{% else %}Activar{% endif %}
+            </button>
+          </form>
+          <form method="POST" action="/admin/usuarios/{{ u.id }}/eliminar">
+            <button type="submit"
+              class="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+              onclick="return confirm('¿Eliminar permanentemente a {{ u.email }}? Se borrarán todos sus datos: perfil, planes, stock e historial. Esta acción no se puede deshacer.')">
+              Eliminar
+            </button>
+          </form>
+        </div>
         {% else %}
-        <span class="text-xs text-gray-400 ml-4">Tu</span>
+        <span class="text-xs text-gray-400 ml-4">Tu cuenta</span>
         {% endif %}
       </div>
       {% endfor %}

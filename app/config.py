@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     secret_key: str = "dev-secret-change-in-production"
     resend_api_key: str = ""
     resend_from_email: str = "NutriPlan <onboarding@resend.dev>"
+    gmail_user: str = ""
+    gmail_app_password: str = ""
     admin_email: str = ""
     admin_password: str = ""
     app_base_url: str = "https://nutricion.up.railway.app"
