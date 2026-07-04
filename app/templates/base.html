@@ -28,8 +28,8 @@
     .btn-ghost { @apply text-gray-500 hover:text-gray-800 hover:bg-gray-100 px-3 py-1.5 rounded-lg text-sm font-medium transition-all inline-flex items-center justify-center gap-1; }
     .card { @apply bg-white rounded-2xl shadow-sm border border-gray-200 p-6; }
     .card-flat { @apply bg-white rounded-xl border border-gray-200 p-4; }
-    .input { @apply w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-gray-50 focus:bg-white transition-colors shadow-sm; }
-    .label { @apply block text-sm font-semibold text-gray-600 mb-2; }
+    .input { display: block; width: 100%; @apply border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-gray-50 focus:bg-white transition-colors shadow-sm; }
+    .label { display: block; @apply text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5; }
     .badge-green  { @apply inline-flex items-center gap-1 px-2.5 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full; }
     .badge-yellow { @apply inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full; }
     .badge-gray   { @apply inline-flex items-center gap-1 px-2.5 py-0.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full; }
