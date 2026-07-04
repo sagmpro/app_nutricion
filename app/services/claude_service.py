@@ -63,7 +63,9 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float)
 
     lifestyle_lines = []
     if getattr(profile, "training_time", None):
-        lifestyle_lines.append(f"- Hora de entrenamiento: {profile.training_time} (sugiere comidas apropiadas antes/después)")
+        t_end = getattr(profile, "training_end", None)
+        t_range = f"{profile.training_time}–{t_end}" if t_end else profile.training_time
+        lifestyle_lines.append(f"- Entrenamiento: {t_range} (ajusta comidas pre y post entreno)")
     if getattr(profile, "cooking_facilities", None):
         lifestyle_lines.append(f"- Facilidades de cocina: {profile.cooking_facilities}")
     max_repeats = getattr(profile, "max_meal_repeats", 2)
@@ -306,6 +308,62 @@ Máximo 8 pasos concisos. Cocina española/latinoamericana."""
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("generate_recipe", message)
+    return _parse_json(message.content[0].text)
+
+
+def propose_meal_schedule(profile) -> dict:
+    """Ask Claude (Haiku) to propose optimal meal times based on the user's profile."""
+    from app.services.nutrition import get_activity_days_list, DAYS_OF_WEEK
+
+    activity_days = get_activity_days_list(profile)
+    activity_names = [DAYS_OF_WEEK[d] for d in activity_days]
+    if getattr(profile, "training_time", None):
+        t_end = getattr(profile, "training_end", None)
+        training_info = f"Entrenamiento: {profile.training_time}–{t_end}" if t_end else f"Entrenamiento: {profile.training_time}"
+    else:
+        training_info = "Sin hora de entrenamiento fija"
+
+    goal_map = {"caloric_deficit": "déficit calórico", "fat_loss": "reducción de grasa corporal"}
+    goal_str = goal_map.get(getattr(profile, "goal_type", "caloric_deficit"), "déficit calórico")
+
+    prompt = f"""Propón un horario óptimo de comidas para esta persona activa.
+
+Perfil:
+- Edad: {profile.age} años | Género: {"masculino" if profile.gender == "male" else "femenino"}
+- Peso: {profile.weight_kg} kg | Altura: {profile.height_cm} cm
+- {training_info}
+- Días de actividad: {", ".join(activity_names) if activity_names else "ninguno"}
+- Objetivo: {goal_str}
+- Tipo de dieta: {getattr(profile, "dietary_type", "omnivoro")}
+
+Criterios:
+1. Optimiza pre/post-workout si hay hora de entrenamiento
+2. Distribuye energía según la actividad a lo largo del día
+3. Puedes omitir media mañana o media tarde si no aportan valor
+4. Horarios prácticos y sostenibles
+
+Responde ÚNICAMENTE con JSON válido:
+{{
+  "enabled_meals": ["desayuno", "almuerzo", "cena"],
+  "meal_times": {{
+    "desayuno": "07:00",
+    "almuerzo": "13:30",
+    "cena": "20:30"
+  }},
+  "explicacion": "Explicación breve del criterio (máx 100 palabras)"
+}}
+
+Tipos válidos: desayuno, media_manana, almuerzo, media_tarde, cena.
+Incluye en enabled_meals y meal_times SOLO las comidas que recomiendas. Formato de hora: HH:MM (24h)."""
+
+    client = _get_client()
+    message = client.messages.create(
+        model=MODEL_HAIKU,
+        max_tokens=600,
+        system="Eres un nutricionista deportivo experto. Responde siempre con JSON válido, sin texto adicional.",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    _log_usage("propose_meal_schedule", message)
     return _parse_json(message.content[0].text)
 
 

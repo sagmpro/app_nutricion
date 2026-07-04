@@ -35,7 +35,8 @@ class UserProfile(Base):
     preferred_foods: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # Lifestyle & cooking
-    training_time: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)   # HH:MM
+    training_time: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)    # HH:MM start
+    training_end: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)    # HH:MM end
     cooking_facilities: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     max_meal_repeats: Mapped[int] = mapped_column(Integer, default=2)
 

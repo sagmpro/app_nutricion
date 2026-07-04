@@ -79,11 +79,19 @@
   <div class="card">
     <h2 class="text-base font-semibold text-gray-800 mb-1">Hora de entrenamiento</h2>
     <p class="text-gray-500 text-sm mb-4">Claude ajustará las comidas pre y post entreno</p>
-    <div class="flex items-center gap-3">
-      <input type="time" name="training_time" class="input max-w-[160px]"
-             value="{{ profile.training_time if profile and profile.training_time else '' }}"
-             oninput="refreshAutoTimes()">
-      <span class="text-sm text-gray-400">Dejar vacío si no entrenas a una hora fija</span>
+    <div class="flex items-center gap-3 flex-wrap">
+      <div class="flex items-center gap-2">
+        <label class="label mb-0 whitespace-nowrap">Desde</label>
+        <input type="time" name="training_time" class="input max-w-[130px]"
+               value="{{ profile.training_time if profile and profile.training_time else '' }}"
+               oninput="refreshAutoTimes()">
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="label mb-0 whitespace-nowrap">Hasta</label>
+        <input type="time" name="training_end" class="input max-w-[130px]"
+               value="{{ profile.training_end if profile and profile.training_end else '' }}">
+      </div>
+      <span class="text-xs text-gray-400">Dejar vacío si no tienes horario fijo</span>
     </div>
   </div>
 

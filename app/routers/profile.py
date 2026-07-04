@@ -84,6 +84,7 @@ async def perfil_save(
     disliked_foods: str = Form(default=""),
     preferred_foods: str = Form(default=""),
     training_time: str = Form(default=""),
+    training_end: str = Form(default=""),
     cooking_facilities: str = Form(default=""),
     max_meal_repeats: int = Form(default=2),
 ):
@@ -114,6 +115,7 @@ async def perfil_save(
     profile.disliked_foods = disliked_foods.strip() or None
     profile.preferred_foods = preferred_foods.strip() or None
     profile.training_time = training_time.strip() or None
+    profile.training_end = training_end.strip() or None
     profile.cooking_facilities = cooking_facilities.strip() or None
     profile.max_meal_repeats = max(1, min(7, max_meal_repeats))
 
