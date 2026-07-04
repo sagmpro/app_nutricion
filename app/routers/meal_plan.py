@@ -247,21 +247,32 @@ def consumir_comida(plan_id: int, meal_id: int, db: Session = Depends(get_db)):
     return RedirectResponse(f"/plan/{plan_id}", status_code=303)
 
 
-@router.post("/plan/{plan_id}/comida/{meal_id}/foto-consumida")
-async def foto_consumida(plan_id: int, meal_id: int, db: Session = Depends(get_db), foto: UploadFile = File(...)):
-    meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
-    if not meal:
-        return RedirectResponse(f"/plan/{plan_id}", status_code=303)
+@router.post("/plan/{plan_id}/comida/{meal_id}/foto-preview")
+async def foto_consumida_preview(plan_id: int, meal_id: int, foto: UploadFile = File(...)):
+    """Analyze a food photo and return JSON — used by the AJAX confirmation modal."""
     try:
         image_bytes = await foto.read()
         media_type = foto.content_type or "image/jpeg"
         result = claude_analyze_photo(image_bytes, media_type)
-        meal.consumed = True
-        meal.actual_name = result.get("nombre", meal.name)
-        meal.actual_calories = int(result.get("calorias", 0))
-        db.commit()
+        return JSONResponse(result)
     except Exception as e:
-        return RedirectResponse(f"/plan/{plan_id}?error=Error+analizando+foto:+{str(e)[:60]}", status_code=303)
+        return JSONResponse({"error": str(e)[:100]}, status_code=500)
+
+
+@router.post("/plan/{plan_id}/comida/{meal_id}/confirmar-foto")
+async def confirmar_foto_consumida(
+    plan_id: int,
+    meal_id: int,
+    db: Session = Depends(get_db),
+    nombre: str = Form(...),
+    calorias: str = Form(default=""),
+):
+    meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    if meal:
+        meal.consumed = True
+        meal.actual_name = nombre.strip() or meal.name
+        meal.actual_calories = int(calorias) if calorias.strip().isdigit() else None
+        db.commit()
     return RedirectResponse(f"/plan/{plan_id}", status_code=303)
 
 

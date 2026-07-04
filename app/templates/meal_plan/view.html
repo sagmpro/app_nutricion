@@ -252,17 +252,12 @@
             {% endif %}
           </button>
           <div id="photo-form-{{ meal.id }}" class="hidden mt-2">
-            <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/foto-consumida"
-                  enctype="multipart/form-data"
-                  data-loading data-loading-title="Analizando foto..."
-                  data-loading-subtitle="Claude está identificando el alimento y estimando calorías."
-                  class="flex flex-wrap items-end gap-2">
-              <div>
-                <label class="label text-xs">Foto de la comida o tabla nutricional</label>
-                <input type="file" name="foto" accept="image/*" capture="environment" class="input text-xs py-1" required>
-              </div>
-              <button type="submit" class="btn-primary text-xs px-3 py-1.5">Analizar</button>
-            </form>
+            <label class="label text-xs">Foto de la comida o tabla nutricional</label>
+            <input type="file" accept="image/*"
+                   id="foto-input-{{ meal.id }}"
+                   class="input text-xs py-1"
+                   onchange="analyzeFood({{ meal_plan.id }}, {{ meal.id }}, this)">
+            <p id="foto-status-{{ meal.id }}" class="text-xs text-gray-400 mt-1 hidden"></p>
             {% if meal.consumed and meal.actual_name %}
             <p class="text-xs text-green-600 mt-1">✓ Registrado: {{ meal.actual_name }} ({{ meal.actual_calories or '?' }} kcal)</p>
             {% endif %}
@@ -298,6 +293,44 @@
 </div>
 {% endfor %}
 
+<!-- Food photo confirmation modal -->
+<div id="foto-modal" class="hidden fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+    <h3 class="font-semibold text-gray-800 mb-1">¿Qué comiste?</h3>
+    <p class="text-xs text-gray-400 mb-4">Revisa y edita lo que se identificó antes de guardar.</p>
+    <form id="modal-form" method="POST">
+      <div class="space-y-3">
+        <div>
+          <label class="label text-sm">Nombre del alimento</label>
+          <input type="text" name="nombre" id="modal-nombre" class="input" required>
+        </div>
+        <div>
+          <label class="label text-sm">Calorías estimadas</label>
+          <input type="number" name="calorias" id="modal-calorias" class="input" min="0" placeholder="0">
+        </div>
+        <div class="grid grid-cols-3 gap-2 p-3 bg-gray-50 rounded-xl">
+          <div class="text-center">
+            <p class="text-xs text-gray-400 mb-0.5">Proteínas</p>
+            <p class="text-sm font-semibold text-blue-600" id="modal-proteinas">—</p>
+          </div>
+          <div class="text-center">
+            <p class="text-xs text-gray-400 mb-0.5">Carbos</p>
+            <p class="text-sm font-semibold text-orange-600" id="modal-carbos">—</p>
+          </div>
+          <div class="text-center">
+            <p class="text-xs text-gray-400 mb-0.5">Grasas</p>
+            <p class="text-sm font-semibold text-yellow-600" id="modal-grasas">—</p>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-5">
+        <button type="submit" class="btn-primary flex-1">✓ Confirmar</button>
+        <button type="button" onclick="closeFotoModal()" class="btn-secondary flex-1">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -317,6 +350,42 @@ showDay(0);
 
 function togglePhotoForm(mealId) {
   document.getElementById('photo-form-' + mealId).classList.toggle('hidden');
+}
+
+function closeFotoModal() {
+  document.getElementById('foto-modal').classList.add('hidden');
+}
+
+async function analyzeFood(planId, mealId, input) {
+  if (!input.files[0]) return;
+  const statusEl = document.getElementById('foto-status-' + mealId);
+  statusEl.textContent = '⏳ Analizando...';
+  statusEl.classList.remove('hidden');
+  input.disabled = true;
+
+  const formData = new FormData();
+  formData.append('foto', input.files[0]);
+
+  try {
+    const resp = await fetch('/plan/' + planId + '/comida/' + mealId + '/foto-preview', {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById('modal-nombre').value = data.nombre || '';
+    document.getElementById('modal-calorias').value = data.calorias || '';
+    document.getElementById('modal-proteinas').textContent = data.proteinas_g != null ? data.proteinas_g + 'g' : '—';
+    document.getElementById('modal-carbos').textContent = data.carbohidratos_g != null ? data.carbohidratos_g + 'g' : '—';
+    document.getElementById('modal-grasas').textContent = data.grasas_g != null ? data.grasas_g + 'g' : '—';
+    document.getElementById('modal-form').action = '/plan/' + planId + '/comida/' + mealId + '/confirmar-foto';
+    document.getElementById('foto-modal').classList.remove('hidden');
+    statusEl.classList.add('hidden');
+  } catch(e) {
+    statusEl.textContent = '❌ Error: ' + e.message;
+  }
+  input.disabled = false;
 }
 
 async function toggleRecipe(planId, mealId) {
