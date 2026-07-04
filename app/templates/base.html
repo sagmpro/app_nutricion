@@ -164,6 +164,13 @@
       document.getElementById('loading-overlay').classList.remove('hidden');
     });
   });
+
+  // On touch/mobile devices, open camera directly for image inputs
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    document.querySelectorAll('input[type="file"][accept*="image"]').forEach(el => {
+      el.setAttribute('capture', 'environment');
+    });
+  }
 </script>
 
 {% block scripts %}{% endblock %}
