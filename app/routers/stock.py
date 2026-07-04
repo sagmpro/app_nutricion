@@ -80,31 +80,53 @@ def stock_eliminar(item_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/stock/desde-foto")
-async def stock_desde_foto(db: Session = Depends(get_db), foto: UploadFile = File(...)):
+async def stock_desde_foto(request: Request, db: Session = Depends(get_db), foto: UploadFile = File(...)):
     try:
         image_bytes = await foto.read()
         media_type = foto.content_type or "image/jpeg"
         result = claude_identify_photo(image_bytes, media_type)
         items = result.get("items", [])
-        for item_data in items:
-            name = item_data.get("nombre", "").strip()
-            if not name:
-                continue
-            quantity = float(item_data.get("cantidad", 1))
-            unit = item_data.get("unidad", "unidades")
-            category = item_data.get("categoria", "Otros")
-            existing = db.query(FoodStock).filter(FoodStock.name.ilike(name)).first()
-            if existing:
-                if existing.unit == unit:
-                    existing.quantity += quantity
-                else:
-                    existing.quantity = quantity
-                    existing.unit = unit
-                existing.updated_at = datetime.now()
-            else:
-                db.add(FoodStock(name=name, quantity=quantity, unit=unit, category=category))
-        db.commit()
-        added = len(items)
-        return RedirectResponse(f"/stock?success={added}+ingrediente(s)+añadidos+desde+foto", status_code=303)
+        if not items:
+            return RedirectResponse("/stock?error=Claude+no+pudo+identificar+ingredientes+en+la+foto", status_code=303)
+        return templates.TemplateResponse(request, "stock/review_foto.html", {
+            "items": items,
+            "stock_categories": STOCK_CATEGORIES,
+        })
     except Exception as e:
         return RedirectResponse(f"/stock?error=Error+analizando+foto:+{str(e)[:60]}", status_code=303)
+
+
+@router.post("/stock/confirmar-foto")
+async def stock_confirmar_foto(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    count = int(form.get("count", 0))
+    includes = set(form.getlist("include"))
+
+    added = 0
+    for i in range(count):
+        if str(i) not in includes:
+            continue
+        name = (form.get(f"name_{i}") or "").strip()
+        if not name:
+            continue
+        try:
+            quantity = float(form.get(f"quantity_{i}") or 1)
+        except ValueError:
+            quantity = 1.0
+        unit = (form.get(f"unit_{i}") or "unidades").strip()
+        category = form.get(f"category_{i}") or "Otros"
+
+        existing = db.query(FoodStock).filter(FoodStock.name.ilike(name)).first()
+        if existing:
+            if existing.unit == unit:
+                existing.quantity += quantity
+            else:
+                existing.quantity = quantity
+                existing.unit = unit
+            existing.updated_at = datetime.now()
+        else:
+            db.add(FoodStock(name=name, quantity=quantity, unit=unit, category=category))
+        added += 1
+
+    db.commit()
+    return RedirectResponse(f"/stock?success={added}+ingrediente(s)+añadidos+al+stock", status_code=303)
