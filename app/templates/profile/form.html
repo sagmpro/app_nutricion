@@ -33,12 +33,12 @@
       <span class="text-xl leading-none">👤</span>
       <h2 class="text-sm font-semibold text-gray-800">Datos personales</h2>
     </div>
-    <div class="p-6 space-y-4">
-      <div>
-        <label class="label">Nombre</label>
-        <input type="text" name="name" class="input" value="{{ profile.name if profile else '' }}" placeholder="Tu nombre" required>
-      </div>
-      <div class="grid grid-cols-2 gap-4">
+    <div class="p-6">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="col-span-2">
+          <label class="label">Nombre</label>
+          <input type="text" name="name" class="input" value="{{ profile.name if profile else '' }}" placeholder="Tu nombre" required>
+        </div>
         <div>
           <label class="label">Edad</label>
           <input type="number" name="age" id="age" class="input" value="{{ profile.age if profile else '' }}" min="15" max="99" placeholder="30" required oninput="calcBMR()">
@@ -58,12 +58,12 @@
             </label>
           </div>
         </div>
-        <div>
+        <div class="sm:col-span-2">
           <label class="label">Peso (kg)</label>
           <input type="number" name="weight_kg" id="weight" class="input" step="0.1"
             value="{{ profile.weight_kg if profile else '' }}" placeholder="70" required oninput="calcBMR()">
         </div>
-        <div>
+        <div class="sm:col-span-2">
           <label class="label">Altura (cm)</label>
           <input type="number" name="height_cm" id="height" class="input"
             value="{{ profile.height_cm if profile else '' }}" placeholder="170" required oninput="calcBMR()">
@@ -71,6 +71,8 @@
       </div>
     </div>
   </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
   <!-- Activity days -->
   <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
@@ -120,6 +122,8 @@
       </div>
     </div>
   </div>
+
+  </div><!-- end activity+training grid -->
 
   <!-- Goal -->
   <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
