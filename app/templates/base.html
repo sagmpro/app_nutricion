@@ -98,8 +98,13 @@
         </a>
 
       </div>
-      <!-- Mobile: gear + hamburger -->
+      <!-- Mobile: hamburger + gear -->
       <div class="md:hidden flex items-center gap-0.5">
+        <button id="menu-btn" class="text-white p-2 rounded-lg hover:bg-white/10 transition-colors">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
         <a href="/perfil"
            class="p-2 rounded-lg hover:bg-white/10 transition-colors {{ 'bg-white/20' if request.url.path == '/perfil' else 'text-white' }}">
           <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -107,11 +112,6 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
           </svg>
         </a>
-        <button id="menu-btn" class="text-white p-2 rounded-lg hover:bg-white/10 transition-colors">
-          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-          </svg>
-        </button>
       </div>
     </div>
   </div>
