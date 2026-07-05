@@ -274,25 +274,34 @@
     </div>
     <div class="p-6 space-y-5">
       <p class="text-gray-500 text-sm -mt-1">Claude usará esto en cada plan que generes</p>
+
+      <!-- preferred_foods -->
       <div>
         <label class="label">Alimentos favoritos <span class="text-gray-400 normal-case font-normal">(opcional)</span></label>
-        <input type="text" name="preferred_foods" class="input"
-               value="{{ profile.preferred_foods or '' if profile else '' }}"
-               placeholder="Ej: pollo, arroz, aguacate, huevos...">
+        <input type="hidden" name="preferred_foods" id="hid-preferred_foods"
+               value="{{ profile.preferred_foods or '' if profile else '' }}">
+        <div class="tag-box" id="box-preferred_foods"
+             data-placeholder="Ej: pollo, arroz, aguacate… (Enter para agregar)"></div>
         <p class="text-xs text-gray-400 mt-1">Se incluirán cuando sea posible</p>
       </div>
+
+      <!-- disliked_foods -->
       <div>
         <label class="label">Alimentos que NO te gustan <span class="text-gray-400 normal-case font-normal">(opcional)</span></label>
-        <input type="text" name="disliked_foods" class="input"
-               value="{{ profile.disliked_foods or '' if profile else '' }}"
-               placeholder="Ej: hígado, coliflor, sardinas...">
+        <input type="hidden" name="disliked_foods" id="hid-disliked_foods"
+               value="{{ profile.disliked_foods or '' if profile else '' }}">
+        <div class="tag-box" id="box-disliked_foods"
+             data-placeholder="Ej: hígado, coliflor, sardinas… (Enter para agregar)"></div>
         <p class="text-xs text-gray-400 mt-1">Se evitarán en el plan</p>
       </div>
+
+      <!-- food_intolerances -->
       <div>
         <label class="label">Alergias e intolerancias <span class="text-gray-400 normal-case font-normal">(opcional)</span></label>
-        <input type="text" name="food_intolerances" class="input"
-               value="{{ profile.food_intolerances or '' if profile else '' }}"
-               placeholder="Ej: lactosa, gluten, frutos secos...">
+        <input type="hidden" name="food_intolerances" id="hid-food_intolerances"
+               value="{{ profile.food_intolerances or '' if profile else '' }}">
+        <div class="tag-box" id="box-food_intolerances"
+             data-placeholder="Ej: lactosa, gluten, frutos secos… (Enter para agregar)"></div>
         <p class="text-xs text-gray-400 mt-1">Se excluirán estrictamente</p>
       </div>
     </div>
@@ -608,6 +617,105 @@ function toggleAutoTime(mealId) {
     autoDisp.classList.remove('hidden');
   }
 }
+
+/* ── Tag / chip input ──────────────────────────────────────────── */
+(function() {
+  const style = document.createElement('style');
+  style.textContent = `
+    .tag-box {
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      min-height: 42px; padding: 6px 10px;
+      border: 1px solid #d1d5db; border-radius: 10px;
+      background: #fff; cursor: text;
+      transition: border-color .15s;
+    }
+    .tag-box:focus-within { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22,163,74,.15); }
+    .tag-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #dcfce7; color: #15803d;
+      border-radius: 999px; padding: 2px 10px 2px 12px;
+      font-size: 13px; font-weight: 500; white-space: nowrap;
+    }
+    .tag-chip button {
+      display: flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: #86efac; color: #15803d; border: none; cursor: pointer;
+      font-size: 11px; line-height: 1; padding: 0;
+    }
+    .tag-chip button:hover { background: #4ade80; }
+    .tag-input {
+      flex: 1; min-width: 140px; border: none; outline: none;
+      background: transparent; font-size: 14px; color: #374151;
+    }
+    .tag-input::placeholder { color: #9ca3af; }
+  `;
+  document.head.appendChild(style);
+
+  function initTagBox(fieldId) {
+    const hidden = document.getElementById('hid-' + fieldId);
+    const box    = document.getElementById('box-' + fieldId);
+    if (!hidden || !box) return;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tag-input';
+    input.placeholder = box.dataset.placeholder || 'Agregar…';
+    box.appendChild(input);
+    box.addEventListener('click', () => input.focus());
+
+    let tags = hidden.value ? hidden.value.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+    function sync() { hidden.value = tags.join(', '); }
+
+    function addTag(raw) {
+      const parts = raw.split(',').map(t => t.trim()).filter(Boolean);
+      parts.forEach(t => { if (t && !tags.includes(t)) tags.push(t); });
+      render();
+      sync();
+    }
+
+    function removeTag(t) {
+      tags = tags.filter(x => x !== t);
+      render();
+      sync();
+    }
+
+    function render() {
+      [...box.querySelectorAll('.tag-chip')].forEach(c => c.remove());
+      tags.forEach(t => {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.textContent = t;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerHTML = '✕';
+        btn.title = 'Eliminar';
+        btn.addEventListener('click', e => { e.stopPropagation(); removeTag(t); });
+        chip.appendChild(btn);
+        box.insertBefore(chip, input);
+      });
+    }
+
+    input.addEventListener('keydown', e => {
+      if ((e.key === 'Enter' || e.key === ',') && input.value.trim()) {
+        e.preventDefault();
+        addTag(input.value);
+        input.value = '';
+      } else if (e.key === 'Backspace' && !input.value && tags.length) {
+        removeTag(tags[tags.length - 1]);
+      }
+    });
+    input.addEventListener('blur', () => {
+      if (input.value.trim()) { addTag(input.value); input.value = ''; }
+    });
+
+    render();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    ['preferred_foods', 'disliked_foods', 'food_intolerances'].forEach(initTagBox);
+  });
+})();
 
 function toggleMeal(mealId, enabled) {
   const label    = document.getElementById('meal-label-' + mealId);
