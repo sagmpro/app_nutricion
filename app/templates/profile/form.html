@@ -633,16 +633,16 @@ function toggleAutoTime(mealId) {
   }
 }
 
-/* ── Tag / chip input ──────────────────────────────────────────── */
+/* ── Tag / chip input with country autocomplete ──────────────── */
 (function() {
   const style = document.createElement('style');
   style.textContent = `
+    .tag-wrap { position: relative; }
     .tag-box {
       display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
       min-height: 42px; padding: 6px 10px;
       border: 1px solid #d1d5db; border-radius: 10px;
-      background: #fff; cursor: text;
-      transition: border-color .15s;
+      background: #fff; cursor: text; transition: border-color .15s;
     }
     .tag-box:focus-within { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22,163,74,.15); }
     .tag-chip {
@@ -663,13 +663,67 @@ function toggleAutoTime(mealId) {
       background: transparent; font-size: 14px; color: #374151;
     }
     .tag-input::placeholder { color: #9ca3af; }
+    .tag-dropdown {
+      display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+      background: #fff; border: 1px solid #d1d5db; border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.1); overflow: hidden;
+    }
+    .tag-dropdown button {
+      display: block; width: 100%; text-align: left; padding: 8px 14px;
+      font-size: 13px; color: #374151; background: none; border: none; cursor: pointer;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .tag-dropdown button:last-child { border-bottom: none; }
+    .tag-dropdown button:hover { background: #f0fdf4; color: #15803d; }
   `;
   document.head.appendChild(style);
+
+  const FOOD_DB = {
+    "España": ["aceite de oliva","ajo","patata","tomate","cebolla","pimiento rojo","pimiento verde","chorizo","jamón serrano","bacalao","lentejas","garbanzos","arroz","pasta","pan integral","queso manchego","leche","huevo","pollo","ternera","merluza","sardina","atún en conserva","espinacas","zanahoria","judías verdes","calabacín","berenjena","champiñones","almendras","nueces","avena","pimentón dulce","laurel","perejil"],
+    "México": ["chile poblano","chile serrano","jalapeño","chipotle","elote","tortilla de maíz","frijoles negros","aguacate","jitomate","cilantro","epazote","nopal","chayote","calabaza","camote","plátano macho","tomatillo","queso fresco","crema mexicana","pollo","res","cerdo","camarón","tilapia","arroz","limón","cebolla","ajo","pepino","jícama","nopales","achiote","orégano mexicano"],
+    "Argentina": ["aceite de girasol","choclo","papa","boniato","zapallo","tomate","cebolla","ajo","pimiento","pollo","res","cerdo","lentejas","garbanzos","arroz","pasta","pan","leche","huevo","queso","palta","maní","almendras","chimichurri","perejil","orégano","ají molido","comino","laurel","yerba mate","dulce de leche","ricota","membrillo"],
+    "Colombia": ["arepa","plátano","yuca","papa criolla","ahuyama","maíz","fríjoles","lentejas","arroz","pollo","res","cerdo","chorizo","chicharrón","tomate chonto","cebolla larga","ají","cilantro","panela","guanábana","maracuyá","lulo","mora","aguacate","coco","tilapia","hogao","comino","achiote","pimienta","tomillo","perejil"],
+    "Chile": ["palta","porotos","lentejas","papas","choclo","tomate","cebolla","ajo","pimentón","merkén","reineta","congrio","merluza","choritos","machas","pollo","vacuno","cerdo","arroz","pasta","pan","leche","huevo","queso","manjar","nueces","almendras","avena","aceite de oliva","perejil","orégano","comino"],
+    "Perú": ["ají amarillo","rocoto","ají panca","huacatay","papa amarilla","papa morada","camote","yuca","choclo","quinua","kiwicha","chuño","lúcuma","maracuyá","pollo","res","cerdo","trucha","mariscos","arroz","menestras","frijoles","lentejas","cebolla","tomate","limón","cilantro","culantro","chicha de jora","cancha","mote","pallares"],
+    "Venezuela": ["caraotas negras","plátano","yuca","maíz","arepas","pollo","res","cerdo","pescado","camarón","arroz","pasta","papa","tomate","cebolla","ajo","cilantro","ají dulce","papelón","guanábana","mango","cambur","aguacate","queso blanco","mantequilla","onoto","comino","orégano","pimienta","pimentón"],
+    "Ecuador": ["plátano","yuca","papa","maíz","quinua","chocho","arveja","lenteja","frijol","arroz","pollo","res","cerdo","tilapia","camarón","tomate riñón","cebolla paiteña","ají","cilantro","aguacate","maracuyá","naranjilla","tomate de árbol","melloco","zanahoria","brócoli","espinaca","pimiento","ajo","comino"],
+    "Bolivia": ["papa","chuño","tunta","quinua","maíz","oca","yuca","plátano","locoto","cebolla","tomate","ajo","comino","orégano","pollo","res","cerdo","llama","trucha","arroz","fideo","pan","leche","huevo","queso","maní","chirimoya","durazno","manzana","pera"],
+    "Paraguay": ["mandioca","maíz","soja","arroz","poroto","batata","papa","cebolla","tomate","morrón","ajo","perejil","cilantro","pollo","res","cerdo","surubí","pacú","leche","queso paraguayo","miel","maní","naranja","pomelo","mango","guayaba","locote","yerba mate","kiwicha","sésamo"],
+    "Uruguay": ["pasta","arroz","papa","batata","choclo","morrón","tomate","cebolla","ajo","aceite de oliva","pollo","vacuno","cerdo","cordero","pescado","lentejas","garbanzos","porotos","leche","queso","yogur","huevo","pan integral","almendras","nueces","avena","palta","perejil","orégano","laurel"],
+    "Guatemala": ["frijoles negros","maíz","tortilla","chile guaque","chile pasa","tomate","cebolla","ajo","cilantro","pepita","achiote","plátano","yuca","camote","ayote","güisquil","loroco","chipilín","pollo","res","cerdo","pavo","pescado","camarón","arroz","pasta","pan","leche","huevo","crema"],
+    "Honduras": ["frijoles rojos","maíz","tortilla","arroz","yuca","plátano","quequisque","ayote","loroco","chile","tomate","cebolla","ajo","cilantro","pollo","res","cerdo","mariscos","camarón","pescado","leche","crema","queso","cuajada","chicharrón","manteca","comino","achiote","azafrán","pimienta"],
+    "Costa Rica": ["frijoles","arroz","plátano","yuca","chayote","palmito","ayote","chile","tomate","cebolla","ajo","culantro","pollo","res","cerdo","tilapia","atún","leche","queso","natilla","tortilla","maíz","camote","pipián","aguacate","maracuyá","cas","guayaba","mango","pejibaye"],
+    "República Dominicana": ["plátano","yuca","batata","ñame","auyama","habichuelas","arroz","pollo","res","cerdo","pescado","camarón","tomate","cebolla","ají cubanela","ajo","cilantro","orégano","limón","coco","aguacate","mango","chinola","leche","queso blanco","salami","longaniza","achiote","vinagre","aceite"],
+    "Cuba": ["frijoles negros","arroz","plátano","yuca","boniato","malanga","papa","ajo","cebolla","ají","tomate","cilantro","orégano","comino","laurel","pollo","cerdo","res","pescado","mariscos","leche","queso blanco","mantequilla","aceite vegetal","naranja agria","limón","guayaba","mamey","cacao"],
+    "Puerto Rico": ["gandules","plátano","yuca","ñame","auyama","arroz","maíz","sofrito","achiote","ajo","cebolla","ají dulce","cilantro","culantro","pollo","cerdo","res","pescado","bacalao","camarón","leche","queso blanco","aceitunas","alcaparras","mango","papaya","naranja","coco","habichuelas","recao"],
+    "El Salvador": ["frijoles","maíz","loroco","chipilin","plátano","yuca","camote","güisquil","ejote","chile","tomate","cebolla","ajo","cilantro","pollo","res","cerdo","pescado","camarón","crema","queso","chicharrón","arroz","masa de maíz","aceite vegetal","comino","orégano","achiote","vinagre","sal"],
+    "Nicaragua": ["frijoles rojos","maíz","arroz","plátano","yuca","quequisque","chayote","chile","tomate","cebolla","ajo","achiote","pollo","res","cerdo","mariscos","pescado","leche","cuajada","crema","queso seco","chicharrón","manteca","pipián","camote","coco","cilantro","culantro","comino","orégano"],
+    "Panamá": ["arroz","frijoles","plátano","yuca","ñame","otoe","guandú","maíz","pollo","res","cerdo","mariscos","camarón","corvina","mero","tomate","cebolla","ajo","ají chombo","culantro","orégano","coco","aguacate","papaya","mango","leche","queso blanco","chicharrón","achiote","comino"],
+    "Otro": ["pollo","res","cerdo","pescado","huevo","arroz","pasta","pan","papa","tomate","cebolla","ajo","aceite de oliva","leche","queso","yogur","avena","lentejas","garbanzos","espinacas","zanahoria","brócoli","frutas","frutos secos","almendras","nueces","semillas","legumbres","verduras de hoja","hierbas"]
+  };
+
+  function getCountry() {
+    return (document.querySelector('[name=country]')?.value || '').trim();
+  }
+
+  function getSuggestions(country) {
+    return FOOD_DB[country] || FOOD_DB['Otro'];
+  }
 
   function initTagBox(fieldId) {
     const hidden = document.getElementById('hid-' + fieldId);
     const box    = document.getElementById('box-' + fieldId);
     if (!hidden || !box) return;
+
+    // Wrap box for relative positioning of dropdown
+    const wrap = document.createElement('div');
+    wrap.className = 'tag-wrap';
+    box.parentNode.insertBefore(wrap, box);
+    wrap.appendChild(box);
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'tag-dropdown';
+    wrap.appendChild(dropdown);
 
     const input = document.createElement('input');
     input.type = 'text';
@@ -685,14 +739,12 @@ function toggleAutoTime(mealId) {
     function addTag(raw) {
       const parts = raw.split(',').map(t => t.trim()).filter(Boolean);
       parts.forEach(t => { if (t && !tags.includes(t)) tags.push(t); });
-      render();
-      sync();
+      render(); sync();
     }
 
     function removeTag(t) {
       tags = tags.filter(x => x !== t);
-      render();
-      sync();
+      render(); sync();
     }
 
     function render() {
@@ -702,26 +754,51 @@ function toggleAutoTime(mealId) {
         chip.className = 'tag-chip';
         chip.textContent = t;
         const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.innerHTML = '✕';
-        btn.title = 'Eliminar';
+        btn.type = 'button'; btn.innerHTML = '✕'; btn.title = 'Eliminar';
         btn.addEventListener('click', e => { e.stopPropagation(); removeTag(t); });
         chip.appendChild(btn);
         box.insertBefore(chip, input);
       });
     }
 
+    function showDropdown(q) {
+      if (!q) { dropdown.style.display = 'none'; return; }
+      const suggs = getSuggestions(getCountry());
+      const matches = suggs.filter(s => s.toLowerCase().includes(q.toLowerCase()) && !tags.includes(s)).slice(0, 7);
+      if (!matches.length) { dropdown.style.display = 'none'; return; }
+      dropdown.innerHTML = '';
+      matches.forEach(m => {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.textContent = m;
+        btn.addEventListener('mousedown', e => {
+          e.preventDefault(); // keep focus on input
+          addTag(m); input.value = ''; dropdown.style.display = 'none';
+        });
+        dropdown.appendChild(btn);
+      });
+      dropdown.style.display = 'block';
+    }
+
+    input.addEventListener('input', () => showDropdown(input.value.trim()));
+
     input.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { dropdown.style.display = 'none'; return; }
       if ((e.key === 'Enter' || e.key === ',') && input.value.trim()) {
         e.preventDefault();
-        addTag(input.value);
-        input.value = '';
+        addTag(input.value); input.value = ''; dropdown.style.display = 'none';
       } else if (e.key === 'Backspace' && !input.value && tags.length) {
         removeTag(tags[tags.length - 1]);
       }
     });
+
     input.addEventListener('blur', () => {
+      setTimeout(() => { dropdown.style.display = 'none'; }, 150);
       if (input.value.trim()) { addTag(input.value); input.value = ''; }
+    });
+
+    // Re-filter when country changes
+    document.querySelector('[name=country]')?.addEventListener('change', () => {
+      if (input.value.trim()) showDropdown(input.value.trim());
     });
 
     render();
