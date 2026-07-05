@@ -33,7 +33,7 @@ def _parse_json(text: str) -> dict:
     return json.loads(text.strip())
 
 
-def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float) -> dict:
+def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float, saved_meals: list | None = None) -> dict:
     """Call Claude to generate a 7-day meal plan. Returns parsed JSON dict."""
     from app.services.nutrition import get_activity_days_list, DAYS_OF_WEEK
 
@@ -102,6 +102,23 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float)
     snack_note = (f"- Snacks ({', '.join(meal_labels_map[s] for s in enabled_snacks)}): usa SOLO 3-4 opciones distintas que se repiten a lo largo de la semana."
                   if enabled_snacks else "")
 
+    # Build recetario section
+    recetario_section = ""
+    if saved_meals:
+        from collections import defaultdict
+        by_type: dict = defaultdict(list)
+        for sm in saved_meals:
+            by_type[sm.meal_type].append(sm)
+        lines = []
+        for mt in ["desayuno", "media_manana", "almuerzo", "media_tarde", "cena"]:
+            if mt not in by_type:
+                continue
+            sorted_meals = sorted(by_type[mt], key=lambda x: (-(x.rating or 0), -x.times_served))
+            names = [sm.name for sm in sorted_meals]
+            lines.append(f"- {meal_labels_map.get(mt, mt)}: {', '.join(names)}")
+        if lines:
+            recetario_section = "\nRecetario del usuario (platos que ya conoce — PRIORIZA usarlos):\n" + "\n".join(lines) + "\n"
+
     prompt = f"""Genera un plan de alimentación para una semana completa (lunes a domingo).
 
 Datos de la persona:
@@ -117,13 +134,13 @@ Preferencias alimentarias:
 
 Estilo de vida:
 {lifestyle_section}
-
+{recetario_section}
 Comidas del día (SOLO estas, en este orden):
 {schedule_section}
 
 INSTRUCCIONES IMPORTANTES:
 - Genera exactamente {n_meals} comida(s) por día (tipos: {enabled_types_str}). No añadas ni quites comidas.
-- Desayuno, almuerzo y cena: 7 recetas distintas (una por día), variadas.
+- {"Si hay recetario: reutiliza esos platos en el plan antes de inventar nuevos. " if recetario_section else ""}Desayuno, almuerzo y cena: máximo {max_repeats} veces el mismo plato en la semana.
 {snack_note}
 - Descripciones breves (máx 15 palabras).
 - Ingredientes: máximo 5 por comida.

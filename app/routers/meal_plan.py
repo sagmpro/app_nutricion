@@ -9,6 +9,7 @@ from app.models.profile import UserProfile
 from app.models.meal_plan import MealPlan
 from app.models.meal import Meal, MEAL_TYPE_ORDER, MEAL_TYPE_LABELS, MEAL_TYPES
 from app.models.food_stock import FoodStock
+from app.models.saved_meal import SavedMeal
 from app.services.auth_service import get_current_user
 from app.services import household_service as hs
 from app.services.nutrition import (
@@ -176,7 +177,12 @@ async def generar_plan(request: Request, db: Session = Depends(get_db)):
         tdee = calculate_tdee(bmr, len(activity_days))
         target = calculate_target_calories(profile, tdee)
 
-        result = claude_generate(profile, bmr, tdee, target)
+        user_meals = db.query(SavedMeal).filter(
+            SavedMeal.user_id == current_user.id,
+            SavedMeal.is_excluded == False,  # noqa: E712
+        ).all()
+
+        result = claude_generate(profile, bmr, tdee, target, saved_meals=user_meals or None)
         meal_plan.raw_json = json.dumps(result)
         _save_meals_from_response(db, meal_plan.id, result, user_id=current_user.id)
         db.commit()
@@ -594,7 +600,12 @@ def regenerar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)
         tdee = calculate_tdee(bmr, len(activity_days))
         target = calculate_target_calories(profile, tdee)
 
-        result = claude_generate(profile, bmr, tdee, target)
+        user_meals = db.query(SavedMeal).filter(
+            SavedMeal.user_id == current_user.id,
+            SavedMeal.is_excluded == False,  # noqa: E712
+        ).all()
+
+        result = claude_generate(profile, bmr, tdee, target, saved_meals=user_meals or None)
         meal_plan.raw_json = json.dumps(result)
         meal_plan.status = "pending"
         _save_meals_from_response(db, meal_plan.id, result, user_id=current_user.id)
