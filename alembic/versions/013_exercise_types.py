@@ -36,7 +36,7 @@ def upgrade():
     conn = op.get_bind()
     for name, icon in DEFAULT_TYPES:
         conn.execute(
-            sa.text("INSERT INTO exercise_types (name, icon, is_default) VALUES (:name, :icon, 1)"),
+            sa.text("INSERT INTO exercise_types (name, icon, is_default) VALUES (:name, :icon, TRUE)"),
             {"name": name, "icon": icon},
         )
 
