@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.profile import UserProfile
 from app.models.saved_meal import SavedMeal, classify_health
-from app.models.meal import MEAL_TYPE_LABELS
+from app.models.meal import MEAL_TYPE_LABELS, MEAL_TYPES
 from app.services.auth_service import get_current_user
 from app.services.nutrition import (
     calculate_bmr, calculate_tdee, calculate_target_calories,
@@ -168,12 +168,66 @@ def recetario(request: Request, db: Session = Depends(get_db)):
         .order_by(SavedMeal.last_served_at.desc())
         .all()
     )
+    grouped: dict[str, list] = {}
+    for m in meals:
+        grouped.setdefault(m.meal_type, []).append(m)
+    grouped_meals = [(t, MEAL_TYPE_LABELS.get(t, t), grouped[t]) for t in MEAL_TYPES if t in grouped]
+    for t, ms in grouped.items():
+        if t not in MEAL_TYPES:
+            grouped_meals.append((t, t.capitalize(), ms))
+
     return templates.TemplateResponse(request, "profile/recetario.html", {
         "current_user": current_user,
         "saved_meals": meals,
+        "grouped_meals": grouped_meals,
         "meal_type_labels": MEAL_TYPE_LABELS,
         "success": request.query_params.get("success"),
+        "error": request.query_params.get("error"),
     })
+
+
+@router.post("/perfil/recetario/agregar")
+async def agregar_receta(
+    request: Request,
+    name: str = Form(...),
+    meal_type: str = Form(...),
+    description: str = Form(default=""),
+    calories: int = Form(default=0),
+    protein_g: float = Form(default=0.0),
+    carbs_g: float = Form(default=0.0),
+    fat_g: float = Form(default=0.0),
+    db: Session = Depends(get_db),
+):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    name = name.strip()
+    if not name:
+        return RedirectResponse("/perfil/recetario?error=El+nombre+es+requerido", status_code=303)
+
+    existing = db.query(SavedMeal).filter(
+        SavedMeal.user_id == current_user.id,
+        SavedMeal.name == name,
+        SavedMeal.meal_type == meal_type,
+    ).first()
+    if existing:
+        return RedirectResponse("/perfil/recetario?error=Ya+existe+ese+plato+en+ese+tipo+de+comida", status_code=303)
+
+    db.add(SavedMeal(
+        user_id=current_user.id,
+        name=name,
+        meal_type=meal_type,
+        description=description.strip() or None,
+        calories=max(0, calories),
+        protein_g=max(0.0, protein_g),
+        carbs_g=max(0.0, carbs_g),
+        fat_g=max(0.0, fat_g),
+        ingredients_json="[]",
+        times_served=0,
+    ))
+    db.commit()
+    return RedirectResponse("/perfil/recetario?success=Plato+agregado+correctamente", status_code=303)
 
 
 @router.post("/perfil/recetario/{meal_id}/rating")

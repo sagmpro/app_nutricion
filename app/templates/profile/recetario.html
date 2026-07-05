@@ -20,130 +20,215 @@
 </div>
 
 {% if success %}
-<div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-6 text-green-700 text-sm">✓ {{ success }}</div>
+<div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-4 text-green-700 text-sm">✓ {{ success }}</div>
 {% endif %}
+{% if error %}
+<div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-red-700 text-sm">⚠ {{ error }}</div>
+{% endif %}
+
+<!-- Top bar: filters + add button -->
+<div class="flex items-start justify-between gap-3 mb-5 flex-wrap">
+  <div class="flex gap-2 flex-wrap">
+    <button onclick="filterRecetario('all')" id="chip-all"
+            class="chip-btn px-3 py-1.5 rounded-full text-xs font-medium border border-green-500 bg-green-50 text-green-700">
+      Todos ({{ saved_meals | length }})
+    </button>
+    <button onclick="filterRecetario('saludable')" id="chip-saludable"
+            class="chip-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 text-gray-500 hover:border-green-300">
+      🥦 Saludables
+    </button>
+    <button onclick="filterRecetario('no-saludable')" id="chip-no-saludable"
+            class="chip-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 text-gray-500 hover:border-orange-300">
+      🍔 No saludables
+    </button>
+    <button onclick="filterRecetario('excluido')" id="chip-excluido"
+            class="chip-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 text-gray-500 hover:border-red-300">
+      🚫 Excluidos
+    </button>
+    <button onclick="filterRecetario('favorito')" id="chip-favorito"
+            class="chip-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 text-gray-500 hover:border-yellow-300">
+      ⭐ Favoritos (5★)
+    </button>
+  </div>
+  <button onclick="openAddModal()"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors flex-shrink-0">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    Agregar plato
+  </button>
+</div>
 
 {% if not saved_meals %}
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-400">
   <div class="text-5xl mb-3">📭</div>
   <p class="text-sm font-medium text-gray-500 mb-1">Aún no hay platos en tu recetario</p>
-  <p class="text-xs text-gray-400">Los platos aparecerán aquí automáticamente cuando generes planes.</p>
+  <p class="text-xs text-gray-400">Los platos aparecen aquí automáticamente cuando generas planes, o puedes agregarlos manualmente.</p>
 </div>
 
 {% else %}
 
-<!-- Filter chips -->
-<div class="flex gap-2 flex-wrap mb-4">
-  <button onclick="filterRecetario('all')" id="chip-all"
-          class="chip-btn px-3 py-1.5 rounded-full text-xs font-medium border border-green-500 bg-green-50 text-green-700">
-    Todos ({{ saved_meals | length }})
-  </button>
-  <button onclick="filterRecetario('saludable')" id="chip-saludable"
-          class="chip-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 text-gray-500 hover:border-green-300">
-    🥦 Saludables
-  </button>
-  <button onclick="filterRecetario('no-saludable')" id="chip-no-saludable"
-          class="chip-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 text-gray-500 hover:border-orange-300">
-    🍔 No saludables
-  </button>
-  <button onclick="filterRecetario('excluido')" id="chip-excluido"
-          class="chip-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 text-gray-500 hover:border-red-300">
-    🚫 Excluidos
-  </button>
-  <button onclick="filterRecetario('favorito')" id="chip-favorito"
-          class="chip-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 text-gray-500 hover:border-yellow-300">
-    ⭐ Favoritos (5★)
-  </button>
-</div>
+<!-- Sections grouped by meal type -->
+{% for meal_type_key, meal_type_label, group_meals in grouped_meals %}
+<div class="section-group mb-8" data-section="{{ meal_type_key }}">
+  <div class="flex items-center gap-2 mb-3">
+    <span class="text-sm font-semibold text-gray-700">{{ meal_type_label }}</span>
+    <span class="section-count text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{{ group_meals | length }}</span>
+    <div class="flex-1 h-px bg-gray-200"></div>
+  </div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for m in group_meals %}
+    {% set health_badge = ("🥦 Saludable" if m.is_healthy == true else ("🍔 No saludable" if m.is_healthy == false else "")) %}
+    <div class="receta-card bg-white rounded-2xl border shadow-sm overflow-hidden transition-all {{ 'opacity-50 border-red-200' if m.is_excluded else 'border-gray-100 hover:shadow-md' }}"
+         data-health="{{ 'saludable' if m.is_healthy == true else ('no-saludable' if m.is_healthy == false else 'sin-clasificar') }}"
+         data-excluded="{{ 'true' if m.is_excluded else 'false' }}"
+         data-rating="{{ m.rating or 0 }}">
 
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="recetario-grid">
-  {% for m in saved_meals %}
-  {% set type_label = meal_type_labels.get(m.meal_type, m.meal_type) %}
-  {% set health_badge = ("🥦 Saludable" if m.is_healthy == true else ("🍔 No saludable" if m.is_healthy == false else "")) %}
-  <div class="receta-card bg-white rounded-2xl border shadow-sm overflow-hidden transition-all {{ 'opacity-50 border-red-200' if m.is_excluded else 'border-gray-100 hover:shadow-md' }}"
-       data-health="{{ 'saludable' if m.is_healthy == true else ('no-saludable' if m.is_healthy == false else 'sin-clasificar') }}"
-       data-excluded="{{ 'true' if m.is_excluded else 'false' }}"
-       data-rating="{{ m.rating or 0 }}">
-
-    <!-- Card header -->
-    <div class="px-4 pt-4 pb-2">
-      <div class="flex items-start justify-between gap-2 mb-1">
-        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">{{ type_label }}</span>
-        {% if health_badge %}
-        <span class="text-xs px-2 py-0.5 rounded-full {{ 'bg-green-50 text-green-700' if m.is_healthy else 'bg-orange-50 text-orange-700' }}">{{ health_badge }}</span>
+      <!-- Card header -->
+      <div class="px-4 pt-4 pb-2">
+        <div class="flex items-start justify-between gap-2 mb-1">
+          {% if health_badge %}
+          <span class="text-xs px-2 py-0.5 rounded-full {{ 'bg-green-50 text-green-700' if m.is_healthy else 'bg-orange-50 text-orange-700' }}">{{ health_badge }}</span>
+          {% else %}
+          <span></span>
+          {% endif %}
+        </div>
+        <h3 class="font-semibold text-gray-800 text-sm leading-snug mb-1">{{ m.name }}</h3>
+        {% if m.description %}
+        <p class="text-xs text-gray-400 line-clamp-2">{{ m.description }}</p>
         {% endif %}
       </div>
-      <h3 class="font-semibold text-gray-800 text-sm leading-snug mb-1">{{ m.name }}</h3>
-      {% if m.description %}
-      <p class="text-xs text-gray-400 line-clamp-2">{{ m.description }}</p>
-      {% endif %}
-    </div>
 
-    <!-- Macros -->
-    <div class="px-4 py-2 flex gap-2 flex-wrap border-t border-gray-50">
-      <span class="text-xs font-semibold text-gray-700">{{ m.calories }} kcal</span>
-      <span class="text-xs text-blue-500">P {{ m.protein_g | round(1) }}g</span>
-      <span class="text-xs text-orange-500">C {{ m.carbs_g | round(1) }}g</span>
-      <span class="text-xs text-yellow-600">G {{ m.fat_g | round(1) }}g</span>
-    </div>
-
-    <!-- Star rating -->
-    <div class="px-4 py-2 border-t border-gray-50">
-      <p class="text-xs text-gray-400 mb-1.5">Puntuación de preferencia</p>
-      <div class="flex gap-1">
-        {% for star in range(1, 6) %}
-        <form method="POST" action="/perfil/recetario/{{ m.id }}/rating" class="inline">
-          <input type="hidden" name="rating" value="{{ star }}">
-          <button type="submit"
-                  class="text-lg leading-none transition-all hover:scale-110 {{ 'text-yellow-400' if m.rating and m.rating >= star else 'text-gray-200 hover:text-yellow-300' }}"
-                  title="{{ star }} estrella{{ 's' if star > 1 }}">★</button>
-        </form>
-        {% endfor %}
-        {% if m.rating %}
-        <span class="text-xs text-gray-400 self-center ml-1">{{ m.rating }}/5</span>
-        {% endif %}
+      <!-- Macros -->
+      <div class="px-4 py-2 flex gap-2 flex-wrap border-t border-gray-50">
+        <span class="text-xs font-semibold text-gray-700">{{ m.calories }} kcal</span>
+        <span class="text-xs text-blue-500">P {{ m.protein_g | round(1) }}g</span>
+        <span class="text-xs text-orange-500">C {{ m.carbs_g | round(1) }}g</span>
+        <span class="text-xs text-yellow-600">G {{ m.fat_g | round(1) }}g</span>
       </div>
-    </div>
 
-    <!-- Actions -->
-    <div class="px-4 py-3 border-t border-gray-50 flex items-center justify-between gap-2">
-      <div class="flex gap-1">
-        <!-- Toggle excluido -->
+      <!-- Star rating -->
+      <div class="px-4 py-2 border-t border-gray-50">
+        <p class="text-xs text-gray-400 mb-1.5">Puntuación de preferencia</p>
+        <div class="flex gap-1">
+          {% for star in range(1, 6) %}
+          <form method="POST" action="/perfil/recetario/{{ m.id }}/rating" class="inline">
+            <input type="hidden" name="rating" value="{{ star }}">
+            <button type="submit"
+                    class="text-lg leading-none transition-all hover:scale-110 {{ 'text-yellow-400' if m.rating and m.rating >= star else 'text-gray-200 hover:text-yellow-300' }}"
+                    title="{{ star }} estrella{{ 's' if star > 1 }}">★</button>
+          </form>
+          {% endfor %}
+          {% if m.rating %}
+          <span class="text-xs text-gray-400 self-center ml-1">{{ m.rating }}/5</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="px-4 py-3 border-t border-gray-50 flex items-center justify-between gap-2">
         <form method="POST" action="/perfil/recetario/{{ m.id }}/toggle-excluir" class="inline">
           <button type="submit"
                   class="text-xs px-2 py-1 rounded-lg border transition-all {{ 'border-red-300 text-red-500 bg-red-50 hover:bg-red-100' if m.is_excluded else 'border-gray-200 text-gray-400 hover:border-red-300 hover:text-red-500' }}"
-                  title="{{ 'Quitar exclusión' if m.is_excluded else 'Excluir del plan (Claude no lo sugerirá)' }}">
+                  title="{{ 'Quitar exclusión' if m.is_excluded else 'Excluir del plan' }}">
             {{ "🚫 Excluido" if m.is_excluded else "Excluir" }}
           </button>
         </form>
+        <div class="flex items-center gap-2 text-xs text-gray-400">
+          <span>{{ m.times_served }}× servido</span>
+          <form method="POST" action="/perfil/recetario/{{ m.id }}/eliminar" class="inline"
+                onsubmit="return confirm('¿Eliminar {{ m.name }} del recetario?')">
+            <button type="submit" class="text-gray-300 hover:text-red-400 transition-colors" title="Eliminar del recetario">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+            </button>
+          </form>
+        </div>
       </div>
-      <div class="flex items-center gap-2 text-xs text-gray-400">
-        <span>{{ m.times_served }}× servido</span>
-        <!-- Eliminar -->
-        <form method="POST" action="/perfil/recetario/{{ m.id }}/eliminar" class="inline"
-              onsubmit="return confirm('¿Eliminar {{ m.name }} del recetario?')">
-          <button type="submit" class="text-gray-300 hover:text-red-400 transition-colors" title="Eliminar del recetario">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-            </svg>
-          </button>
-        </form>
-      </div>
-    </div>
 
-    {% if m.is_excluded %}
-    <div class="px-4 py-2 bg-red-50 border-t border-red-100">
-      <p class="text-xs text-red-500">Claude no sugerirá este plato en futuros planes.</p>
+      {% if m.is_excluded %}
+      <div class="px-4 py-2 bg-red-50 border-t border-red-100">
+        <p class="text-xs text-red-500">Claude no sugerirá este plato en futuros planes.</p>
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
+    {% endfor %}
   </div>
-  {% endfor %}
 </div>
+{% endfor %}
+
 {% endif %}
+
+<!-- Modal: Agregar plato -->
+<div id="modal-add" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h3 class="font-semibold text-gray-800">Agregar plato al recetario</h3>
+      <button onclick="closeAddModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+    </div>
+    <form method="POST" action="/perfil/recetario/agregar" class="p-6 space-y-4">
+      <div>
+        <label class="label">Nombre del plato *</label>
+        <input type="text" name="name" required class="input" placeholder="Ej: Ensalada de pollo con aguacate">
+      </div>
+      <div>
+        <label class="label">Tipo de comida *</label>
+        <select name="meal_type" required class="input">
+          {% for key, lbl in meal_type_labels.items() %}
+          <option value="{{ key }}">{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="label">Descripción <span class="text-gray-400 font-normal">(opcional)</span></label>
+        <input type="text" name="description" class="input" placeholder="Breve descripción del plato">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="label">Calorías</label>
+          <input type="number" name="calories" min="0" value="0" class="input">
+        </div>
+        <div>
+          <label class="label">Proteínas (g)</label>
+          <input type="number" name="protein_g" min="0" step="0.1" value="0" class="input">
+        </div>
+        <div>
+          <label class="label">Carbohidratos (g)</label>
+          <input type="number" name="carbs_g" min="0" step="0.1" value="0" class="input">
+        </div>
+        <div>
+          <label class="label">Grasas (g)</label>
+          <input type="number" name="fat_g" min="0" step="0.1" value="0" class="input">
+        </div>
+      </div>
+      <div class="flex gap-2 justify-end pt-1">
+        <button type="button" onclick="closeAddModal()"
+                class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl">
+          Cancelar
+        </button>
+        <button type="submit"
+                class="px-4 py-2 text-sm bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium">
+          Guardar plato
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+function openAddModal() {
+  document.getElementById('modal-add').classList.remove('hidden');
+}
+function closeAddModal() {
+  document.getElementById('modal-add').classList.add('hidden');
+}
+document.getElementById('modal-add').addEventListener('click', function(e) {
+  if (e.target === this) closeAddModal();
+});
+
 function filterRecetario(filter) {
   document.querySelectorAll('.chip-btn').forEach(c => {
     c.classList.remove('border-green-500', 'bg-green-50', 'text-green-700');
@@ -154,6 +239,7 @@ function filterRecetario(filter) {
     active.classList.remove('border-gray-200', 'text-gray-500');
     active.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
   }
+
   document.querySelectorAll('.receta-card').forEach(card => {
     let show = true;
     if (filter === 'saludable')    show = card.dataset.health === 'saludable';
@@ -161,6 +247,12 @@ function filterRecetario(filter) {
     if (filter === 'excluido')     show = card.dataset.excluded === 'true';
     if (filter === 'favorito')     show = parseInt(card.dataset.rating) === 5;
     card.style.display = show ? '' : 'none';
+  });
+
+  // Hide sections with no visible cards
+  document.querySelectorAll('.section-group').forEach(section => {
+    const hasVisible = [...section.querySelectorAll('.receta-card')].some(c => c.style.display !== 'none');
+    section.style.display = hasVisible ? '' : 'none';
   });
 }
 </script>
