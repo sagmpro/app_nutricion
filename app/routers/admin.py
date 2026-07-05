@@ -72,11 +72,10 @@ async def invitar_usuario(request: Request, db: Session = Depends(get_db), email
     )
     db.add(inv)
     db.commit()
-    sent = send_invitation_email(email, token)
+    # send_invitation_email(email, token)  # email deshabilitado temporalmente
     invite_url = f"{settings.app_base_url}/registro/{token}"
-    msg = "Invitacion+enviada+por+email+y" if sent else "Email+no+configurado+"
     return RedirectResponse(
-        f"/admin/usuarios?success={msg}link+disponible&invite_link={invite_url}",
+        f"/admin/usuarios?success=Link+de+invitación+generado&invite_link={invite_url}",
         status_code=303,
     )
 
