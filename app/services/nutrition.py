@@ -17,6 +17,10 @@ def calculate_bmr(profile: "UserProfile") -> float:
 
 
 def get_activity_days_list(profile: "UserProfile") -> list[int]:
+    # Prefer ActivityDayConfig rows when loaded; fall back to JSON field
+    configs = getattr(profile, "activity_day_configs", None)
+    if configs is not None:
+        return [c.day_of_week for c in configs]
     try:
         return json.loads(profile.activity_days or "[]")
     except Exception:
@@ -61,19 +65,26 @@ def calculate_auto_meal_times(training_time: "str | None", training_end: "str | 
     return {"desayuno": "07:00", "media_manana": "10:30", "almuerzo": "13:30", "media_tarde": fmt(tr - 90), "cena": fmt(te + 30)}
 
 
-def get_effective_meal_times(profile: "UserProfile", is_training_day: bool = True) -> dict:
-    """Returns resolved meal times. On rest days, auto times use defaults (no training offset)."""
+def get_effective_meal_times(profile: "UserProfile", is_training_day: bool = True, day_config=None) -> dict:
+    """Returns resolved meal times.
+    If day_config (ActivityDayConfig) is provided, uses its start/end times.
+    On rest days without config, auto times use defaults (no training offset).
+    """
     try:
         stored = json.loads(profile.meal_times) if profile and profile.meal_times else {}
     except Exception:
         stored = {}
-    if is_training_day:
+
+    if day_config is not None:
+        auto_times = calculate_auto_meal_times(day_config.start_time, day_config.end_time)
+    elif is_training_day:
         auto_times = calculate_auto_meal_times(
             profile.training_time if profile else None,
             profile.training_end if profile else None,
         )
     else:
-        auto_times = calculate_auto_meal_times(None)  # default times, no training
+        auto_times = calculate_auto_meal_times(None)
+
     result = {}
     for meal in ["desayuno", "media_manana", "almuerzo", "media_tarde", "cena"]:
         val = stored.get(meal, "")

@@ -67,7 +67,22 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float,
     prefs_section = "\n".join(prefs_lines) if prefs_lines else "- Sin restricciones adicionales"
 
     lifestyle_lines = []
-    if getattr(profile, "training_time", None):
+    day_configs = getattr(profile, "activity_day_configs", [])
+    if day_configs:
+        from app.services.nutrition import DAYS_OF_WEEK
+        training_lines = []
+        for cfg in day_configs:
+            day_name = DAYS_OF_WEEK[cfg.day_of_week]
+            et = cfg.exercise_type
+            type_str = f"{et.icon} {et.name}" if et else "Ejercicio"
+            time_str = ""
+            if cfg.start_time and cfg.end_time:
+                time_str = f" ({cfg.start_time}–{cfg.end_time})"
+            elif cfg.start_time:
+                time_str = f" (desde {cfg.start_time})"
+            training_lines.append(f"  * {day_name}: {type_str}{time_str}")
+        lifestyle_lines.append("- Días de entrenamiento:\n" + "\n".join(training_lines))
+    elif getattr(profile, "training_time", None):
         t_end = getattr(profile, "training_end", None)
         t_range = f"{profile.training_time}–{t_end}" if t_end else profile.training_time
         lifestyle_lines.append(f"- Entrenamiento: {t_range} (ajusta comidas pre y post entreno)")

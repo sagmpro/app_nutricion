@@ -8,6 +8,7 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.meal_plan import MealPlan
     from app.models.user import User
+    from app.models.activity_day import ActivityDayConfig
 
 
 class UserProfile(Base):
@@ -57,3 +58,8 @@ class UserProfile(Base):
     user: Mapped[Optional["User"]] = relationship(back_populates="profile")
 
     meal_plans: Mapped[list["MealPlan"]] = relationship(back_populates="profile")
+    activity_day_configs: Mapped[list["ActivityDayConfig"]] = relationship(
+        "ActivityDayConfig", back_populates="profile",
+        cascade="all, delete-orphan", order_by="ActivityDayConfig.day_of_week",
+        lazy="selectin",
+    )

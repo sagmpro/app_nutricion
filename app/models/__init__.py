@@ -8,6 +8,8 @@ from app.models.user import User
 from app.models.invitation import Invitation
 from app.models.household import Household, HouseholdMember
 from app.models.saved_meal import SavedMeal
+from app.models.exercise_type import ExerciseType
+from app.models.activity_day import ActivityDayConfig
 
 __all__ = [
     "UserProfile", "MealPlan", "Meal",
@@ -15,4 +17,5 @@ __all__ = [
     "User", "Invitation",
     "Household", "HouseholdMember",
     "SavedMeal",
+    "ExerciseType", "ActivityDayConfig",
 ]

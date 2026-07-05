@@ -30,13 +30,19 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 def _build_days_data(meal_plan: MealPlan, profile=None) -> list[dict]:
-    from app.services.nutrition import get_effective_meal_times, get_activity_days_list
-    activity_days = get_activity_days_list(profile) if profile else []
+    from app.services.nutrition import get_effective_meal_times
+
+    # Index ActivityDayConfigs by day_of_week
+    day_config_map: dict = {}
+    if profile:
+        for cfg in getattr(profile, "activity_day_configs", []):
+            day_config_map[cfg.day_of_week] = cfg
 
     days = []
     for day_num in range(7):
-        is_training_day = day_num in activity_days
-        meal_times = get_effective_meal_times(profile, is_training_day) if profile else {}
+        day_config = day_config_map.get(day_num)
+        is_training_day = day_config is not None
+        meal_times = get_effective_meal_times(profile, is_training_day, day_config=day_config) if profile else {}
 
         day_meals = sorted(
             [m for m in meal_plan.meals if m.day_of_week == day_num],
@@ -45,11 +51,17 @@ def _build_days_data(meal_plan: MealPlan, profile=None) -> list[dict]:
         consumed_cals = sum(
             (m.actual_calories or m.calories) for m in day_meals if m.consumed
         )
+
+        et = day_config.exercise_type if day_config else None
         days.append({
             "name": DAYS_OF_WEEK[day_num],
             "short": DAYS_SHORT[day_num],
             "day_num": day_num,
             "is_training_day": is_training_day,
+            "exercise_type": et.name if et else None,
+            "exercise_icon": et.icon if et else None,
+            "training_start": day_config.start_time if day_config else None,
+            "training_end": day_config.end_time if day_config else None,
             "meal_times": meal_times,
             "meals": [
                 {

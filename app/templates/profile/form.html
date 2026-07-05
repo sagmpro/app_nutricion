@@ -89,57 +89,70 @@
 
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
-  <!-- Activity days -->
+  <!-- Activity days — full width, per-day config -->
+  </div><!-- end 2-col grid (closed early to make activity card full width) -->
+
   <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
     <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
       <span class="text-xl leading-none">🏃</span>
-      <h2 class="text-sm font-semibold text-gray-800">Actividad física</h2>
+      <h2 class="text-sm font-semibold text-gray-800">Actividad física por día</h2>
+      <span class="ml-auto text-xs text-gray-400" id="activity-count">{{ activity_days | length }} día(s)</span>
     </div>
-    <div class="p-6">
-      <p class="text-gray-500 text-sm mb-4">Selecciona los días que realizas ejercicio</p>
-      <div class="flex gap-2 flex-wrap">
-        {% for i in range(7) %}
-        <input type="hidden" name="day_{{ i }}" id="day-input-{{ i }}" value="{{ '1' if i in activity_days else '0' }}">
-        <button type="button" onclick="toggleDay({{ i }})" id="day-btn-{{ i }}"
-          class="w-11 h-11 rounded-full border-2 font-semibold text-sm transition-colors
-                 {{ 'bg-green-600 text-white border-green-600' if i in activity_days else 'bg-white text-gray-600 border-gray-300 hover:border-green-400' }}"
-          title="{{ days_names[i] }}">
-          {{ days_letters[i] }}
-        </button>
-        {% endfor %}
+    <div class="divide-y divide-gray-100">
+      {% set day_names_full = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] %}
+      {% for i in range(7) %}
+      {% set cfg = day_configs.get(i) %}
+      {% set is_active = cfg is not none %}
+      <div class="px-4 py-3" id="day-row-{{ i }}">
+        <!-- Toggle row -->
+        <div class="flex items-center gap-3">
+          <input type="checkbox" name="day_{{ i }}_active" id="day-check-{{ i }}" value="1"
+                 {% if is_active %}checked{% endif %}
+                 onchange="toggleDayConfig({{ i }})"
+                 class="w-4 h-4 rounded accent-green-600 flex-shrink-0">
+          <label for="day-check-{{ i }}" class="font-medium text-sm text-gray-800 cursor-pointer w-24 flex-shrink-0">
+            {{ day_names_full[i] }}
+          </label>
+          {% if is_active and cfg.exercise_type %}
+          <span class="text-xs text-gray-500 truncate">{{ cfg.exercise_type.icon }} {{ cfg.exercise_type.name }}{% if cfg.start_time %} · {{ cfg.start_time }}{% if cfg.end_time %}–{{ cfg.end_time }}{% endif %}{% endif %}</span>
+          {% elif is_active %}
+          <span class="text-xs text-gray-400">Sin tipo configurado</span>
+          {% endif %}
+        </div>
+        <!-- Expanded config -->
+        <div id="day-config-{{ i }}" class="{{ '' if is_active else 'hidden' }} mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 pl-7">
+          <div>
+            <label class="label">Tipo de ejercicio</label>
+            <select name="day_{{ i }}_exercise_type" class="input text-sm">
+              <option value="">— Sin especificar —</option>
+              {% for et in exercise_types %}
+              <option value="{{ et.id }}" {% if cfg and cfg.exercise_type_id == et.id %}selected{% endif %}>
+                {{ et.icon }} {{ et.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="label">Inicio</label>
+            <input type="time" name="day_{{ i }}_start" class="input"
+                   value="{{ cfg.start_time if cfg and cfg.start_time else '' }}">
+          </div>
+          <div>
+            <label class="label">Fin</label>
+            <input type="time" name="day_{{ i }}_end" class="input"
+                   value="{{ cfg.end_time if cfg and cfg.end_time else '' }}">
+          </div>
+        </div>
       </div>
-      <p class="text-xs text-gray-400 mt-3" id="activity-count">
-        {{ activity_days | length }} día(s) seleccionado(s)
-      </p>
+      {% endfor %}
     </div>
   </div>
 
-  <!-- Training time -->
-  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
-      <span class="text-xl leading-none">⏰</span>
-      <h2 class="text-sm font-semibold text-gray-800">Hora de entrenamiento</h2>
-    </div>
-    <div class="p-6">
-      <p class="text-gray-500 text-sm mb-4">Claude ajustará las comidas pre y post entreno. Dejar vacío si no tienes horario fijo.</p>
-      <div class="grid grid-cols-2 gap-4 max-w-xs">
-        <div>
-          <label class="label">Desde</label>
-          <input type="time" name="training_time" class="input"
-                 value="{{ profile.training_time if profile and profile.training_time else '' }}"
-                 oninput="refreshAutoTimes()">
-        </div>
-        <div>
-          <label class="label">Hasta</label>
-          <input type="time" name="training_end" class="input"
-                 value="{{ profile.training_end if profile and profile.training_end else '' }}"
-                 oninput="refreshAutoTimes()">
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Hidden fallback fields for backward compat -->
+  <input type="hidden" name="training_time" value="{{ profile.training_time if profile and profile.training_time else '' }}">
+  <input type="hidden" name="training_end" value="{{ profile.training_end if profile and profile.training_end else '' }}">
 
-  </div><!-- end activity+training grid -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-5"><!-- reopen 2-col grid for following sections -->
 
   <!-- Goal -->
   <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
@@ -469,28 +482,17 @@
 <script>
 const DAYS_NAMES = {{ days_names | tojson }};
 
-function toggleDay(i) {
-  const inp = document.getElementById('day-input-' + i);
-  const btn = document.getElementById('day-btn-' + i);
-  const selected = inp.value === '1';
-  inp.value = selected ? '0' : '1';
-  if (!selected) {
-    btn.classList.replace('bg-white','bg-green-600');
-    btn.classList.replace('text-gray-600','text-white');
-    btn.classList.replace('border-gray-300','border-green-600');
-  } else {
-    btn.classList.replace('bg-green-600','bg-white');
-    btn.classList.replace('text-white','text-gray-600');
-    btn.classList.replace('border-green-600','border-gray-300');
-  }
+function toggleDayConfig(i) {
+  const checked = document.getElementById('day-check-' + i).checked;
+  document.getElementById('day-config-' + i).classList.toggle('hidden', !checked);
   updateActivityCount();
   calcBMR();
 }
 
 function updateActivityCount() {
   let count = 0;
-  for (let i = 0; i < 7; i++) if (document.getElementById('day-input-' + i)?.value === '1') count++;
-  document.getElementById('activity-count').textContent = count + ' día(s) seleccionado(s)';
+  for (let i = 0; i < 7; i++) if (document.getElementById('day-check-' + i)?.checked) count++;
+  document.getElementById('activity-count').textContent = count + ' día(s)';
 }
 
 function calcBMR() {
@@ -502,7 +504,7 @@ function calcBMR() {
   const bmr = gender === 'male' ? (10*w + 6.25*h - 5*a + 5) : (10*w + 6.25*h - 5*a - 161);
 
   let active = 0;
-  for (let i = 0; i < 7; i++) if (document.getElementById('day-input-' + i)?.value === '1') active++;
+  for (let i = 0; i < 7; i++) if (document.getElementById('day-check-' + i)?.checked) active++;
   const mults = [1.2,1.375,1.375,1.55,1.55,1.725,1.725,1.9];
   const tdee = bmr * mults[Math.min(active, 7)];
 

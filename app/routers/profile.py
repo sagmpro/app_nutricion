@@ -8,6 +8,8 @@ from app.database import get_db
 from app.models.profile import UserProfile
 from app.models.saved_meal import SavedMeal, classify_health
 from app.models.meal import MEAL_TYPE_LABELS, MEAL_TYPES
+from app.models.exercise_type import ExerciseType
+from app.models.activity_day import ActivityDayConfig
 from app.services.auth_service import get_current_user
 from app.services.nutrition import (
     calculate_bmr, calculate_tdee, calculate_target_calories,
@@ -26,6 +28,9 @@ def perfil_form(request: Request, db: Session = Depends(get_db)):
 
     profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
     activity_days = get_activity_days_list(profile) if profile else []
+    exercise_types = db.query(ExerciseType).filter(
+        (ExerciseType.is_default == True) | (ExerciseType.user_id == current_user.id)
+    ).order_by(ExerciseType.id).all()
 
     stats = None
     if profile:
@@ -46,9 +51,13 @@ def perfil_form(request: Request, db: Session = Depends(get_db)):
 
     effective_meal_times = get_effective_meal_times(profile)
 
+    day_configs = {c.day_of_week: c for c in (profile.activity_day_configs if profile else [])}
+
     return templates.TemplateResponse(request, "profile/form.html", {
         "profile": profile,
         "activity_days": activity_days,
+        "day_configs": day_configs,
+        "exercise_types": exercise_types,
         "days_letters": DAYS_LETTERS,
         "days_names": DAYS_OF_WEEK,
         "stats": stats,
@@ -106,15 +115,35 @@ async def perfil_save(
         return RedirectResponse("/login", status_code=303)
 
     form_data = await request.form()
-    activity_days = []
-    for i in range(7):
-        if form_data.get(f"day_{i}") == "1":
-            activity_days.append(i)
 
     profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
     if not profile:
         profile = UserProfile(user_id=current_user.id)
         db.add(profile)
+        db.flush()
+
+    # Rebuild ActivityDayConfigs from form
+    db.query(ActivityDayConfig).filter(ActivityDayConfig.profile_id == profile.id).delete()
+    activity_days = []
+    first_start = first_end = None
+    for i in range(7):
+        if form_data.get(f"day_{i}_active") == "1":
+            activity_days.append(i)
+            et_raw = form_data.get(f"day_{i}_exercise_type", "").strip()
+            start = form_data.get(f"day_{i}_start", "").strip() or None
+            end = form_data.get(f"day_{i}_end", "").strip() or None
+            et_id = int(et_raw) if et_raw.isdigit() else None
+            db.add(ActivityDayConfig(
+                profile_id=profile.id,
+                day_of_week=i,
+                exercise_type_id=et_id,
+                start_time=start,
+                end_time=end,
+            ))
+            if first_start is None and start:
+                first_start = start
+            if first_end is None and end:
+                first_end = end
 
     profile.name = name
     profile.age = age
@@ -132,8 +161,9 @@ async def perfil_save(
     profile.food_intolerances = food_intolerances.strip() or None
     profile.disliked_foods = disliked_foods.strip() or None
     profile.preferred_foods = preferred_foods.strip() or None
-    profile.training_time = training_time.strip() or None
-    profile.training_end = training_end.strip() or None
+    # Keep global training_time/training_end as fallback (derived from first active day)
+    profile.training_time = first_start or training_time.strip() or None
+    profile.training_end = first_end or training_end.strip() or None
     profile.cooking_facilities = cooking_facilities.strip() or None
     profile.max_meal_repeats = max(1, min(7, max_meal_repeats))
     profile.country = country.strip() or None
