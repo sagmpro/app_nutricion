@@ -29,9 +29,15 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
-def _build_days_data(meal_plan: MealPlan) -> list[dict]:
+def _build_days_data(meal_plan: MealPlan, profile=None) -> list[dict]:
+    from app.services.nutrition import get_effective_meal_times, get_activity_days_list
+    activity_days = get_activity_days_list(profile) if profile else []
+
     days = []
     for day_num in range(7):
+        is_training_day = day_num in activity_days
+        meal_times = get_effective_meal_times(profile, is_training_day) if profile else {}
+
         day_meals = sorted(
             [m for m in meal_plan.meals if m.day_of_week == day_num],
             key=lambda m: m.meal_order,
@@ -43,6 +49,8 @@ def _build_days_data(meal_plan: MealPlan) -> list[dict]:
             "name": DAYS_OF_WEEK[day_num],
             "short": DAYS_SHORT[day_num],
             "day_num": day_num,
+            "is_training_day": is_training_day,
+            "meal_times": meal_times,
             "meals": [
                 {
                     "id": m.id,
@@ -204,17 +212,14 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
     if not meal_plan:
         return RedirectResponse("/plan", status_code=303)
 
-    days = _build_days_data(meal_plan)
     profile = _get_user_profile(db, current_user.id)
+    days = _build_days_data(meal_plan, profile)
     all_plans = (
         db.query(MealPlan)
         .filter(MealPlan.profile_id == profile.id)
         .order_by(MealPlan.created_at.desc())
         .all()
     ) if profile else []
-
-    from app.services.nutrition import get_effective_meal_times
-    effective_meal_times = get_effective_meal_times(profile)
 
     household_member = hs.get_member(current_user.id, db)
 
@@ -225,7 +230,6 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
         "has_shopping_list": meal_plan.shopping_list is not None,
         "error": request.query_params.get("error"),
         "success": request.query_params.get("success"),
-        "effective_meal_times": effective_meal_times,
         "current_user": current_user,
         "household_member": household_member,
     })

@@ -61,16 +61,19 @@ def calculate_auto_meal_times(training_time: "str | None", training_end: "str | 
     return {"desayuno": "07:00", "media_manana": "10:30", "almuerzo": "13:30", "media_tarde": fmt(tr - 90), "cena": fmt(te + 30)}
 
 
-def get_effective_meal_times(profile: "UserProfile") -> dict:
-    """Returns display times for all meals, resolving 'auto' values based on training_time."""
+def get_effective_meal_times(profile: "UserProfile", is_training_day: bool = True) -> dict:
+    """Returns resolved meal times. On rest days, auto times use defaults (no training offset)."""
     try:
         stored = json.loads(profile.meal_times) if profile and profile.meal_times else {}
     except Exception:
         stored = {}
-    auto_times = calculate_auto_meal_times(
-        profile.training_time if profile else None,
-        profile.training_end if profile else None,
-    )
+    if is_training_day:
+        auto_times = calculate_auto_meal_times(
+            profile.training_time if profile else None,
+            profile.training_end if profile else None,
+        )
+    else:
+        auto_times = calculate_auto_meal_times(None)  # default times, no training
     result = {}
     for meal in ["desayuno", "media_manana", "almuerzo", "media_tarde", "cena"]:
         val = stored.get(meal, "")

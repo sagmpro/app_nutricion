@@ -169,8 +169,8 @@
             </svg>
           </button>
         </form>
-        {% if effective_meal_times and effective_meal_times.get(meal.type) %}
-        <span class="text-xs text-gray-400 flex-shrink-0 font-mono w-10 text-right">{{ effective_meal_times[meal.type] }}</span>
+        {% if day.meal_times and day.meal_times.get(meal.type) %}
+        <span class="text-xs text-gray-400 flex-shrink-0 font-mono w-10 text-right">{{ day.meal_times[meal.type] }}</span>
         {% endif %}
         <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold {{ bg_color }} {{ text_color }} flex-shrink-0 whitespace-nowrap">
           {{ meal.type_label }}
