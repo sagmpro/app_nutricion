@@ -152,47 +152,59 @@
     {% set text_color = colors.split()[2] %}
     <details class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group {{ 'ring-2 ring-green-200' if meal.consumed }}" id="meal-{{ meal.id }}">
       <!-- Collapsed summary -->
-      <summary class="border-l-4 {{ border_color }} px-4 py-3 flex items-center gap-3 cursor-pointer select-none list-none hover:bg-gray-50 transition-colors">
-        <!-- Marcar consumida icon (stops details toggle) -->
-        <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/consumir" class="flex-shrink-0">
-          <button type="button"
-            class="tip tip-right w-6 h-6 flex items-center justify-center rounded-md transition-all
-                   {{ 'text-green-500 bg-green-50 hover:bg-green-100' if meal.consumed else 'text-gray-300 hover:text-green-500 hover:bg-green-50' }}"
-            data-tip="{{ 'Consumida ✓ — clic para desmarcar' if meal.consumed else 'Marcar como consumida' }}"
-            onclick="event.stopPropagation(); this.form.submit()">
-            <svg class="w-3.5 h-3.5" fill="{{ 'currentColor' if meal.consumed else 'none' }}" stroke="{{ 'none' if meal.consumed else 'currentColor' }}" viewBox="0 0 24 24">
-              {% if meal.consumed %}
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-              {% else %}
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              {% endif %}
-            </svg>
-          </button>
-        </form>
-        {% if day.meal_times and day.meal_times.get(meal.type) %}
-        <span class="text-xs text-gray-400 flex-shrink-0 font-mono w-10 text-right">{{ day.meal_times[meal.type] }}</span>
-        {% endif %}
-        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold {{ bg_color }} {{ text_color }} flex-shrink-0 whitespace-nowrap">
-          {{ meal.type_label }}
-        </span>
-        <span class="flex-1 font-medium text-gray-800 text-sm truncate">
+      <summary class="border-l-4 {{ border_color }} px-4 py-3 cursor-pointer select-none list-none hover:bg-gray-50 transition-colors">
+        <!-- Row 1: check · time · badge · (name on sm+) · kcal · arrow -->
+        <div class="flex items-center gap-3">
+          <!-- Marcar consumida -->
+          <form method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/consumir" class="flex-shrink-0">
+            <button type="button"
+              class="tip tip-right w-6 h-6 flex items-center justify-center rounded-md transition-all
+                     {{ 'text-green-500 bg-green-50 hover:bg-green-100' if meal.consumed else 'text-gray-300 hover:text-green-500 hover:bg-green-50' }}"
+              data-tip="{{ 'Consumida ✓ — clic para desmarcar' if meal.consumed else 'Marcar como consumida' }}"
+              onclick="event.stopPropagation(); this.form.submit()">
+              <svg class="w-3.5 h-3.5" fill="{{ 'currentColor' if meal.consumed else 'none' }}" stroke="{{ 'none' if meal.consumed else 'currentColor' }}" viewBox="0 0 24 24">
+                {% if meal.consumed %}
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                {% else %}
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                {% endif %}
+              </svg>
+            </button>
+          </form>
+          {% if day.meal_times and day.meal_times.get(meal.type) %}
+          <span class="text-xs text-gray-400 flex-shrink-0 font-mono w-10 text-right">{{ day.meal_times[meal.type] }}</span>
+          {% endif %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold {{ bg_color }} {{ text_color }} flex-shrink-0 whitespace-nowrap">
+            {{ meal.type_label }}
+          </span>
+          <!-- Name inline — desktop only -->
+          <span class="hidden sm:block flex-1 font-medium text-gray-800 text-sm truncate">
+            {% if meal.consumed and meal.actual_name and meal.actual_name != meal.name %}
+              <span class="line-through text-gray-400 mr-1">{{ meal.name }}</span>{{ meal.actual_name }}
+            {% else %}
+              {{ meal.name }}
+            {% endif %}
+          </span>
+          <span class="text-sm font-bold text-gray-600 flex-shrink-0 ml-auto sm:ml-0">
+            {% if meal.consumed and meal.actual_calories %}
+              <span class="text-green-600">{{ meal.actual_calories }}</span><span class="text-gray-400 text-xs">/{{ meal.calories }}</span>
+            {% else %}
+              {{ meal.calories }}
+            {% endif %}
+            kcal
+          </span>
+          <svg class="w-4 h-4 text-gray-300 flex-shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </div>
+        <!-- Row 2: name — mobile only -->
+        <p class="sm:hidden mt-1 pl-9 text-sm font-medium text-gray-700 leading-snug">
           {% if meal.consumed and meal.actual_name and meal.actual_name != meal.name %}
             <span class="line-through text-gray-400 mr-1">{{ meal.name }}</span>{{ meal.actual_name }}
           {% else %}
             {{ meal.name }}
           {% endif %}
-        </span>
-        <span class="text-sm font-bold text-gray-600 flex-shrink-0">
-          {% if meal.consumed and meal.actual_calories %}
-            <span class="text-green-600">{{ meal.actual_calories }}</span><span class="text-gray-400 text-xs">/{{ meal.calories }}</span>
-          {% else %}
-            {{ meal.calories }}
-          {% endif %}
-          kcal
-        </span>
-        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-        </svg>
+        </p>
       </summary>
 
       <!-- Expanded content -->
