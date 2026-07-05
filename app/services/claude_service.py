@@ -18,6 +18,11 @@ def _get_client() -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=api_key)
 
 
+def _country(profile) -> str:
+    c = getattr(profile, "country", None) if profile else None
+    return c or "España/Latinoamérica"
+
+
 def _log_usage(fn_name: str, message) -> None:
     u = message.usage
     logger.info("[tokens] %s — input=%d output=%d total=%d", fn_name, u.input_tokens, u.output_tokens, u.input_tokens + u.output_tokens)
@@ -104,6 +109,7 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float,
 
     # Build recetario section
     recetario_section = ""
+    has_recetario = False
     if saved_meals:
         from collections import defaultdict
         by_type: dict = defaultdict(list)
@@ -117,7 +123,11 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float,
             names = [sm.name for sm in sorted_meals]
             lines.append(f"- {meal_labels_map.get(mt, mt)}: {', '.join(names)}")
         if lines:
-            recetario_section = "\nRecetario del usuario (platos que ya conoce — PRIORIZA usarlos):\n" + "\n".join(lines) + "\n"
+            has_recetario = True
+            recetario_section = (
+                "\nRecetario del usuario (USAR ESTOS PLATOS EN EL PLAN — no inventar otros salvo que falten):\n"
+                + "\n".join(lines) + "\n"
+            )
 
     prompt = f"""Genera un plan de alimentación para una semana completa (lunes a domingo).
 
@@ -140,7 +150,7 @@ Comidas del día (SOLO estas, en este orden):
 
 INSTRUCCIONES IMPORTANTES:
 - Genera exactamente {n_meals} comida(s) por día (tipos: {enabled_types_str}). No añadas ni quites comidas.
-- {"Si hay recetario: reutiliza esos platos en el plan antes de inventar nuevos. " if recetario_section else ""}Desayuno, almuerzo y cena: máximo {max_repeats} veces el mismo plato en la semana.
+- {"USA EXCLUSIVAMENTE los platos del recetario para cada tipo de comida que tenga entradas. Si para un tipo de comida hay menos platos que días de la semana, puedes repetir o inventar los que falten." if has_recetario else "Desayuno, almuerzo y cena: máximo " + str(max_repeats) + " veces el mismo plato en la semana."}
 {snack_note}
 - Descripciones breves (máx 15 palabras).
 - Ingredientes: máximo 5 por comida.
@@ -176,7 +186,8 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown, sin texto adicional):
 }}
 
 Incluye los 7 días con exactamente {n_meals} comida(s) cada uno (tipos: {enabled_types_str}).
-Respeta estrictamente las preferencias alimentarias indicadas. Comidas típicas de España/Latinoamérica."""
+Respeta estrictamente las preferencias alimentarias indicadas.
+País del usuario: {_country(profile)} — usa ingredientes, nombres y medidas típicas de ese país. Los nombres de ingredientes deben ser consistentes con el vocabulario local (ej: en México "elote" no "choclo", en Argentina "choclo" no "maíz dulce")."""
 
     client = _get_client()
     message = client.messages.create(
@@ -232,8 +243,8 @@ Responde ÚNICAMENTE con JSON válido:
   ]
 }}
 
-Máximo 5 ingredientes. Cocina típica de España/Latinoamérica.
-Usa nombres de ingredientes específicos y consistentes: indica el estado cuando sea relevante (ej: "garbanzos cocidos", "lentejas crudas", "atún en conserva")."""
+Máximo 5 ingredientes. País del usuario: {_country(profile)} — usa ingredientes y nombres típicos de ese país.
+Usa nombres de ingredientes específicos y consistentes con el vocabulario local: indica el estado cuando sea relevante (ej: "garbanzos cocidos", "lentejas crudas", "atún en conserva")."""
 
     client = _get_client()
     message = client.messages.create(
@@ -432,7 +443,8 @@ Responde ÚNICAMENTE con JSON válido:
   "receta_detallada": "Paso 1: ...\\nPaso 2: ...\\nPaso 3: ..."
 }}
 
-Incluye entre 6-10 ingredientes con cantidades exactas. La receta debe tener al menos 4 pasos detallados de preparación."""
+Incluye entre 6-10 ingredientes con cantidades exactas. La receta debe tener al menos 4 pasos detallados de preparación.
+País del usuario: {_country(profile)} — usa ingredientes y nombres típicos de ese país."""
 
     client = _get_client()
     message = client.messages.create(
@@ -497,7 +509,8 @@ Objetivo calórico: ~{target_calories} kcal.
   "receta_detallada": "Paso 1: ...\\nPaso 2: ...\\nPaso 3: ..."
 }}
 
-Incluye 5-8 ingredientes con cantidades exactas y al menos 3 pasos de preparación."""
+Incluye 5-8 ingredientes con cantidades exactas y al menos 3 pasos de preparación.
+País del usuario: {_country(profile)} — usa ingredientes y nombres típicos de ese país."""
 
     client = _get_client()
     message = client.messages.create(

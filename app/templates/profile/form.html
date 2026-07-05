@@ -68,6 +68,21 @@
           <input type="number" name="height_cm" id="height" class="input"
             value="{{ profile.height_cm if profile else '' }}" placeholder="170" required oninput="calcBMR()">
         </div>
+        <div class="col-span-2">
+          <label class="label">País de residencia</label>
+          <select name="country" class="input">
+            <option value="">— Seleccionar —</option>
+            {% set countries = [
+              "Argentina","Bolivia","Chile","Colombia","Costa Rica","Cuba",
+              "Ecuador","El Salvador","España","Guatemala","Honduras","México",
+              "Nicaragua","Panamá","Paraguay","Perú","Puerto Rico",
+              "República Dominicana","Uruguay","Venezuela","Otro"
+            ] %}
+            {% for c in countries %}
+            <option value="{{ c }}" {{ "selected" if profile and profile.country == c }}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
     </div>
   </div>

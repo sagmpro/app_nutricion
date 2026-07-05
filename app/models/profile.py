@@ -49,6 +49,8 @@ class UserProfile(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
+    country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
     shared_plan_mode: Mapped[str] = mapped_column(String(10), default="own")  # 'own' | 'shared'
 
     user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)

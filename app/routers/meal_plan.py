@@ -9,7 +9,7 @@ from app.models.profile import UserProfile
 from app.models.meal_plan import MealPlan
 from app.models.meal import Meal, MEAL_TYPE_ORDER, MEAL_TYPE_LABELS, MEAL_TYPES
 from app.models.food_stock import FoodStock
-from app.models.saved_meal import SavedMeal
+from app.models.saved_meal import SavedMeal, upsert_saved_meal
 from app.services.auth_service import get_current_user
 from app.services import household_service as hs
 from app.services.nutrition import (
@@ -287,6 +287,7 @@ def regenerar_comida(plan_id: int, meal_id: int, request: Request, db: Session =
         if result.get("receta_detallada"):
             meal.recipe_text = _json.dumps({"pasos": result["receta_detallada"].split("\n"), "fuente": "receta_detallada"})
         meal.regen_count = new_regen_count
+        upsert_saved_meal(db, current_user.id, meal)
         db.commit()
     except Exception as e:
         return RedirectResponse(f"/plan/{plan_id}?error=Error+regenerando+comida:+{str(e)[:80]}", status_code=303)
@@ -541,6 +542,7 @@ async def reemplazar_plato(
         meal.actual_calories = None
         meal.actual_name = None
         meal.regen_count = 0
+        upsert_saved_meal(db, current_user.id, meal)
         db.commit()
 
     return RedirectResponse(f"/plan/{plan_id}?success=Comida+reemplazada", status_code=303)
