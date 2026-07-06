@@ -45,6 +45,11 @@
       {{ error }}
     </div>
     {% endif %}
+    {% if request.query_params.get('success') %}
+    <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
+      {{ request.query_params.get('success') }}
+    </div>
+    {% endif %}
 
     <form method="POST" action="/login">
       <input type="hidden" name="next" id="next-field" value="{{ next or '/dashboard' }}">
@@ -111,7 +116,12 @@
     </form>
   </div>
 
-  <p class="text-center text-gray-400 text-xs mt-6">
+  <div class="mt-4 text-center">
+    <a href="/cambiar-contrasena" class="text-sm text-green-600 hover:text-green-800 font-medium">
+      Cambiar contraseña
+    </a>
+  </div>
+  <p class="text-center text-gray-400 text-xs mt-3">
     Para acceder necesitas una invitacion del administrador.
   </p>
 </div>

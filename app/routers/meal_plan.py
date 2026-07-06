@@ -32,17 +32,19 @@ templates = Jinja2Templates(directory="app/templates")
 def _build_days_data(meal_plan: MealPlan, profile=None) -> list[dict]:
     from app.services.nutrition import get_effective_meal_times
 
-    # Index ActivityDayConfigs by day_of_week
-    day_config_map: dict = {}
+    # Index ActivityDayConfigs by day_of_week (list — multiple sessions per day)
+    day_config_map: dict[int, list] = {}
     if profile:
         for cfg in getattr(profile, "activity_day_configs", []):
-            day_config_map[cfg.day_of_week] = cfg
+            day_config_map.setdefault(cfg.day_of_week, []).append(cfg)
 
     days = []
     for day_num in range(7):
-        day_config = day_config_map.get(day_num)
-        is_training_day = day_config is not None
-        meal_times = get_effective_meal_times(profile, is_training_day, day_config=day_config) if profile else {}
+        day_cfgs = day_config_map.get(day_num, [])
+        is_training_day = len(day_cfgs) > 0
+        # Use first session (earliest by order in DB) for meal-time calculation
+        first_cfg = day_cfgs[0] if day_cfgs else None
+        meal_times = get_effective_meal_times(profile, is_training_day, day_config=first_cfg) if profile else {}
 
         day_meals = sorted(
             [m for m in meal_plan.meals if m.day_of_week == day_num],
@@ -52,16 +54,28 @@ def _build_days_data(meal_plan: MealPlan, profile=None) -> list[dict]:
             (m.actual_calories or m.calories) for m in day_meals if m.consumed
         )
 
-        et = day_config.exercise_type if day_config else None
+        # Build session summaries for display
+        sessions = []
+        for cfg in day_cfgs:
+            et = cfg.exercise_type
+            sessions.append({
+                "exercise_type": et.name if et else None,
+                "exercise_icon": et.icon if et else None,
+                "training_start": cfg.start_time,
+                "training_end": cfg.end_time,
+            })
+        # Backward-compat single fields (first session)
+        et0 = day_cfgs[0].exercise_type if day_cfgs else None
         days.append({
             "name": DAYS_OF_WEEK[day_num],
             "short": DAYS_SHORT[day_num],
             "day_num": day_num,
             "is_training_day": is_training_day,
-            "exercise_type": et.name if et else None,
-            "exercise_icon": et.icon if et else None,
-            "training_start": day_config.start_time if day_config else None,
-            "training_end": day_config.end_time if day_config else None,
+            "sessions": sessions,
+            "exercise_type": et0.name if et0 else None,
+            "exercise_icon": et0.icon if et0 else None,
+            "training_start": day_cfgs[0].start_time if day_cfgs else None,
+            "training_end": day_cfgs[0].end_time if day_cfgs else None,
             "meal_times": meal_times,
             "meals": [
                 {

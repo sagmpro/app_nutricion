@@ -53,6 +53,43 @@ async def login(
     return response
 
 
+@router.get("/cambiar-contrasena")
+def change_password_form(request: Request):
+    return templates.TemplateResponse(request, "auth/change_password.html", {
+        "error": request.query_params.get("error"),
+        "success": request.query_params.get("success"),
+        "email": request.query_params.get("email", ""),
+    })
+
+
+@router.post("/cambiar-contrasena")
+async def change_password(
+    request: Request,
+    db: Session = Depends(get_db),
+    email: str = Form(...),
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+):
+    def _error(msg: str):
+        return templates.TemplateResponse(request, "auth/change_password.html", {
+            "error": msg, "email": email,
+        }, status_code=400)
+
+    if new_password != confirm_password:
+        return _error("Las contraseñas nuevas no coinciden")
+    if len(new_password) < 8:
+        return _error("La contraseña nueva debe tener al menos 8 caracteres")
+
+    user = db.query(User).filter(User.email == email.lower().strip(), User.is_active == True).first()
+    if not user or not user.hashed_password or not verify_password(current_password, user.hashed_password):
+        return _error("Email o contraseña actual incorrectos")
+
+    user.hashed_password = hash_password(new_password)
+    db.commit()
+    return RedirectResponse("/login?success=Contraseña+actualizada+correctamente", status_code=303)
+
+
 @router.post("/logout")
 def logout():
     response = RedirectResponse("/login", status_code=303)

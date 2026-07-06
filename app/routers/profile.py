@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from itertools import zip_longest
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -51,7 +52,9 @@ def perfil_form(request: Request, db: Session = Depends(get_db)):
 
     effective_meal_times = get_effective_meal_times(profile)
 
-    day_configs = {c.day_of_week: c for c in (profile.activity_day_configs if profile else [])}
+    day_configs: dict[int, list] = {}
+    for c in (profile.activity_day_configs if profile else []):
+        day_configs.setdefault(c.day_of_week, []).append(c)
 
     return templates.TemplateResponse(request, "profile/form.html", {
         "profile": profile,
@@ -122,28 +125,34 @@ async def perfil_save(
         db.add(profile)
         db.flush()
 
-    # Rebuild ActivityDayConfigs from form
+    # Rebuild ActivityDayConfigs from form — multiple sessions per day via getlist
     db.query(ActivityDayConfig).filter(ActivityDayConfig.profile_id == profile.id).delete()
     activity_days = []
     first_start = first_end = None
     for i in range(7):
         if form_data.get(f"day_{i}_active") == "1":
-            activity_days.append(i)
-            et_raw = form_data.get(f"day_{i}_exercise_type", "").strip()
-            start = form_data.get(f"day_{i}_start", "").strip() or None
-            end = form_data.get(f"day_{i}_end", "").strip() or None
-            et_id = int(et_raw) if et_raw.isdigit() else None
-            db.add(ActivityDayConfig(
-                profile_id=profile.id,
-                day_of_week=i,
-                exercise_type_id=et_id,
-                start_time=start,
-                end_time=end,
-            ))
-            if first_start is None and start:
-                first_start = start
-            if first_end is None and end:
-                first_end = end
+            et_values = form_data.getlist(f"day_{i}_exercise_type")
+            start_values = form_data.getlist(f"day_{i}_start")
+            end_values = form_data.getlist(f"day_{i}_end")
+            sessions_added = 0
+            for et_raw, start, end in zip_longest(et_values, start_values, end_values, fillvalue=""):
+                et_id = int(et_raw) if str(et_raw).strip().isdigit() else None
+                start = (start or "").strip() or None
+                end = (end or "").strip() or None
+                db.add(ActivityDayConfig(
+                    profile_id=profile.id,
+                    day_of_week=i,
+                    exercise_type_id=et_id,
+                    start_time=start,
+                    end_time=end,
+                ))
+                sessions_added += 1
+                if first_start is None and start:
+                    first_start = start
+                if first_end is None and end:
+                    first_end = end
+            if sessions_added:
+                activity_days.append(i)
 
     profile.name = name
     profile.age = age
@@ -301,3 +310,47 @@ async def eliminar_receta(meal_id: int, request: Request, db: Session = Depends(
         db.delete(meal)
         db.commit()
     return RedirectResponse("/perfil/recetario", status_code=303)
+
+
+@router.post("/perfil/recetario/generar-ia")
+async def generar_receta_ia(
+    request: Request,
+    db: Session = Depends(get_db),
+    meal_type: str = Form(...),
+    description: str = Form(default=""),
+):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
+
+    from app.services.claude_service import generate_meal_for_recetario
+    try:
+        result = generate_meal_for_recetario(profile, meal_type, description.strip())
+    except Exception as e:
+        return RedirectResponse(f"/perfil/recetario?error=Error+al+generar+receta:+{str(e)[:60]}", status_code=303)
+
+    existing = db.query(SavedMeal).filter(
+        SavedMeal.user_id == current_user.id,
+        SavedMeal.name == result.get("nombre", ""),
+        SavedMeal.meal_type == meal_type,
+    ).first()
+    if existing:
+        return RedirectResponse("/perfil/recetario?success=La+receta+ya+estaba+en+tu+recetario", status_code=303)
+
+    import types as _types
+    meal_obj = _types.SimpleNamespace(
+        name=result.get("nombre", "Receta IA"),
+        meal_type=meal_type,
+        ingredients_json=json.dumps(result.get("ingredientes", []), ensure_ascii=False),
+        calories=result.get("calorias", 0),
+        protein_g=result.get("proteinas_g", 0.0),
+        carbs_g=result.get("carbohidratos_g", 0.0),
+        fat_g=result.get("grasas_g", 0.0),
+        description=result.get("descripcion", ""),
+        recipe_text=None,
+    )
+    upsert_saved_meal(db, current_user.id, meal_obj)
+    name_enc = result.get("nombre", "Receta").replace(" ", "+")
+    return RedirectResponse(f"/perfil/recetario?success=Receta+generada:+{name_enc}", status_code=303)

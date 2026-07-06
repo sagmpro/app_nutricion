@@ -70,17 +70,21 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float,
     day_configs = getattr(profile, "activity_day_configs", [])
     if day_configs:
         from app.services.nutrition import DAYS_OF_WEEK
+        from itertools import groupby
         training_lines = []
-        for cfg in day_configs:
-            day_name = DAYS_OF_WEEK[cfg.day_of_week]
-            et = cfg.exercise_type
-            type_str = f"{et.icon} {et.name}" if et else "Ejercicio"
-            time_str = ""
-            if cfg.start_time and cfg.end_time:
-                time_str = f" ({cfg.start_time}–{cfg.end_time})"
-            elif cfg.start_time:
-                time_str = f" (desde {cfg.start_time})"
-            training_lines.append(f"  * {day_name}: {type_str}{time_str}")
+        for day_num, day_cfgs in groupby(sorted(day_configs, key=lambda c: c.day_of_week), key=lambda c: c.day_of_week):
+            day_cfgs = list(day_cfgs)
+            day_name = DAYS_OF_WEEK[day_num]
+            session_strs = []
+            for cfg in day_cfgs:
+                et = cfg.exercise_type
+                type_str = f"{et.icon} {et.name}" if et else "Ejercicio"
+                if cfg.start_time and cfg.end_time:
+                    type_str += f" ({cfg.start_time}–{cfg.end_time})"
+                elif cfg.start_time:
+                    type_str += f" (desde {cfg.start_time})"
+                session_strs.append(type_str)
+            training_lines.append(f"  * {day_name}: {' + '.join(session_strs)}")
         lifestyle_lines.append("- Días de entrenamiento:\n" + "\n".join(training_lines))
     elif getattr(profile, "training_time", None):
         t_end = getattr(profile, "training_end", None)
@@ -535,6 +539,60 @@ País del usuario: {_country(profile)} — usa ingredientes y nombres típicos d
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("buscar_plato_por_nombre", message)
+    return _parse_json(message.content[0].text)
+
+
+def generate_meal_for_recetario(profile, meal_type: str, description: str = "") -> dict:
+    """Generate a single recipe for the recetario with AI. Returns a parsed meal dict."""
+    from app.models.meal import MEAL_TYPE_LABELS
+
+    dietary_map = {"omnivoro": "omnívoro", "vegetariano": "vegetariano", "vegano": "vegano", "pescetariano": "pescetariano"}
+    dietary_label = dietary_map.get(getattr(profile, "dietary_type", "omnivoro"), "omnívoro")
+    meal_label = MEAL_TYPE_LABELS.get(meal_type, meal_type)
+
+    prefs_lines = []
+    if getattr(profile, "food_intolerances", None):
+        prefs_lines.append(f"- Alergias/intolerancias: {profile.food_intolerances}")
+    if getattr(profile, "disliked_foods", None):
+        prefs_lines.append(f"- Alimentos que NO le gustan: {profile.disliked_foods}")
+    if getattr(profile, "preferred_foods", None):
+        prefs_lines.append(f"- Alimentos favoritos: {profile.preferred_foods}")
+    prefs_section = "\n".join(prefs_lines) if prefs_lines else "Sin restricciones adicionales"
+
+    desc_line = f"Idea o descripción del usuario: {description}" if description else "Crea una receta original y variada."
+
+    prompt = f"""Genera UNA receta de tipo "{meal_label}" para incluir en el recetario personal de un usuario.
+
+Perfil del usuario:
+- Dieta: {dietary_label}
+- País: {_country(profile)}
+{prefs_section}
+
+{desc_line}
+
+Responde ÚNICAMENTE con JSON válido:
+{{
+  "nombre": "Nombre del plato",
+  "descripcion": "Descripción breve de preparación (máx 15 palabras)",
+  "calorias": 400,
+  "proteinas_g": 25.0,
+  "carbohidratos_g": 40.0,
+  "grasas_g": 10.0,
+  "ingredientes": [
+    {{"nombre": "Ingrediente", "cantidad": 100, "unidad": "g"}}
+  ]
+}}
+
+Incluye 4-7 ingredientes con cantidades realistas. Usa nombres de ingredientes específicos y consistentes con el vocabulario local."""
+
+    client = _get_client()
+    message = client.messages.create(
+        model=MODEL_HAIKU,
+        max_tokens=800,
+        system="Eres un chef y nutricionista experto. Responde SOLO con JSON válido, sin texto adicional.",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    _log_usage("generate_meal_for_recetario", message)
     return _parse_json(message.content[0].text)
 
 

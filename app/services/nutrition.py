@@ -20,7 +20,7 @@ def get_activity_days_list(profile: "UserProfile") -> list[int]:
     # Prefer ActivityDayConfig rows when loaded; fall back to JSON field
     configs = getattr(profile, "activity_day_configs", None)
     if configs is not None:
-        return [c.day_of_week for c in configs]
+        return sorted(set(c.day_of_week for c in configs))
     try:
         return json.loads(profile.activity_days or "[]")
     except Exception:

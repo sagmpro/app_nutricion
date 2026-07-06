@@ -50,13 +50,22 @@
       ⭐ Favoritos (5★)
     </button>
   </div>
-  <button onclick="openAddModal()"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors flex-shrink-0">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-    </svg>
-    Agregar plato
-  </button>
+  <div class="flex gap-2 flex-shrink-0">
+    <button onclick="openGenerateModal()"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.348A3.5 3.5 0 0112 18.5a3.5 3.5 0 01-2.121-.653l-.347-.348z"/>
+      </svg>
+      IA
+    </button>
+    <button onclick="openAddModal()"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Agregar
+    </button>
+  </div>
 </div>
 
 {% if not saved_meals %}
@@ -160,6 +169,44 @@
 
 {% endif %}
 
+<!-- Modal: Generar con IA -->
+<div id="modal-generate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h3 class="font-semibold text-gray-800">✨ Generar receta con IA</h3>
+      <button onclick="closeGenerateModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+    </div>
+    <form method="POST" action="/perfil/recetario/generar-ia">
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="label">Tipo de comida</label>
+          <select name="meal_type" required class="input">
+            <option value="desayuno">Desayuno</option>
+            <option value="media_manana">Media mañana</option>
+            <option value="almuerzo" selected>Almuerzo</option>
+            <option value="media_tarde">Media tarde</option>
+            <option value="cena">Cena</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Idea o descripción <span class="text-gray-400 font-normal">(opcional)</span></label>
+          <input type="text" name="description" class="input"
+                 placeholder="ej: pasta italiana, algo con pollo, ensalada fresca...">
+        </div>
+        <p class="text-xs text-gray-400">Claude creará una receta adaptada a tu perfil y preferencias.</p>
+      </div>
+      <div class="px-6 pb-6 flex gap-3">
+        <button type="button" onclick="closeGenerateModal()"
+                class="flex-1 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 font-medium">Cancelar</button>
+        <button type="submit"
+                class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 transition-colors">
+          Generar receta
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Modal: Agregar plato -->
 <div id="modal-add" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
@@ -227,6 +274,16 @@ function closeAddModal() {
 }
 document.getElementById('modal-add').addEventListener('click', function(e) {
   if (e.target === this) closeAddModal();
+});
+
+function openGenerateModal() {
+  document.getElementById('modal-generate').classList.remove('hidden');
+}
+function closeGenerateModal() {
+  document.getElementById('modal-generate').classList.add('hidden');
+}
+document.getElementById('modal-generate').addEventListener('click', function(e) {
+  if (e.target === this) closeGenerateModal();
 });
 
 function filterRecetario(filter) {

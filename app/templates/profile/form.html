@@ -101,8 +101,8 @@
     <div class="divide-y divide-gray-100">
       {% set day_names_full = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] %}
       {% for i in range(7) %}
-      {% set cfg = day_configs.get(i) %}
-      {% set is_active = cfg is not none %}
+      {% set sessions = day_configs.get(i, []) %}
+      {% set is_active = sessions | length > 0 %}
       <div class="px-4 py-3" id="day-row-{{ i }}">
         <!-- Toggle row -->
         <div class="flex items-center gap-3">
@@ -113,35 +113,43 @@
           <label for="day-check-{{ i }}" class="font-medium text-sm text-gray-800 cursor-pointer w-24 flex-shrink-0">
             {{ day_names_full[i] }}
           </label>
-          {% if is_active and cfg.exercise_type %}
-          <span class="text-xs text-gray-500 truncate">{{ cfg.exercise_type.icon }} {{ cfg.exercise_type.name }}{% if cfg.start_time %} · {{ cfg.start_time }}{% if cfg.end_time %}–{{ cfg.end_time }}{% endif %}{% endif %}</span>
-          {% elif is_active %}
-          <span class="text-xs text-gray-400">Sin tipo configurado</span>
-          {% endif %}
+          <span id="day-summary-{{ i }}" class="text-xs text-gray-400 truncate">
+            {% if is_active %}{{ sessions | length }} sesión{{ 'es' if sessions | length > 1 else '' }}{% endif %}
+          </span>
         </div>
-        <!-- Expanded config -->
-        <div id="day-config-{{ i }}" class="{{ '' if is_active else 'hidden' }} mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 pl-7">
-          <div>
-            <label class="label">Tipo de ejercicio</label>
-            <select name="day_{{ i }}_exercise_type" class="input text-sm">
-              <option value="">— Sin especificar —</option>
-              {% for et in exercise_types %}
-              <option value="{{ et.id }}" {% if cfg and cfg.exercise_type_id == et.id %}selected{% endif %}>
-                {{ et.icon }} {{ et.name }}
-              </option>
-              {% endfor %}
-            </select>
+        <!-- Sessions container -->
+        <div id="day-config-{{ i }}" class="{{ '' if is_active else 'hidden' }} mt-3 pl-7 space-y-2">
+          <div id="sessions-{{ i }}" class="space-y-2">
+            {% if sessions %}
+            {% for cfg in sessions %}
+            <div class="session-row flex flex-wrap gap-2 items-end">
+              <select name="day_{{ i }}_exercise_type" class="input text-sm flex-1 min-w-[140px]">
+                <option value="">— Sin tipo —</option>
+                {% for et in exercise_types %}
+                <option value="{{ et.id }}" {% if cfg.exercise_type_id == et.id %}selected{% endif %}>{{ et.icon }} {{ et.name }}</option>
+                {% endfor %}
+              </select>
+              <div class="flex gap-2 items-end">
+                <div>
+                  <label class="label text-xs">Inicio</label>
+                  <input type="time" name="day_{{ i }}_start" value="{{ cfg.start_time or '' }}" class="input w-28">
+                </div>
+                <div>
+                  <label class="label text-xs">Fin</label>
+                  <input type="time" name="day_{{ i }}_end" value="{{ cfg.end_time or '' }}" class="input w-28">
+                </div>
+              </div>
+              <button type="button" onclick="removeSession(this, {{ i }})"
+                      class="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 text-lg leading-none mb-0.5">×</button>
+            </div>
+            {% endfor %}
+            {% endif %}
           </div>
-          <div>
-            <label class="label">Inicio</label>
-            <input type="time" name="day_{{ i }}_start" class="input"
-                   value="{{ cfg.start_time if cfg and cfg.start_time else '' }}">
-          </div>
-          <div>
-            <label class="label">Fin</label>
-            <input type="time" name="day_{{ i }}_end" class="input"
-                   value="{{ cfg.end_time if cfg and cfg.end_time else '' }}">
-          </div>
+          <button type="button" onclick="addSession({{ i }})"
+                  class="text-xs text-green-600 hover:text-green-800 font-medium flex items-center gap-1 mt-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Agregar sesión
+          </button>
         </div>
       </div>
       {% endfor %}
@@ -482,9 +490,57 @@
 <script>
 const DAYS_NAMES = {{ days_names | tojson }};
 
+const ET_OPTIONS_HTML = `<option value="">— Sin tipo —</option>{% for et in exercise_types %}<option value="{{ et.id }}">{{ et.icon }} {{ et.name }}</option>{% endfor %}`;
+
+function buildSessionRow(dayIndex) {
+  const div = document.createElement('div');
+  div.className = 'session-row flex flex-wrap gap-2 items-end';
+  div.innerHTML = `
+    <select name="day_${dayIndex}_exercise_type" class="input text-sm flex-1 min-w-[140px]">${ET_OPTIONS_HTML}</select>
+    <div class="flex gap-2 items-end">
+      <div><label class="label text-xs">Inicio</label><input type="time" name="day_${dayIndex}_start" class="input w-28"></div>
+      <div><label class="label text-xs">Fin</label><input type="time" name="day_${dayIndex}_end" class="input w-28"></div>
+    </div>
+    <button type="button" onclick="removeSession(this, ${dayIndex})"
+            class="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 text-lg leading-none mb-0.5">×</button>`;
+  return div;
+}
+
+function addSession(dayIndex) {
+  document.getElementById('sessions-' + dayIndex).appendChild(buildSessionRow(dayIndex));
+  updateDaySummary(dayIndex);
+}
+
+function removeSession(btn, dayIndex) {
+  const container = document.getElementById('sessions-' + dayIndex);
+  if (container.querySelectorAll('.session-row').length > 1) {
+    btn.closest('.session-row').remove();
+  }
+  updateDaySummary(dayIndex);
+}
+
+function updateDaySummary(dayIndex) {
+  const n = document.getElementById('sessions-' + dayIndex).querySelectorAll('.session-row').length;
+  const el = document.getElementById('day-summary-' + dayIndex);
+  if (el && document.getElementById('day-check-' + dayIndex)?.checked) {
+    el.textContent = n + ' sesión' + (n > 1 ? 'es' : '');
+  }
+}
+
 function toggleDayConfig(i) {
   const checked = document.getElementById('day-check-' + i).checked;
-  document.getElementById('day-config-' + i).classList.toggle('hidden', !checked);
+  const config = document.getElementById('day-config-' + i);
+  config.classList.toggle('hidden', !checked);
+  if (checked) {
+    const sessions = document.getElementById('sessions-' + i);
+    if (!sessions.querySelector('.session-row')) {
+      sessions.appendChild(buildSessionRow(i));
+    }
+    updateDaySummary(i);
+  } else {
+    const el = document.getElementById('day-summary-' + i);
+    if (el) el.textContent = '';
+  }
   updateActivityCount();
   calcBMR();
 }
