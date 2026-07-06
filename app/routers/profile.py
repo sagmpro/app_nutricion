@@ -312,6 +312,23 @@ async def eliminar_receta(meal_id: int, request: Request, db: Session = Depends(
     return RedirectResponse("/perfil/recetario", status_code=303)
 
 
+@router.post("/perfil/recetario/eliminar-multiple")
+async def eliminar_multiple(request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+    form_data = await request.form()
+    raw_ids = form_data.getlist("meal_ids")
+    ids = [int(i) for i in raw_ids if str(i).strip().isdigit()]
+    if ids:
+        db.query(SavedMeal).filter(
+            SavedMeal.id.in_(ids),
+            SavedMeal.user_id == current_user.id,
+        ).delete(synchronize_session=False)
+        db.commit()
+    return RedirectResponse(f"/perfil/recetario?success={len(ids)}+receta{'s' if len(ids) != 1 else ''}+eliminada{'s' if len(ids) != 1 else ''}", status_code=303)
+
+
 @router.post("/perfil/recetario/generar-ia")
 async def generar_receta_ia(
     request: Request,

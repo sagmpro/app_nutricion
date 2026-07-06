@@ -51,6 +51,13 @@
     </button>
   </div>
   <div class="flex gap-2 flex-shrink-0">
+    <button id="btn-select-mode" onclick="toggleSelectMode()"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      Seleccionar
+    </button>
     <button onclick="openGenerateModal()"
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 transition-colors">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,10 +95,23 @@
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
     {% for m in group_meals %}
     {% set health_badge = ("🥦 Saludable" if m.is_healthy == true else ("🍔 No saludable" if m.is_healthy == false else "")) %}
-    <div class="receta-card bg-white rounded-2xl border shadow-sm overflow-hidden transition-all {{ 'opacity-50 border-red-200' if m.is_excluded else 'border-gray-100 hover:shadow-md' }}"
+    <div class="receta-card relative bg-white rounded-2xl border shadow-sm overflow-hidden transition-all {{ 'opacity-50 border-red-200' if m.is_excluded else 'border-gray-100 hover:shadow-md' }}"
+         data-id="{{ m.id }}"
          data-health="{{ 'saludable' if m.is_healthy == true else ('no-saludable' if m.is_healthy == false else 'sin-clasificar') }}"
          data-excluded="{{ 'true' if m.is_excluded else 'false' }}"
          data-rating="{{ m.rating or 0 }}">
+
+      <!-- Selection overlay (hidden by default) -->
+      <div class="select-overlay hidden absolute inset-0 z-10 cursor-pointer rounded-2xl border-2 border-transparent transition-all"
+           onclick="toggleCard(this.closest('.receta-card'))">
+        <div class="absolute top-3 right-3">
+          <div class="card-check w-6 h-6 rounded-full border-2 border-gray-300 bg-white flex items-center justify-center transition-all">
+            <svg class="w-4 h-4 text-white hidden check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+        </div>
+      </div>
 
       <!-- Card header -->
       <div class="px-4 pt-4 pb-2">
@@ -168,6 +188,30 @@
 {% endfor %}
 
 {% endif %}
+
+<!-- Floating bulk-delete bar -->
+<div id="bulk-bar" class="hidden fixed bottom-20 md:bottom-6 inset-x-0 flex justify-center z-40 px-4 pointer-events-none">
+  <form id="bulk-form" method="POST" action="/perfil/recetario/eliminar-multiple" class="pointer-events-auto">
+    <div id="bulk-ids"></div>
+    <div class="flex items-center gap-3 bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-2xl">
+      <span id="bulk-count" class="text-sm font-medium">0 seleccionados</span>
+      <button type="button" onclick="selectAll()"
+              class="text-xs text-gray-400 hover:text-white transition-colors">Todo</button>
+      <button type="button" onclick="clearSelection()"
+              class="text-xs text-gray-400 hover:text-white transition-colors">Ninguno</button>
+      <button type="submit"
+              onclick="return confirmBulkDelete()"
+              class="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-xl transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+        Eliminar
+      </button>
+      <button type="button" onclick="toggleSelectMode()"
+              class="text-xs text-gray-400 hover:text-white transition-colors ml-1">✕</button>
+    </div>
+  </form>
+</div>
 
 <!-- Modal: Generar con IA -->
 <div id="modal-generate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -266,6 +310,85 @@
 
 {% block scripts %}
 <script>
+// --- Selection mode ---
+let selectMode = false;
+const selectedIds = new Set();
+
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  const btn = document.getElementById('btn-select-mode');
+  const overlays = document.querySelectorAll('.select-overlay');
+  if (selectMode) {
+    btn.classList.remove('border-gray-200', 'text-gray-600');
+    btn.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
+    overlays.forEach(o => o.classList.remove('hidden'));
+  } else {
+    btn.classList.add('border-gray-200', 'text-gray-600');
+    btn.classList.remove('border-green-500', 'bg-green-50', 'text-green-700');
+    overlays.forEach(o => o.classList.add('hidden'));
+    clearSelection();
+  }
+  updateBulkBar();
+}
+
+function toggleCard(card) {
+  const id = card.dataset.id;
+  const overlay = card.querySelector('.select-overlay');
+  const check = card.querySelector('.card-check');
+  const icon = card.querySelector('.check-icon');
+  if (selectedIds.has(id)) {
+    selectedIds.delete(id);
+    overlay.classList.remove('border-green-500');
+    check.classList.remove('bg-green-500', 'border-green-500');
+    check.classList.add('border-gray-300');
+    icon.classList.add('hidden');
+  } else {
+    selectedIds.add(id);
+    overlay.classList.add('border-green-500');
+    check.classList.add('bg-green-500', 'border-green-500');
+    check.classList.remove('border-gray-300');
+    icon.classList.remove('hidden');
+  }
+  updateBulkBar();
+}
+
+function selectAll() {
+  document.querySelectorAll('.receta-card').forEach(card => {
+    if (card.style.display === 'none') return;
+    const id = card.dataset.id;
+    if (!selectedIds.has(id)) toggleCard(card);
+  });
+}
+
+function clearSelection() {
+  [...selectedIds].forEach(id => {
+    const card = document.querySelector(`.receta-card[data-id="${id}"]`);
+    if (card) toggleCard(card);
+  });
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-bar');
+  const count = document.getElementById('bulk-count');
+  count.textContent = selectedIds.size + (selectedIds.size === 1 ? ' seleccionado' : ' seleccionados');
+  bar.classList.toggle('hidden', !selectMode);
+  // Rebuild hidden inputs
+  const container = document.getElementById('bulk-ids');
+  container.innerHTML = '';
+  selectedIds.forEach(id => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden';
+    inp.name = 'meal_ids';
+    inp.value = id;
+    container.appendChild(inp);
+  });
+}
+
+function confirmBulkDelete() {
+  if (selectedIds.size === 0) { alert('No hay recetas seleccionadas.'); return false; }
+  return confirm(`¿Eliminar ${selectedIds.size} receta${selectedIds.size > 1 ? 's' : ''} del recetario? Esta acción no se puede deshacer.`);
+}
+
 function openAddModal() {
   document.getElementById('modal-add').classList.remove('hidden');
 }
