@@ -22,6 +22,7 @@ from app.services.claude_service import (
     generate_single_meal as claude_single_meal,
     generate_real_recipe_meal as claude_real_recipe,
     buscar_plato_por_nombre as claude_buscar_plato,
+    generate_cheat_meal as claude_cheat_meal,
     analyze_food_photo as claude_analyze_photo,
     generate_recipe as claude_generate_recipe,
 )
@@ -559,6 +560,12 @@ async def buscar_plato(
                 other_meals=[m.name for m in other_meals],
                 avoided_meals=avoided,
                 workout_context=workout_context,
+            )
+        elif usar_stock == "capricho":
+            result = claude_cheat_meal(
+                nombre=nombre.strip(),
+                meal_type=meal.meal_type,
+                profile=profile,
             )
         else:
             stock_items = None

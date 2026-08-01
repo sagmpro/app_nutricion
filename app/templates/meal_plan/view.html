@@ -333,18 +333,22 @@
       </div>
 
       <!-- Mode tabs -->
-      <div class="flex rounded-xl overflow-hidden border border-gray-200 mb-4">
+      <div class="grid grid-cols-4 rounded-xl overflow-hidden border border-gray-200 mb-4">
         <button id="tab-sugerir" onclick="setBuscarMode('sugerir')"
-                class="flex-1 py-2 text-sm font-medium transition-all bg-purple-600 text-white">
+                class="py-2 text-xs font-medium transition-all bg-purple-600 text-white">
           ✨ Sugerir
         </button>
         <button id="tab-stock" onclick="setBuscarMode('stock')"
-                class="flex-1 py-2 text-sm font-medium transition-all text-gray-500 hover:bg-gray-50">
-          🏪 Del stock
+                class="py-2 text-xs font-medium transition-all text-gray-500 hover:bg-gray-50">
+          🏪 Stock
         </button>
         <button id="tab-buscar" onclick="setBuscarMode('buscar')"
-                class="flex-1 py-2 text-sm font-medium transition-all text-gray-500 hover:bg-gray-50">
-          🔍 Por nombre
+                class="py-2 text-xs font-medium transition-all text-gray-500 hover:bg-gray-50">
+          🔍 Nombre
+        </button>
+        <button id="tab-capricho" onclick="setBuscarMode('capricho')"
+                class="py-2 text-xs font-medium transition-all text-gray-500 hover:bg-gray-50">
+          🍔 Capricho
         </button>
       </div>
 
@@ -363,7 +367,12 @@
         Escribe el nombre del plato que deseas. Claude buscará la receta completa con ingredientes y valores nutricionales.
       </div>
 
-      <!-- Search input (only for buscar mode) -->
+      <!-- Capricho mode -->
+      <div id="mode-capricho-info" class="hidden text-xs text-gray-500 bg-orange-50 border border-orange-100 rounded-xl p-3 mb-3">
+        ¿Comiste algo fuera del plan? Escríbelo y registraremos los valores nutricionales reales, sin ajustar a tu objetivo.
+      </div>
+
+      <!-- Search input (buscar and capricho modes) -->
       <div id="nombre-input-row" class="hidden mb-3">
         <input type="text" id="buscar-nombre-input" placeholder="Ej: Pollo al curry, Pasta carbonara..."
                class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -556,20 +565,28 @@ function closeBuscarModal() {
 
 function setBuscarMode(mode) {
   _buscarMode = mode;
-  const base = 'flex:1;padding:0.5rem;font-size:0.875rem;font-weight:500;';
+  const base = 'padding:0.5rem;font-size:0.75rem;font-weight:500;';
   const gray = base + 'color:#6b7280;background:transparent;';
-  document.getElementById('tab-sugerir').style.cssText = mode === 'sugerir' ? base + 'background:#9333ea;color:#fff;' : gray;
-  document.getElementById('tab-stock').style.cssText   = mode === 'stock'   ? base + 'background:#16a34a;color:#fff;' : gray;
-  document.getElementById('tab-buscar').style.cssText  = mode === 'buscar'  ? base + 'background:#2563eb;color:#fff;' : gray;
+  document.getElementById('tab-sugerir').style.cssText  = mode === 'sugerir'  ? base + 'background:#9333ea;color:#fff;' : gray;
+  document.getElementById('tab-stock').style.cssText    = mode === 'stock'    ? base + 'background:#16a34a;color:#fff;' : gray;
+  document.getElementById('tab-buscar').style.cssText   = mode === 'buscar'   ? base + 'background:#2563eb;color:#fff;' : gray;
+  document.getElementById('tab-capricho').style.cssText = mode === 'capricho' ? base + 'background:#ea580c;color:#fff;' : gray;
   document.getElementById('mode-sugerir-info').classList.toggle('hidden', mode !== 'sugerir');
   document.getElementById('mode-stock-info').classList.toggle('hidden', mode !== 'stock');
   document.getElementById('mode-buscar-info').classList.toggle('hidden', mode !== 'buscar');
-  document.getElementById('nombre-input-row').classList.toggle('hidden', mode !== 'buscar');
+  document.getElementById('mode-capricho-info').classList.toggle('hidden', mode !== 'capricho');
+  document.getElementById('nombre-input-row').classList.toggle('hidden', mode !== 'buscar' && mode !== 'capricho');
+  if (mode === 'capricho') {
+    document.getElementById('buscar-nombre-input').placeholder = 'Ej: Hamburguesa, Helado de chocolate, Pizza...';
+  } else if (mode === 'buscar') {
+    document.getElementById('buscar-nombre-input').placeholder = 'Ej: Pollo al curry, Pasta carbonara...';
+  }
   const btn = document.getElementById('buscar-btn');
   const configs = {
-    sugerir: ['✨ Sugerir alternativa', '#9333ea'],
-    stock:   ['🏪 Generar con mi stock', '#16a34a'],
-    buscar:  ['🔍 Buscar plato', '#2563eb'],
+    sugerir:  ['✨ Sugerir alternativa', '#9333ea'],
+    stock:    ['🏪 Generar con mi stock', '#16a34a'],
+    buscar:   ['🔍 Buscar plato', '#2563eb'],
+    capricho: ['🍔 Registrar capricho', '#ea580c'],
   };
   const [txt, bg] = configs[mode] || configs.sugerir;
   btn.textContent = txt;
@@ -578,7 +595,7 @@ function setBuscarMode(mode) {
 
 async function buscarPlato() {
   const nombre = document.getElementById('buscar-nombre-input').value.trim();
-  if (_buscarMode === 'buscar' && !nombre) {
+  if ((_buscarMode === 'buscar' || _buscarMode === 'capricho') && !nombre) {
     document.getElementById('buscar-nombre-input').focus();
     return;
   }
@@ -589,7 +606,7 @@ async function buscarPlato() {
   document.getElementById('buscar-error').classList.add('hidden');
 
   const formData = new FormData();
-  const modeMap = { sugerir: 'sugerir', stock: 'si', buscar: 'no' };
+  const modeMap = { sugerir: 'sugerir', stock: 'si', buscar: 'no', capricho: 'capricho' };
   const nombreEnvio = _buscarMode === 'stock'
     ? 'Genera un plato saludable con los ingredientes disponibles en el stock'
     : (_buscarMode === 'sugerir' ? 'sugerir' : nombre);

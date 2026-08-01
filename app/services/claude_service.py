@@ -757,6 +757,46 @@ Categorías: Frutas y Verduras, Proteínas, Lácteos y Huevos, Cereales y Legumb
     return _parse_json(message.content[0].text)
 
 
+def generate_cheat_meal(nombre: str, meal_type: str, profile=None) -> dict:
+    """Generate nutritional info for any dish without calorie or meal-type restrictions.
+    Used for the 'capricho' mode where the user logs what they actually ate."""
+    intolerances = ""
+    if profile and getattr(profile, "food_intolerances", None):
+        intolerances = f"Nota alérgica: {profile.food_intolerances}.\n"
+
+    prompt = f"""El usuario ha comido "{nombre}" y quiere registrar los valores nutricionales reales.
+{intolerances}
+Genera los valores nutricionales de UNA PORCIÓN TÍPICA de "{nombre}" tal como se sirve normalmente.
+NO adaptes las calorías a ningún objetivo dietético — usa los valores reales del plato estándar.
+
+Responde ÚNICAMENTE con JSON válido:
+{{
+  "tipo": "{meal_type}",
+  "nombre": "Nombre del plato",
+  "descripcion": "Descripción breve (máx 15 palabras)",
+  "calorias": 0,
+  "proteinas_g": 0.0,
+  "carbohidratos_g": 0.0,
+  "grasas_g": 0.0,
+  "ingredientes": [
+    {{"nombre": "Ingrediente", "cantidad": 100, "unidad": "g"}}
+  ]
+}}
+
+Calcula los valores reales para una porción estándar. Incluye 4-8 ingredientes.
+País del usuario: {_country(profile)} — usa ingredientes y nombres típicos de ese país."""
+
+    client = _get_client()
+    message = client.messages.create(
+        model=MODEL_HAIKU,
+        max_tokens=800,
+        system="Eres un nutricionista experto. Usa ortografía española correcta con tildes. Responde SOLO con JSON válido.",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    _log_usage("generate_cheat_meal", message)
+    return _parse_json(message.content[0].text)
+
+
 def generate_goal_description(profile, user_description: str) -> str:
     """Refine the user's free-text goal into a clear, actionable objective for meal plan generation."""
     profile_ctx = ""
