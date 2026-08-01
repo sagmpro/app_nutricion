@@ -219,8 +219,17 @@ País del usuario: {_country(profile)} — usa ingredientes, nombres y medidas t
     return _parse_json(message.content[0].text)
 
 
-def generate_single_meal(profile, meal_type: str, day_name: str, target_calories: int, current_meal_name: str, other_meals: list) -> dict:
+def generate_single_meal(
+    profile,
+    meal_type: str,
+    day_name: str,
+    target_calories: int,
+    current_meal_name: str,
+    other_meals: list,
+    avoided_meals: list | None = None,
+) -> dict:
     """Call Claude to regenerate a single meal. Returns a parsed meal dict."""
+    import random
     from app.models.meal import MEAL_TYPE_LABELS
 
     dietary_map = {"omnivoro": "omnívoro", "vegetariano": "vegetariano", "vegano": "vegano", "pescetariano": "pescetariano"}
@@ -238,6 +247,14 @@ def generate_single_meal(profile, meal_type: str, day_name: str, target_calories
     other_meals_str = ", ".join(other_meals) if other_meals else "ninguna"
     meal_label = MEAL_TYPE_LABELS.get(meal_type, meal_type)
 
+    avoid_section = ""
+    if avoided_meals:
+        avoid_section = f"Platos que NO debes sugerir (ya los tiene en su recetario o los ha visto): {', '.join(avoided_meals[:20])}\n"
+
+    # Seed for variety — encourages Claude to explore different culinary directions
+    seed_words = ["mediterráneo", "asiático", "latinoamericano", "clásico local", "fusión", "ligero", "proteico", "vegetariano ocasional"]
+    direction = random.choice(seed_words)
+
     prompt = f"""Genera UNA SOLA comida de tipo "{meal_label}" para el {day_name}.
 
 Perfil:
@@ -245,8 +262,12 @@ Perfil:
 - Objetivo calórico para esta comida: ~{target_calories} kcal
 {prefs_section}
 
-Comida actual (generar algo DIFERENTE): {current_meal_name}
-Otras comidas del día (para evitar repetir ingredientes): {other_meals_str}
+Comida actual (genera algo COMPLETAMENTE DIFERENTE, no una variación del mismo plato): {current_meal_name}
+{avoid_section}Otras comidas del día (evitar repetir ingredientes principales): {other_meals_str}
+
+Dirección culinaria a explorar esta vez: {direction}
+
+IMPORTANTE: Sé creativo. No repitas las opciones más predecibles ni lo que el usuario ya conoce. Sorprende con algo variado y apetecible.
 
 Responde ÚNICAMENTE con JSON válido:
 {{
@@ -262,14 +283,15 @@ Responde ÚNICAMENTE con JSON válido:
   ]
 }}
 
-Máximo 5 ingredientes. País del usuario: {_country(profile)} — usa ingredientes y nombres típicos de ese país.
-Usa nombres de ingredientes específicos y consistentes con el vocabulario local: indica el estado cuando sea relevante (ej: "garbanzos cocidos", "lentejas crudas", "atún en conserva")."""
+Máximo 5 ingredientes. País del usuario: {_country(profile)} — adapta ingredientes al contexto local.
+Indica el estado cuando sea relevante: "garbanzos cocidos", "lentejas crudas", "atún en conserva"."""
 
     client = _get_client()
     message = client.messages.create(
         model=MODEL,
         max_tokens=1000,
-        system="Eres un nutricionista deportivo experto. Responde siempre con JSON válido, sin texto adicional.",
+        temperature=1.0,
+        system="Eres un nutricionista y chef creativo. Cada sugerencia debe ser diferente y sorprendente. Responde siempre con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("generate_single_meal", message)
@@ -498,12 +520,16 @@ def buscar_plato_por_nombre(
     if profile and getattr(profile, "food_intolerances", None):
         intolerances = f"Evitar: {profile.food_intolerances}."
 
+    import random
+    seed_words = ["mediterráneo", "asiático", "clásico local", "fusión", "ligero", "proteico", "aromático"]
+    direction = random.choice(seed_words)
+
     if is_stock_mode and stock_items:
         intro = f"El usuario tiene los siguientes ingredientes en su stock y quiere preparar su {meal_label} usándolos."
-        instruction = "Crea un plato nutritivo y delicioso usando PRINCIPALMENTE los ingredientes del stock listados arriba."
+        instruction = f"Crea un plato CREATIVO y VARIADO ({direction}) usando PRINCIPALMENTE los ingredientes del stock listados arriba. Sorprende con algo diferente, no lo más obvio."
     elif is_stock_mode:
         intro = f"El usuario quiere preparar su {meal_label} con ingredientes básicos de despensa."
-        instruction = "Crea un plato nutritivo y delicioso con ingredientes comunes de despensa."
+        instruction = f"Crea un plato nutritivo y CREATIVO ({direction}) con ingredientes comunes de despensa. Propón algo variado y apetecible."
     else:
         intro = f'El usuario busca el plato "{nombre}" para su {meal_label}.'
         instruction = "Genera la receta completa y auténtica de este plato buscándolo en tu conocimiento culinario."

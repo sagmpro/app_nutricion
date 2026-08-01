@@ -278,12 +278,17 @@ def regenerar_comida(plan_id: int, meal_id: int, request: Request, db: Session =
 
     profile = meal_plan.profile
 
-    calorie_pct = {"desayuno": 0.25, "media_manana": 0.10, "almuerzo": 0.35, "media_tarde": 0.10, "cena": 0.20}
+    base_pct = {"desayuno": 0.25, "media_manana": 0.10, "almuerzo": 0.35, "media_tarde": 0.10, "cena": 0.20}
     bmr = calculate_bmr(profile)
     activity_days = get_activity_days_list(profile)
     tdee = calculate_tdee(bmr, len(activity_days))
     target_total = calculate_target_calories(profile, tdee)
-    target_calories = int(target_total * calorie_pct.get(meal.meal_type, 0.20))
+    try:
+        enabled = json.loads(profile.enabled_meals) if getattr(profile, "enabled_meals", None) else list(base_pct)
+    except (ValueError, TypeError):
+        enabled = list(base_pct)
+    total_pct = sum(base_pct[m] for m in enabled if m in base_pct) or 1.0
+    target_calories = int(target_total * (base_pct.get(meal.meal_type, 0.20) / total_pct))
 
     other_meals = [m.name for m in meal_plan.meals if m.day_of_week == meal.day_of_week and m.id != meal_id]
     new_regen_count = (meal.regen_count or 0) + 1
@@ -492,12 +497,28 @@ async def buscar_plato(
         return JSONResponse({"error": "Comida no encontrada"}, status_code=404)
 
     profile = meal_plan.profile
-    calorie_pct = {"desayuno": 0.25, "media_manana": 0.10, "almuerzo": 0.35, "media_tarde": 0.10, "cena": 0.20}
+    base_pct = {"desayuno": 0.25, "media_manana": 0.10, "almuerzo": 0.35, "media_tarde": 0.10, "cena": 0.20}
     bmr = calculate_bmr(profile)
     activity_days = get_activity_days_list(profile)
     tdee = calculate_tdee(bmr, len(activity_days))
     target_total = calculate_target_calories(profile, tdee)
-    target_calories = int(target_total * calorie_pct.get(meal.meal_type, 0.20))
+
+    # Adjust calorie target based on which meals are actually enabled
+    try:
+        enabled = json.loads(profile.enabled_meals) if getattr(profile, "enabled_meals", None) else list(base_pct)
+    except (ValueError, TypeError):
+        enabled = list(base_pct)
+    total_pct = sum(base_pct[m] for m in enabled if m in base_pct) or 1.0
+    raw_pct = base_pct.get(meal.meal_type, 0.20)
+    target_calories = int(target_total * (raw_pct / total_pct))
+
+    # User's saved meals for that type — pass as avoided list to reduce repetition
+    saved_for_type = db.query(SavedMeal.name).filter(
+        SavedMeal.user_id == current_user.id,
+        SavedMeal.meal_type == meal.meal_type,
+        SavedMeal.is_excluded == False,  # noqa: E712
+    ).all()
+    avoided = [r[0] for r in saved_for_type]
 
     try:
         if usar_stock == "sugerir":
@@ -513,6 +534,7 @@ async def buscar_plato(
                 target_calories=target_calories,
                 current_meal_name=meal.name,
                 other_meals=[m.name for m in other_meals],
+                avoided_meals=avoided,
             )
         else:
             stock_items = None
