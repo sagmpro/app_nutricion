@@ -78,6 +78,39 @@ def _workout_meal_section(workout_context: dict | None) -> str:
     return ""
 
 
+def _meal_type_context(meal_type: str) -> str:
+    """Return qualitative guidance about what a meal type should be."""
+    contexts = {
+        "desayuno": (
+            "TIPO DE COMIDA — Desayuno: primera comida del día, nutritiva y energizante. "
+            "Ejemplos: tostadas con huevo, porridge, yogur con fruta, tortilla, batido proteico. "
+            "Representa ~25% de las calorías diarias."
+        ),
+        "media_manana": (
+            "TIPO DE COMIDA — Media mañana: SNACK ligero de media mañana. Pequeño y fácil de preparar. "
+            "Ejemplos: fruta, yogur, puñado de frutos secos, barrita, tostada pequeña. "
+            "NO es una comida principal. Representa ~10% de las calorías diarias."
+        ),
+        "almuerzo": (
+            "TIPO DE COMIDA — Almuerzo: comida principal y más abundante del día. "
+            "Ejemplos: pasta, arroz con pollo, potaje, ensalada completa con proteína, plato combinado. "
+            "Representa ~35% de las calorías diarias."
+        ),
+        "media_tarde": (
+            "TIPO DE COMIDA — Media tarde: SNACK ligero de tarde. Pequeño y sencillo. "
+            "Ejemplos: fruta, yogur, tostada con queso, batido pequeño, frutos secos. "
+            "NO es una comida principal ni un plato elaborado. Representa ~10% de las calorías diarias."
+        ),
+        "cena": (
+            "TIPO DE COMIDA — Cena: última comida del día, más ligera que el almuerzo pero completa. "
+            "Ejemplos: sopa, crema de verduras, tortilla, ensalada con proteína, pescado al horno. "
+            "Preferiblemente fácil de digerir. Representa ~20% de las calorías diarias."
+        ),
+    }
+    ctx = contexts.get(meal_type)
+    return f"\n{ctx}\n" if ctx else ""
+
+
 def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float, saved_meals: list | None = None) -> dict:
     """Call Claude to generate a 7-day meal plan. Returns parsed JSON dict."""
     from app.services.nutrition import get_activity_days_list, DAYS_OF_WEEK
@@ -310,9 +343,10 @@ def generate_single_meal(
     direction = random.choice(seed_words)
 
     workout_section = _workout_meal_section(workout_context)
+    meal_context = _meal_type_context(meal_type)
 
     prompt = f"""Genera UNA SOLA comida de tipo "{meal_label}" para el {day_name}.
-
+{meal_context}
 Perfil:
 - Dieta: {dietary_label}
 - Objetivo calórico para esta comida: ~{target_calories} kcal
@@ -530,8 +564,10 @@ def generate_real_recipe_meal(
     if profile and getattr(profile, "food_intolerances", None):
         intolerances = f"Evitar: {profile.food_intolerances}."
 
-    prompt = f"""Eres un chef profesional y nutricionista. Genera una receta real, tradicional y detallada de "{meal_name}" (tipo: {meal_label}).
+    meal_context = _meal_type_context(meal_type)
 
+    prompt = f"""Eres un chef profesional y nutricionista. Genera una receta real, tradicional y detallada de "{meal_name}" (tipo: {meal_label}).
+{meal_context}
 {intolerances}
 Objetivo calórico: ~{target_calories} kcal.
 
@@ -602,8 +638,10 @@ def buscar_plato_por_nombre(
         instruction = "Genera la receta completa y auténtica de este plato buscándolo en tu conocimiento culinario."
 
     workout_section = _workout_meal_section(workout_context)
+    meal_context = _meal_type_context(meal_type)
 
     prompt = f"""{intro}
+{meal_context}
 {intolerances}
 {stock_section}
 Objetivo calórico orientativo: ~{target_calories} kcal.
