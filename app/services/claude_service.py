@@ -38,6 +38,46 @@ def _parse_json(text: str) -> dict:
     return json.loads(text.strip())
 
 
+def _workout_meal_section(workout_context: dict | None) -> str:
+    """Return a prompt section describing pre/post-workout nutrition constraints."""
+    if not workout_context:
+        return ""
+    et_list = ", ".join(workout_context.get("exercise_types", [])) or "ejercicio"
+    et_lower = et_list.lower()
+
+    if workout_context.get("is_pre_workout"):
+        start = workout_context.get("earliest_start", "")
+        time_ref = f" a las {start}" if start else ""
+        if any(x in et_lower for x in ["gym", "pesas", "musculaci", "fuerza"]):
+            guideline = "Carbohidratos complejos + proteína (arroz + pollo, pasta + atún). Bajo en grasa y fibra."
+        elif any(x in et_lower for x in ["running", "correr", "ciclismo", "bici", "nataci", "nadar"]):
+            guideline = "Carbohidratos de fácil digestión (arroz blanco, plátano, pan). Muy bajo en grasa y fibra para evitar molestias gastrointestinales."
+        elif any(x in et_lower for x in ["hiit", "funcional", "crossfit", "intervalo"]):
+            guideline = "Carbohidratos simples + proteína ligera. Muy bajo en grasa. Fácil y rápido de digerir."
+        elif any(x in et_lower for x in ["fútbol", "futbol", "baloncesto", "tenis", "pádel", "padel", "deporte"]):
+            guideline = "Carbohidratos + proteína moderada. Energía sostenida para esfuerzo intermitente."
+        elif any(x in et_lower for x in ["yoga", "pilates", "flexibilidad"]):
+            guideline = "Comida ligera y fácil de digerir. Porciones reducidas. Sin alimentos pesados."
+        elif any(x in et_lower for x in ["caminata", "caminar"]):
+            guideline = "Comida equilibrada normal, sin ajuste especial necesario."
+        else:
+            guideline = "Prioriza carbohidratos complejos + proteína moderada. Bajo en grasa."
+        return (
+            f"\n⚡ NUTRICIÓN PRE-ENTRENAMIENTO: El usuario entrena {et_list}{time_ref}. "
+            f"Esta comida debe prepararlo para el entrenamiento: {guideline}\n"
+        )
+
+    if workout_context.get("is_post_workout"):
+        end = workout_context.get("latest_end", "")
+        time_ref = f" (terminó a las {end})" if end else ""
+        return (
+            f"\n💪 NUTRICIÓN POST-ENTRENAMIENTO: El usuario acaba de terminar {et_list}{time_ref}. "
+            "Prioriza proteína de calidad + carbohidratos para recuperación muscular. "
+            "Evita exceso de grasa en las primeras horas post-entreno.\n"
+        )
+    return ""
+
+
 def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float, saved_meals: list | None = None) -> dict:
     """Call Claude to generate a 7-day meal plan. Returns parsed JSON dict."""
     from app.services.nutrition import get_activity_days_list, DAYS_OF_WEEK
@@ -167,6 +207,19 @@ Estilo de vida:
 Comidas del día (SOLO estas, en este orden):
 {schedule_section}
 
+NUTRICIÓN EN DÍAS DE ENTRENAMIENTO:
+Los horarios de entrenamiento y tipos de ejercicio están en "Estilo de vida". Para cada día de entreno:
+1. Identifica la comida más cercana ANTES del inicio del entrenamiento (pre-entreno) y la inmediatamente POSTERIOR (post-entreno).
+2. Adapta la comida PRE-ENTRENO según el tipo de ejercicio:
+   - Gym/Pesas 🏋️: carbohidratos complejos + proteína moderada (arroz + pollo/huevo, pasta + atún). Bajo en grasa y fibra. Porciones que aporten energía sostenida.
+   - Running / Ciclismo / Natación 🏃🚴🏊: carbohidratos de rápida digestión (arroz blanco, plátano, pan), muy bajo en grasa y fibra para evitar molestias. Proteína moderada.
+   - HIIT / Funcional 🥊: carbohidratos simples + algo de proteína. Muy bajo en grasa y fibra. Ligero y de fácil digestión.
+   - Fútbol / Deporte colectivo ⚽: carbohidratos + proteína moderada. Hidratación implícita en alimentos.
+   - Yoga / Pilates 🧘: comida ligera, fácil de digerir, porciones reducidas. Sin exceso de proteína ni grasa.
+   - Caminata 🚶: comida normal equilibrada, sin ajuste especial.
+3. La comida POST-ENTRENO debe priorizar proteína de calidad (para recuperación muscular) + carbohidratos (para recargar glucógeno). Evitar exceso de grasa en la 1ª hora post-entreno.
+4. El resto de comidas del día de entreno pueden tener calorías ligeramente superiores al resto de la semana si el objetivo lo permite.
+
 INSTRUCCIONES IMPORTANTES:
 - Genera exactamente {n_meals} comida(s) por día (tipos: {enabled_types_str}). No añadas ni quites comidas.
 - {"USA EXCLUSIVAMENTE los platos del recetario para cada tipo de comida que tenga entradas. Si para un tipo de comida hay menos platos que días de la semana, puedes repetir o inventar los que falten." if has_recetario else "Desayuno, almuerzo y cena: máximo " + str(max_repeats) + " veces el mismo plato en la semana."}
@@ -227,6 +280,7 @@ def generate_single_meal(
     current_meal_name: str,
     other_meals: list,
     avoided_meals: list | None = None,
+    workout_context: dict | None = None,
 ) -> dict:
     """Call Claude to regenerate a single meal. Returns a parsed meal dict."""
     import random
@@ -255,13 +309,15 @@ def generate_single_meal(
     seed_words = ["mediterráneo", "asiático", "latinoamericano", "clásico local", "fusión", "ligero", "proteico", "vegetariano ocasional"]
     direction = random.choice(seed_words)
 
+    workout_section = _workout_meal_section(workout_context)
+
     prompt = f"""Genera UNA SOLA comida de tipo "{meal_label}" para el {day_name}.
 
 Perfil:
 - Dieta: {dietary_label}
 - Objetivo calórico para esta comida: ~{target_calories} kcal
 {prefs_section}
-
+{workout_section}
 Comida actual (genera algo COMPLETAMENTE DIFERENTE, no una variación del mismo plato): {current_meal_name}
 {avoid_section}Otras comidas del día (evitar repetir ingredientes principales): {other_meals_str}
 
@@ -508,6 +564,7 @@ def buscar_plato_por_nombre(
     target_calories: int,
     stock_items: list | None = None,
     profile=None,
+    workout_context: dict | None = None,
 ) -> dict:
     """Search for a dish by name and return full meal details with recipe.
     If stock_items provided, uses those ingredients preferentially."""
@@ -538,11 +595,13 @@ def buscar_plato_por_nombre(
         intro = f'El usuario busca el plato "{nombre}" para su {meal_label}.'
         instruction = "Genera la receta completa y auténtica de este plato buscándolo en tu conocimiento culinario."
 
+    workout_section = _workout_meal_section(workout_context)
+
     prompt = f"""{intro}
 {intolerances}
 {stock_section}
 Objetivo calórico orientativo: ~{target_calories} kcal.
-
+{workout_section}
 {instruction}
 
 CALCULA los valores nutricionales reales basándote en los ingredientes y cantidades que elijas — no copies el objetivo directamente.

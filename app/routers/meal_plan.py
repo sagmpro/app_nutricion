@@ -10,11 +10,12 @@ from app.models.meal_plan import MealPlan
 from app.models.meal import Meal, MEAL_TYPE_ORDER, MEAL_TYPE_LABELS, MEAL_TYPES
 from app.models.food_stock import FoodStock
 from app.models.saved_meal import SavedMeal, upsert_saved_meal
+from app.models.activity_day import ActivityDayConfig
 from app.services.auth_service import get_current_user
 from app.services import household_service as hs
 from app.services.nutrition import (
     calculate_bmr, calculate_tdee, calculate_target_calories,
-    get_activity_days_list, DAYS_OF_WEEK, DAYS_SHORT,
+    get_activity_days_list, get_effective_meal_times, DAYS_OF_WEEK, DAYS_SHORT,
 )
 from app.services.claude_service import (
     generate_meal_plan as claude_generate,
@@ -520,6 +521,28 @@ async def buscar_plato(
     ).all()
     avoided = [r[0] for r in saved_for_type]
 
+    # Determine pre/post-workout context for this specific meal
+    day_sessions = db.query(ActivityDayConfig).filter(
+        ActivityDayConfig.profile_id == profile.id,
+        ActivityDayConfig.day_of_week == meal.day_of_week,
+    ).all()
+    workout_context = None
+    if day_sessions:
+        meal_times = get_effective_meal_times(profile)
+        meal_time_str = meal_times.get(meal.meal_type)
+        earliest_start = min((s.start_time for s in day_sessions if s.start_time), default=None)
+        latest_end = max((s.end_time for s in day_sessions if s.end_time), default=None)
+        exercise_types = [s.exercise_type.name for s in day_sessions if s.exercise_type]
+        is_pre = bool(meal_time_str and earliest_start and meal_time_str < earliest_start)
+        is_post = bool(meal_time_str and latest_end and meal_time_str > latest_end)
+        workout_context = {
+            "exercise_types": exercise_types,
+            "earliest_start": earliest_start,
+            "latest_end": latest_end,
+            "is_pre_workout": is_pre,
+            "is_post_workout": is_post,
+        }
+
     try:
         if usar_stock == "sugerir":
             other_meals = db.query(Meal).filter(
@@ -535,6 +558,7 @@ async def buscar_plato(
                 current_meal_name=meal.name,
                 other_meals=[m.name for m in other_meals],
                 avoided_meals=avoided,
+                workout_context=workout_context,
             )
         else:
             stock_items = None
@@ -547,6 +571,7 @@ async def buscar_plato(
                 target_calories=target_calories,
                 stock_items=stock_items if usar_stock == "si" else None,
                 profile=profile,
+                workout_context=workout_context,
             )
         return JSONResponse(result)
     except Exception as e:
