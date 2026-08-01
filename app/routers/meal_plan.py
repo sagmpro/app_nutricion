@@ -320,9 +320,9 @@ def regenerar_comida(plan_id: int, meal_id: int, request: Request, db: Session =
         upsert_saved_meal(db, current_user.id, meal)
         db.commit()
     except Exception as e:
-        return RedirectResponse(f"/plan/{plan_id}?error=Error+regenerando+comida:+{str(e)[:80]}", status_code=303)
+        return RedirectResponse(f"/plan/{plan_id}?error=Error+regenerando+comida:+{str(e)[:80]}&day={meal.day_of_week}", status_code=303)
 
-    return RedirectResponse(f"/plan/{plan_id}", status_code=303)
+    return RedirectResponse(f"/plan/{plan_id}?day={meal.day_of_week}", status_code=303)
 
 
 @router.post("/plan/{plan_id}/eliminar")
@@ -383,6 +383,7 @@ def consumir_comida(plan_id: int, meal_id: int, request: Request, db: Session = 
         return RedirectResponse("/plan", status_code=303)
 
     meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    day_num = meal.day_of_week if meal else 0
     if meal:
         meal.consumed = not meal.consumed
         if not meal.consumed:
@@ -391,7 +392,7 @@ def consumir_comida(plan_id: int, meal_id: int, request: Request, db: Session = 
         else:
             _deduct_from_stock(db, meal, current_user.id)
         db.commit()
-    return RedirectResponse(f"/plan/{plan_id}", status_code=303)
+    return RedirectResponse(f"/plan/{plan_id}?day={day_num}", status_code=303)
 
 
 @router.post("/plan/{plan_id}/comida/{meal_id}/foto-preview")
@@ -424,6 +425,7 @@ async def confirmar_foto_consumida(
         return RedirectResponse("/plan", status_code=303)
 
     meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    day_num = meal.day_of_week if meal else 0
     if meal:
         already_consumed = meal.consumed
         meal.consumed = True
@@ -432,7 +434,7 @@ async def confirmar_foto_consumida(
         if not already_consumed:
             _deduct_from_stock(db, meal, current_user.id)
         db.commit()
-    return RedirectResponse(f"/plan/{plan_id}", status_code=303)
+    return RedirectResponse(f"/plan/{plan_id}?day={day_num}", status_code=303)
 
 
 @router.post("/plan/{plan_id}/comida/{meal_id}/receta")
@@ -554,6 +556,7 @@ async def reemplazar_plato(
         return RedirectResponse("/plan", status_code=303)
 
     meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    day_num = meal.day_of_week if meal else 0
     if meal:
         meal.name = nombre.strip()
         meal.description = descripcion.strip()
@@ -575,7 +578,7 @@ async def reemplazar_plato(
         upsert_saved_meal(db, current_user.id, meal)
         db.commit()
 
-    return RedirectResponse(f"/plan/{plan_id}?success=Comida+reemplazada", status_code=303)
+    return RedirectResponse(f"/plan/{plan_id}?success=Comida+reemplazada&day={day_num}", status_code=303)
 
 
 @router.post("/plan/{plan_id}/copiar")

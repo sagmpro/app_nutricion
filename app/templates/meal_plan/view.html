@@ -385,7 +385,7 @@
         </svg>
         <p class="text-sm text-gray-500">Claude está buscando...</p>
       </div>
-      <div id="buscar-error" class="hidden text-sm text-red-500 text-center py-4"></div>
+      <div id="buscar-error" class="hidden text-sm text-red-600 font-medium text-center py-4 px-3 bg-red-50 rounded-xl"></div>
       <div id="buscar-data" class="hidden">
         <div class="flex items-start justify-between gap-2 mb-2">
           <h4 id="res-nombre" class="font-semibold text-gray-800 text-base"></h4>
@@ -477,8 +477,19 @@ function showDay(idx) {
     el.classList.toggle('text-gray-500', !active);
     el.classList.toggle('hover:bg-gray-100', !active);
   });
+  try { sessionStorage.setItem('np_day_{{ meal_plan.id }}', String(idx)); } catch(e) {}
+  document.getElementById('tab-' + idx)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 }
-showDay(0);
+
+// Init: URL param > sessionStorage > today's weekday (0=Mon, 6=Sun)
+(function() {
+  const urlDay = new URLSearchParams(window.location.search).get('day');
+  let saved = null;
+  try { saved = sessionStorage.getItem('np_day_{{ meal_plan.id }}'); } catch(e) {}
+  const todayMon = (new Date().getDay() + 6) % 7;
+  const init = urlDay !== null ? parseInt(urlDay) : (saved !== null ? parseInt(saved) : todayMon);
+  showDay(Math.min(Math.max(0, init), 6));
+})();
 
 function togglePhotoForm(mealId) {
   if (window.matchMedia('(pointer: coarse)').matches) {
@@ -589,6 +600,9 @@ async function buscarPlato() {
     const resp = await fetch(`/plan/${_buscarPlanId}/comida/${_buscarMealId}/buscar-plato`, {
       method: 'POST', body: formData,
     });
+    if (!resp.ok && resp.status !== 200) {
+      throw new Error(`Error del servidor (${resp.status}). Intenta de nuevo.`);
+    }
     const data = await resp.json();
     if (data.error) throw new Error(data.error);
 
