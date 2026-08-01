@@ -365,9 +365,9 @@
         {% set raw_time = meal_times.get(meal_id, "") %}
         {% set is_auto = raw_time == "auto" %}
         {% set saved_time = raw_time if not is_auto else "" %}
-        <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-white transition-colors">
+        <div class="flex items-start gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-white transition-colors">
           <!-- Toggle -->
-          <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+          <label class="relative inline-flex items-center cursor-pointer flex-shrink-0 mt-0.5">
             <input type="checkbox" name="meal_enabled_{{ meal_id }}" value="1"
                    id="meal-cb-{{ meal_id }}"
                    {{ "checked" if is_on }}
@@ -378,40 +378,44 @@
                    class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-all {{ 'translate-x-5' if is_on }}"></div>
             </div>
           </label>
-          <!-- Icon + name -->
-          <span class="text-lg flex-shrink-0">{{ icon }}</span>
-          <span id="meal-label-{{ meal_id }}"
-                class="flex-1 text-sm font-medium {{ 'text-gray-400 line-through' if not is_on else 'text-gray-800' }}">
-            {{ label }}
-          </span>
-          <!-- Time section -->
-          <div class="flex items-center gap-2 flex-shrink-0">
-            <!-- Manual time input (hidden when auto) -->
-            <input type="time" name="meal_time_{{ meal_id }}"
-                   id="meal-time-{{ meal_id }}"
-                   value="{{ saved_time }}"
-                   {{ "disabled" if not is_on or is_auto }}
-                   class="input max-w-[100px] text-sm py-1.5
-                          {{ 'opacity-30 cursor-not-allowed' if not is_on }}
-                          {{ 'hidden' if is_auto }}">
-            <!-- Auto calculated time display -->
-            <span id="meal-autotime-{{ meal_id }}"
-                  class="text-sm font-mono font-semibold text-green-700 min-w-[52px] text-right {{ 'hidden' if not is_auto }}">
-              {{ effective_meal_times.get(meal_id, '') if is_auto else '' }}
-            </span>
-            <!-- Hidden flag for auto mode -->
-            <input type="hidden" id="meal-automode-{{ meal_id }}" name="meal_automode_{{ meal_id }}"
-                   value="{{ '1' if is_auto else '0' }}">
-            <!-- Auto toggle button -->
-            <button type="button" id="meal-autobtn-{{ meal_id }}"
-                    onclick="toggleAutoTime('{{ meal_id }}')"
-                    data-auto="{{ '1' if is_auto else '0' }}"
-                    {{ "disabled" if not is_on }}
-                    class="text-xs px-2 py-1.5 rounded-lg border transition-colors whitespace-nowrap flex-shrink-0
-                           {{ 'opacity-30 cursor-not-allowed pointer-events-none' if not is_on }}
-                           {{ 'bg-green-100 border-green-400 text-green-700 font-semibold' if is_auto else 'border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700' }}">
-              Auto
-            </button>
+          <!-- Icon + name + time stacked -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-lg flex-shrink-0">{{ icon }}</span>
+              <span id="meal-label-{{ meal_id }}"
+                    class="text-sm font-medium {{ 'text-gray-400 line-through' if not is_on else 'text-gray-800' }}">
+                {{ label }}
+              </span>
+            </div>
+            <!-- Time controls in second line -->
+            <div class="flex items-center gap-2 mt-1.5">
+              <!-- Manual time input (hidden when auto) -->
+              <input type="time" name="meal_time_{{ meal_id }}"
+                     id="meal-time-{{ meal_id }}"
+                     value="{{ saved_time }}"
+                     {{ "disabled" if not is_on or is_auto }}
+                     class="input w-[110px] text-sm py-1
+                            {{ 'opacity-30 cursor-not-allowed' if not is_on }}
+                            {{ 'hidden' if is_auto }}">
+              <!-- Auto calculated time display -->
+              <span id="meal-autotime-{{ meal_id }}"
+                    class="text-sm font-mono font-semibold text-green-700 {{ 'hidden' if not is_auto }}">
+                {{ effective_meal_times.get(meal_id, '') if is_auto else '' }}
+              </span>
+              <!-- Hidden flag for auto mode -->
+              <input type="hidden" id="meal-automode-{{ meal_id }}" name="meal_automode_{{ meal_id }}"
+                     value="{{ '1' if is_auto else '0' }}">
+              <!-- Auto toggle button -->
+              <button type="button" id="meal-autobtn-{{ meal_id }}"
+                      onclick="toggleAutoTime('{{ meal_id }}')"
+                      data-auto="{{ '1' if is_auto else '0' }}"
+                      {{ "disabled" if not is_on }}
+                      class="text-xs px-2.5 py-1 rounded-lg border transition-colors whitespace-nowrap flex-shrink-0
+                             {{ 'opacity-30 cursor-not-allowed pointer-events-none' if not is_on }}
+                             {{ 'bg-green-100 border-green-400 text-green-700 font-semibold' if is_auto else 'border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700' }}">
+                Auto
+              </button>
+            </div>
           </div>
         </div>
         {% endfor %}
