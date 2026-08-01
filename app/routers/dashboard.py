@@ -117,11 +117,18 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         tdee = calculate_tdee(bmr, len(activity_days))
         target = calculate_target_calories(profile, tdee)
         activity_names = [DAYS_OF_WEEK[d] for d in activity_days]
+        seen_et = set()
+        exercise_types = []
+        for cfg in (profile.activity_day_configs or []):
+            if cfg.exercise_type and cfg.exercise_type.id not in seen_et:
+                seen_et.add(cfg.exercise_type.id)
+                exercise_types.append(cfg.exercise_type)
         stats = {
             "bmr": round(bmr),
             "tdee": round(tdee),
             "target_calories": round(target),
             "activity_days": activity_names,
+            "exercise_types": exercise_types,
         }
 
         # Compute consumed meal counts for greeting
