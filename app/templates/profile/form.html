@@ -399,11 +399,12 @@
                        class="input w-full text-sm py-1
                               {{ 'opacity-30 cursor-not-allowed' if not is_on }}
                               {{ 'hidden' if is_auto }}">
-                <!-- Auto calculated time display (same space as input) -->
-                <span id="meal-autotime-{{ meal_id }}"
-                      class="block text-sm font-mono font-semibold text-green-700 py-1 {{ 'hidden' if not is_auto }}">
-                  {{ effective_meal_times.get(meal_id, '') if is_auto else '' }}
-                </span>
+                <!-- Auto calculated time: shown as a disabled input so it looks identical -->
+                <input type="time"
+                       id="meal-autotime-{{ meal_id }}"
+                       value="{{ effective_meal_times.get(meal_id, '') if is_auto else '' }}"
+                       disabled
+                       class="input w-full text-sm py-1 cursor-default {{ 'hidden' if not is_auto }}">
               </div>
               <!-- Hidden flag for auto mode -->
               <input type="hidden" id="meal-automode-{{ meal_id }}" name="meal_automode_{{ meal_id }}"
@@ -624,7 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btn.dataset.auto === '1') {
       const mealId = btn.id.replace('meal-autobtn-', '');
       const disp = document.getElementById('meal-autotime-' + mealId);
-      if (disp) disp.textContent = getAutoTime(mealId);
+      if (disp) disp.value = getAutoTime(mealId);
     }
   });
 });
@@ -668,7 +669,7 @@ function refreshAutoTimes() {
     if (btn.dataset.auto === '1') {
       const mealId = btn.id.replace('meal-autobtn-', '');
       const disp = document.getElementById('meal-autotime-' + mealId);
-      if (disp) disp.textContent = getAutoTime(mealId);
+      if (disp) disp.value = getAutoTime(mealId);
     }
   });
 }
@@ -693,7 +694,7 @@ function toggleAutoTime(mealId) {
     btn.className = btn.className.replace('border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700', 'bg-green-100 border-green-400 text-green-700 font-semibold');
     timeInput.classList.add('hidden');
     timeInput.disabled = true;
-    autoDisp.textContent = getAutoTime(mealId);
+    autoDisp.value = getAutoTime(mealId);
     autoDisp.classList.remove('hidden');
   }
 }
