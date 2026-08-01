@@ -339,15 +339,22 @@
         <textarea name="cooking_facilities" class="input w-full min-h-[72px] resize-y mt-1" rows="2"
                   placeholder="Ej: tengo horno, microondas y freidora de aire. Poco tiempo en el desayuno (máx 10 min).">{{ profile.cooking_facilities or '' if profile else '' }}</textarea>
       </div>
+      <!-- Repetición de comidas -->
+      <div>
+        <label class="label">Repetición de platos</label>
+        <div class="flex items-center gap-3 mt-1">
+          <input type="number" name="max_meal_repeats" class="input max-w-[80px] text-center text-lg font-bold"
+                 min="1" max="7" value="{{ profile.max_meal_repeats if profile else 2 }}">
+          <span class="text-sm text-gray-500">veces máximo el mismo plato por semana</span>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">Aplica a desayuno, almuerzo y cena. Los snacks se repiten siempre.</p>
+      </div>
     </div>
   </div>
 
   </div><!-- end goal/diet/pref 2-col grid -->
 
-  <!-- Bottom: Horario (izq) | Repetición (der) -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 items-start">
-
-  <!-- Meal schedule (left column) -->
+  <!-- Horario de comidas — ancho completo -->
   <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
     <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
       <span class="text-xl leading-none">🕐</span>
@@ -431,24 +438,6 @@
     </div>
   </div>
 
-  <!-- Meal repeats -->
-  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
-      <span class="text-xl leading-none">🔄</span>
-      <h2 class="text-sm font-semibold text-gray-800">Repetición de comidas</h2>
-    </div>
-    <div class="p-6">
-      <p class="text-gray-500 text-sm mb-4">¿Cuántas veces puedes repetir el mismo plato en la semana?</p>
-      <div class="flex items-center gap-3">
-        <input type="number" name="max_meal_repeats" class="input max-w-[80px] text-center text-lg font-bold"
-               min="1" max="7" value="{{ profile.max_meal_repeats if profile else 2 }}">
-        <span class="text-sm text-gray-500">veces máximo por receta (desayuno/almuerzo/cena)</span>
-      </div>
-      <p class="text-xs text-gray-400 mt-2">Los snacks siempre se repiten para optimizar tokens</p>
-    </div>
-  </div>
-
-  </div><!-- end bottom 2-col grid -->
 
   <!-- Floating save button -->
   <div class="fixed bottom-20 md:bottom-8 right-4 md:right-8 z-40">
@@ -468,7 +457,7 @@
     <span class="text-xl leading-none">⚠️</span>
     <h2 class="text-sm font-semibold text-red-700">Zona de peligro</h2>
   </div>
-  <div class="p-6">
+  <div class="p-6 text-center">
     <p class="text-sm text-gray-600 mb-4">Eliminar tu cuenta borra permanentemente todos tus datos: perfil, planes, stock e historial. Esta acción no se puede deshacer.</p>
     <button onclick="document.getElementById('modal-eliminar').classList.remove('hidden')" class="btn-danger" style="font-size:0.85rem">
       Eliminar mi cuenta
