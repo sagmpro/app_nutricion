@@ -269,20 +269,24 @@ Dirección culinaria a explorar esta vez: {direction}
 
 IMPORTANTE: Sé creativo. No repitas las opciones más predecibles ni lo que el usuario ya conoce. Sorprende con algo variado y apetecible.
 
+Elige los ingredientes y sus cantidades para que el total se acerque a ~{target_calories} kcal.
+CALCULA los valores nutricionales reales basándote en los ingredientes y cantidades que elijas — no copies el objetivo directamente.
+
 Responde ÚNICAMENTE con JSON válido:
 {{
   "tipo": "{meal_type}",
   "nombre": "Nombre del plato",
   "descripcion": "Descripción breve de preparación (máx 15 palabras)",
-  "calorias": {target_calories},
-  "proteinas_g": 25,
-  "carbohidratos_g": 40,
-  "grasas_g": 10,
+  "calorias": 0,
+  "proteinas_g": 0.0,
+  "carbohidratos_g": 0.0,
+  "grasas_g": 0.0,
   "ingredientes": [
     {{"nombre": "Ingrediente", "cantidad": 100, "unidad": "g"}}
   ]
 }}
 
+Reemplaza los 0 con los valores nutricionales calculados de los ingredientes que elijas.
 Máximo 5 ingredientes. País del usuario: {_country(profile)} — adapta ingredientes al contexto local.
 Indica el estado cuando sea relevante: "garbanzos cocidos", "lentejas crudas", "atún en conserva"."""
 
@@ -537,14 +541,18 @@ def buscar_plato_por_nombre(
     prompt = f"""{intro}
 {intolerances}
 {stock_section}
-Objetivo calórico: ~{target_calories} kcal.
+Objetivo calórico orientativo: ~{target_calories} kcal.
 
-{instruction} Responde ÚNICAMENTE con JSON válido:
+{instruction}
+
+CALCULA los valores nutricionales reales basándote en los ingredientes y cantidades que elijas — no copies el objetivo directamente.
+
+Responde ÚNICAMENTE con JSON válido:
 {{
   "tipo": "{meal_type}",
   "nombre": "Nombre del plato",
   "descripcion": "Descripción breve (máx 20 palabras)",
-  "calorias": {target_calories},
+  "calorias": 0,
   "proteinas_g": 0.0,
   "carbohidratos_g": 0.0,
   "grasas_g": 0.0,
@@ -554,6 +562,7 @@ Objetivo calórico: ~{target_calories} kcal.
   "receta_detallada": "Paso 1: ...\\nPaso 2: ...\\nPaso 3: ..."
 }}
 
+Reemplaza los 0 con los valores nutricionales reales calculados.
 Incluye 5-8 ingredientes con cantidades exactas y al menos 3 pasos de preparación.
 País del usuario: {_country(profile)} — usa ingredientes y nombres típicos de ese país."""
 
@@ -596,19 +605,22 @@ Perfil del usuario:
 
 {desc_line}
 
+CALCULA los valores nutricionales reales basándote en los ingredientes y cantidades que elijas.
+
 Responde ÚNICAMENTE con JSON válido:
 {{
   "nombre": "Nombre del plato",
   "descripcion": "Descripción breve de preparación (máx 15 palabras)",
-  "calorias": 400,
-  "proteinas_g": 25.0,
-  "carbohidratos_g": 40.0,
-  "grasas_g": 10.0,
+  "calorias": 0,
+  "proteinas_g": 0.0,
+  "carbohidratos_g": 0.0,
+  "grasas_g": 0.0,
   "ingredientes": [
     {{"nombre": "Ingrediente", "cantidad": 100, "unidad": "g"}}
   ]
 }}
 
+Reemplaza los 0 con los valores nutricionales reales calculados.
 Incluye 4-7 ingredientes con cantidades realistas. Usa nombres de ingredientes específicos y consistentes con el vocabulario local."""
 
     client = _get_client()
