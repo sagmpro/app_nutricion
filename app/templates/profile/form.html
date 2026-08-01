@@ -268,15 +268,27 @@
         <div class="grid grid-cols-3 gap-2 text-center">
           <div class="bg-green-50 rounded-xl p-3">
             <p class="text-xl font-bold text-green-700" id="bmr-display">{{ stats.bmr if stats else '—' }}</p>
-            <p class="text-xs text-green-600">TMB (kcal)</p>
+            <p class="text-xs text-green-600 flex items-center justify-center gap-1">
+              TMB (kcal)
+              <span class="tip text-green-400 hover:text-green-600 cursor-help"
+                    data-tip="Tasa Metabólica Basal: calorías mínimas que tu cuerpo necesita en reposo para funcionar (respirar, circulación, órganos). Nunca deberías comer menos que esto.">ⓘ</span>
+            </p>
           </div>
           <div class="bg-green-50 rounded-xl p-3">
             <p class="text-xl font-bold text-green-700" id="tdee-display">{{ stats.tdee if stats else '—' }}</p>
-            <p class="text-xs text-green-600">TDEE (kcal)</p>
+            <p class="text-xs text-green-600 flex items-center justify-center gap-1">
+              TDEE (kcal)
+              <span class="tip text-green-400 hover:text-green-600 cursor-help"
+                    data-tip="Total Daily Energy Expenditure: calorías totales que quemas al día incluyendo tu actividad física. Es tu punto de equilibrio calórico.">ⓘ</span>
+            </p>
           </div>
           <div class="bg-green-50 rounded-xl p-3">
             <p class="text-xl font-bold text-green-700" id="target-display">{{ stats.target_calories if stats else '—' }}</p>
-            <p class="text-xs text-green-600">Objetivo (kcal)</p>
+            <p class="text-xs text-green-600 flex items-center justify-center gap-1">
+              Objetivo (kcal)
+              <span class="tip text-green-400 hover:text-green-600 cursor-help"
+                    data-tip="Calorías diarias ajustadas a tu meta (déficit, superávit o mantenimiento). Es el número que Claude usa para generar tu plan.">ⓘ</span>
+            </p>
           </div>
         </div>
       </div>
