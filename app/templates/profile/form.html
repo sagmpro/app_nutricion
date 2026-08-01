@@ -123,12 +123,16 @@
             {% if sessions %}
             {% for cfg in sessions %}
             <div class="session-row flex flex-wrap gap-2 items-end">
-              <select name="day_{{ i }}_exercise_type" class="input text-sm flex-1 min-w-[140px]">
-                <option value="">— Sin tipo —</option>
-                {% for et in exercise_types %}
-                <option value="{{ et.id }}" {% if cfg.exercise_type_id == et.id %}selected{% endif %}>{{ et.icon }} {{ et.name }}</option>
-                {% endfor %}
-              </select>
+              <div class="flex gap-1 items-center flex-1 min-w-[140px]">
+                <select name="day_{{ i }}_exercise_type" class="input text-sm flex-1">
+                  <option value="">— Sin tipo —</option>
+                  {% for et in exercise_types %}
+                  <option value="{{ et.id }}" {% if cfg.exercise_type_id == et.id %}selected{% endif %}>{{ et.icon }} {{ et.name }}</option>
+                  {% endfor %}
+                </select>
+                <button type="button" onclick="removeSession(this, {{ i }})"
+                        class="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 text-lg leading-none">×</button>
+              </div>
               <div class="flex gap-2 items-end">
                 <div>
                   <label class="label text-xs">Inicio</label>
@@ -139,8 +143,6 @@
                   <input type="time" name="day_{{ i }}_end" value="{{ cfg.end_time or '' }}" class="input w-32 text-xs">
                 </div>
               </div>
-              <button type="button" onclick="removeSession(this, {{ i }})"
-                      class="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 text-lg leading-none mb-0.5">×</button>
             </div>
             {% endfor %}
             {% endif %}
@@ -504,13 +506,15 @@ function buildSessionRow(dayIndex) {
   const div = document.createElement('div');
   div.className = 'session-row flex flex-wrap gap-2 items-end';
   div.innerHTML = `
-    <select name="day_${dayIndex}_exercise_type" class="input text-sm flex-1 min-w-[140px]">${ET_OPTIONS_HTML}</select>
+    <div class="flex gap-1 items-center flex-1 min-w-[140px]">
+      <select name="day_${dayIndex}_exercise_type" class="input text-sm flex-1">${ET_OPTIONS_HTML}</select>
+      <button type="button" onclick="removeSession(this, ${dayIndex})"
+              class="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 text-lg leading-none">×</button>
+    </div>
     <div class="flex gap-2 items-end">
       <div><label class="label text-xs">Inicio</label><input type="time" name="day_${dayIndex}_start" class="input w-32 text-xs"></div>
       <div><label class="label text-xs">Fin</label><input type="time" name="day_${dayIndex}_end" class="input w-32 text-xs"></div>
-    </div>
-    <button type="button" onclick="removeSession(this, ${dayIndex})"
-            class="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 text-lg leading-none mb-0.5">×</button>`;
+    </div>`;
   return div;
 }
 
