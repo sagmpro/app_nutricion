@@ -265,7 +265,7 @@ País del usuario: {_country(profile)} — usa ingredientes, nombres y medidas t
     message = client.messages.create(
         model=MODEL,
         max_tokens=16000,
-        system="Eres un nutricionista deportivo experto con amplio conocimiento en rendimiento atlético, recuperación muscular, periodización nutricional y planificación de comidas para personas activas. Ajusta los planes considerando el momento del entrenamiento (pre/post-workout). Responde siempre con JSON válido, sin texto adicional ni bloques de código markdown.",
+        system="Eres un nutricionista deportivo experto con amplio conocimiento en rendimiento atlético, recuperación muscular, periodización nutricional y planificación de comidas para personas activas. Ajusta los planes considerando el momento del entrenamiento (pre/post-workout). Usa siempre ortografía española correcta con tildes y puntuación. Responde siempre con JSON válido, sin texto adicional ni bloques de código markdown.",
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("generate_meal_plan", message)
@@ -351,7 +351,7 @@ Indica el estado cuando sea relevante: "garbanzos cocidos", "lentejas crudas", "
         model=MODEL,
         max_tokens=1000,
         temperature=1.0,
-        system="Eres un nutricionista y chef creativo. Cada sugerencia debe ser diferente y sorprendente. Responde siempre con JSON válido, sin texto adicional.",
+        system="Eres un nutricionista y chef creativo. Cada sugerencia debe ser diferente y sorprendente. Usa siempre ortografía española correcta con tildes. Responde siempre con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("generate_single_meal", message)
@@ -376,8 +376,14 @@ Reglas de descuento:
 """
 
     prompt = f"""Consolida y categoriza los ingredientes de un plan semanal de comidas para generar la lista de lo que hay que COMPRAR.
-Agrupa ingredientes iguales sumando sus cantidades (misma unidad) o listando por separado (distintas unidades).
-Normaliza nombres (ej: "tomates" → "Tomate").
+
+NORMALIZACIÓN DE NOMBRES (muy importante):
+- Usa siempre el nombre simple y canónico del ingrediente: "pizca de sal" → "Sal", "dientes de ajo" → "Ajo", "hojas de albahaca" → "Albahaca", "tomates cherry" → "Tomate cherry".
+- Elimina descriptores de cantidad del nombre: "2 cucharadas de aceite de oliva" → nombre: "Aceite de oliva".
+- Unifica variantes del mismo ingrediente: "tomate" y "tomates" → "Tomate"; "pechuga de pollo" y "pollo" (si son el mismo ingrediente) → "Pechuga de pollo".
+- Capitaliza la primera letra del nombre, el resto en minúsculas.
+- Agrupa ingredientes con el mismo nombre normalizado sumando cantidades (misma unidad) o listando por separado (distintas unidades).
+- Escribe todos los textos con correcta ortografía española (tildes, puntuación).
 {stock_section}
 Ingredientes del plan: {json.dumps(all_ingredients, ensure_ascii=False)}
 
@@ -401,7 +407,7 @@ Si todos los ingredientes están cubiertos por el stock, devuelve {{"lista": []}
     message = client.messages.create(
         model=MODEL_HAIKU,
         max_tokens=4000,
-        system="Eres un asistente de compras. Responde siempre con JSON válido, sin texto adicional.",
+        system="Eres un asistente de compras. Usa ortografía española correcta con tildes en todos los nombres. Responde siempre con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("generate_shopping_list", message)
@@ -446,7 +452,7 @@ Máximo 8 pasos concisos. Cocina española/latinoamericana."""
     message = client.messages.create(
         model=MODEL_HAIKU,
         max_tokens=800,
-        system="Eres un chef experto. Responde siempre con JSON válido, sin texto adicional.",
+        system="Eres un chef experto. Usa ortografía española correcta con tildes. Responde siempre con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("generate_recipe", message)
@@ -502,7 +508,7 @@ Incluye en enabled_meals y meal_times SOLO las comidas que recomiendas. Formato 
     message = client.messages.create(
         model=MODEL_HAIKU,
         max_tokens=600,
-        system="Eres un nutricionista deportivo experto. Responde siempre con JSON válido, sin texto adicional.",
+        system="Eres un nutricionista deportivo experto. Usa ortografía española correcta con tildes. Responde siempre con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("propose_meal_schedule", message)
@@ -551,7 +557,7 @@ País del usuario: {_country(profile)} — usa ingredientes y nombres típicos d
     message = client.messages.create(
         model=MODEL,
         max_tokens=1500,
-        system="Eres un chef y nutricionista experto. Genera recetas reales con pasos detallados. Responde SOLO con JSON válido.",
+        system="Eres un chef y nutricionista experto. Genera recetas reales con pasos detallados. Usa ortografía española correcta con tildes. Responde SOLO con JSON válido.",
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("generate_real_recipe_meal", message)
@@ -629,7 +635,7 @@ País del usuario: {_country(profile)} — usa ingredientes y nombres típicos d
     message = client.messages.create(
         model=MODEL,
         max_tokens=1500,
-        system="Eres un chef y nutricionista experto. Responde SOLO con JSON válido.",
+        system="Eres un chef y nutricionista experto. Usa ortografía española correcta con tildes. Responde SOLO con JSON válido.",
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("buscar_plato_por_nombre", message)
@@ -742,7 +748,7 @@ def generate_goal_description(profile, user_description: str) -> str:
     message = client.messages.create(
         model=MODEL_HAIKU,
         max_tokens=350,
-        system="Eres nutricionista. Conviertes descripciones informales de objetivos en texto claro y útil para generar planes alimenticios personalizados.",
+        system="Eres nutricionista. Conviertes descripciones informales de objetivos en texto claro y útil para generar planes alimenticios personalizados. Usa siempre ortografía española correcta con tildes y puntuación.",
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("generate_goal_description", message)
