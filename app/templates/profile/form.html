@@ -166,7 +166,7 @@
   <input type="hidden" name="training_time" value="{{ profile.training_time if profile and profile.training_time else '' }}">
   <input type="hidden" name="training_end" value="{{ profile.training_end if profile and profile.training_end else '' }}">
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-5"><!-- reopen 2-col grid for following sections -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 items-start"><!-- reopen 2-col grid for following sections -->
 
   <!-- Goal -->
   <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
@@ -253,69 +253,56 @@
                   placeholder="Ej: Quiero bajar de peso pero sin sacrificar músculo. Tengo una maratón en 3 meses y necesito energía para entrenar 5 días por semana...">{{ profile.goal_description or '' if profile else '' }}</textarea>
         <p class="text-xs text-gray-400 mt-1">Claude adaptará el plan exactamente a lo que describes</p>
       </div>
-    </div>
-  </div>
-
-  <!-- BMR/TDEE preview -->
-  <div id="calc-section" class="{{ 'block' if profile else 'hidden' }} bg-green-50 rounded-2xl shadow border border-green-200 overflow-hidden">
-    <div class="border-b border-green-200 px-6 py-4 bg-green-100 flex items-center gap-3">
-      <span class="text-xl leading-none">🧮</span>
-      <h2 class="text-sm font-semibold text-green-800">Cálculo estimado</h2>
-    </div>
-    <div class="p-6">
-      <div class="grid grid-cols-3 gap-4 text-center">
-        <div>
-          <p class="text-xl font-bold text-green-700" id="bmr-display">{{ stats.bmr if stats else '—' }}</p>
-          <p class="text-xs text-green-600">TMB (kcal)</p>
-        </div>
-        <div>
-          <p class="text-xl font-bold text-green-700" id="tdee-display">{{ stats.tdee if stats else '—' }}</p>
-          <p class="text-xs text-green-600">TDEE (kcal)</p>
-        </div>
-        <div>
-          <p class="text-xl font-bold text-green-700" id="target-display">{{ stats.target_calories if stats else '—' }}</p>
-          <p class="text-xs text-green-600">Objetivo (kcal)</p>
+      <!-- Cálculo estimado — integrado -->
+      <div id="calc-section" class="{{ '' if profile else 'hidden' }} mt-5 pt-4 border-t border-gray-100">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">🧮 Cálculo estimado</p>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-green-50 rounded-xl p-3">
+            <p class="text-xl font-bold text-green-700" id="bmr-display">{{ stats.bmr if stats else '—' }}</p>
+            <p class="text-xs text-green-600">TMB (kcal)</p>
+          </div>
+          <div class="bg-green-50 rounded-xl p-3">
+            <p class="text-xl font-bold text-green-700" id="tdee-display">{{ stats.tdee if stats else '—' }}</p>
+            <p class="text-xs text-green-600">TDEE (kcal)</p>
+          </div>
+          <div class="bg-green-50 rounded-xl p-3">
+            <p class="text-xl font-bold text-green-700" id="target-display">{{ stats.target_calories if stats else '—' }}</p>
+            <p class="text-xs text-green-600">Objetivo (kcal)</p>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Diet type -->
+  <!-- Preferencias (includes diet type + food prefs + cooking) -->
   <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
     <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
       <span class="text-xl leading-none">🥗</span>
-      <h2 class="text-sm font-semibold text-gray-800">Tipo de dieta</h2>
-    </div>
-    <div class="p-6">
-      <p class="text-gray-500 text-sm mb-4">Claude seguirá este estilo en todos tus planes</p>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {% set diet_options = [
-          ("omnivoro",     "🍖", "Omnívoro"),
-          ("vegetariano",  "🥗", "Vegetariano"),
-          ("vegano",       "🌱", "Vegano"),
-          ("pescetariano", "🐟", "Pescetariano"),
-        ] %}
-        {% for val, icon, label in diet_options %}
-        <label class="diet-card border-2 rounded-xl p-3 cursor-pointer text-center transition-colors hover:border-green-400
-                      {{ 'border-green-500 bg-green-50' if (profile and profile.dietary_type == val) or (not profile and val == 'omnivoro') else 'border-gray-200' }}">
-          <input type="radio" name="dietary_type" value="{{ val }}" class="sr-only"
-                 {{ "checked" if (profile and profile.dietary_type == val) or (not profile and val == 'omnivoro') }}>
-          <div class="text-2xl mb-1">{{ icon }}</div>
-          <div class="text-xs font-medium text-gray-700">{{ label }}</div>
-        </label>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
-
-  <!-- Food preferences -->
-  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
-      <span class="text-xl leading-none">🚫</span>
-      <h2 class="text-sm font-semibold text-gray-800">Preferencias y restricciones</h2>
+      <h2 class="text-sm font-semibold text-gray-800">Dieta y preferencias</h2>
     </div>
     <div class="p-6 space-y-5">
       <p class="text-gray-500 text-sm -mt-1">Claude usará esto en cada plan que generes</p>
+      <!-- Tipo de dieta -->
+      <div>
+        <label class="label">Tipo de dieta</label>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">
+          {% set diet_options = [
+            ("omnivoro",     "🍖", "Omnívoro"),
+            ("vegetariano",  "🥗", "Vegetariano"),
+            ("vegano",       "🌱", "Vegano"),
+            ("pescetariano", "🐟", "Pescetariano"),
+          ] %}
+          {% for val, icon, label in diet_options %}
+          <label class="diet-card border-2 rounded-xl p-3 cursor-pointer text-center transition-colors hover:border-green-400
+                        {{ 'border-green-500 bg-green-50' if (profile and profile.dietary_type == val) or (not profile and val == 'omnivoro') else 'border-gray-200' }}">
+            <input type="radio" name="dietary_type" value="{{ val }}" class="sr-only"
+                   {{ "checked" if (profile and profile.dietary_type == val) or (not profile and val == 'omnivoro') }}>
+            <div class="text-2xl mb-1">{{ icon }}</div>
+            <div class="text-xs font-medium text-gray-700">{{ label }}</div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
 
       <!-- preferred_foods -->
       <div>
@@ -346,12 +333,18 @@
              data-placeholder="Ej: lactosa, gluten, frutos secos… (Enter para agregar)"></div>
         <p class="text-xs text-gray-400 mt-1">Se excluirán estrictamente</p>
       </div>
+      <!-- Facilidades de cocina -->
+      <div>
+        <label class="label">Facilidades de cocina <span class="text-gray-400 normal-case font-normal">(opcional)</span></label>
+        <textarea name="cooking_facilities" class="input w-full min-h-[72px] resize-y mt-1" rows="2"
+                  placeholder="Ej: tengo horno, microondas y freidora de aire. Poco tiempo en el desayuno (máx 10 min).">{{ profile.cooking_facilities or '' if profile else '' }}</textarea>
+      </div>
     </div>
   </div>
 
   </div><!-- end goal/diet/pref 2-col grid -->
 
-  <!-- Bottom desktop: Horario (izq) | Facilidades + Repetición apilados (der) -->
+  <!-- Bottom: Horario (izq) | Repetición (der) -->
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 items-start">
 
   <!-- Meal schedule (left column) -->
@@ -438,22 +431,6 @@
     </div>
   </div>
 
-  <!-- Right column: Facilidades + Repetición apilados -->
-  <div class="space-y-5">
-
-  <!-- Cooking facilities -->
-  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
-      <span class="text-xl leading-none">🍳</span>
-      <h2 class="text-sm font-semibold text-gray-800">Facilidades de cocina</h2>
-    </div>
-    <div class="p-6">
-      <p class="text-gray-500 text-sm mb-4">Equipamiento disponible para preparar comidas</p>
-      <textarea name="cooking_facilities" class="input w-full min-h-[80px] resize-y" rows="3"
-                placeholder="Ej: tengo horno, microondas y freidora de aire. Sin estufa de gas. Poco tiempo en el desayuno (máx 10 min).">{{ profile.cooking_facilities or '' if profile else '' }}</textarea>
-    </div>
-  </div>
-
   <!-- Meal repeats -->
   <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
     <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
@@ -471,12 +448,16 @@
     </div>
   </div>
 
-  </div><!-- end right column -->
   </div><!-- end bottom 2-col grid -->
 
-  <div class="flex justify-center sm:justify-end pt-2 pb-4">
-    <button type="submit" class="btn-primary" style="padding: 0.75rem 3rem; font-size: 1rem; min-width: 220px;">
-      Guardar configuración
+  <!-- Floating save button -->
+  <div class="fixed bottom-20 md:bottom-8 right-4 md:right-8 z-40">
+    <button type="submit"
+            class="btn-primary shadow-2xl rounded-full px-6 py-3 flex items-center gap-2 text-sm font-semibold">
+      <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+      </svg>
+      Guardar
     </button>
   </div>
 </form>
