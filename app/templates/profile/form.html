@@ -184,7 +184,7 @@
         ("performance",     "🏃", "Rendimiento deportivo",  "Superávit ligero para recuperación"),
         ("custom",          "✏️", "Personalizado",          "Describe tu objetivo con texto libre"),
       ] %}
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+      <div class="grid grid-cols-2 gap-3 mb-5">
         {% for val, icon, label, hint in goals %}
         <label class="goal-card border-2 rounded-xl p-3 cursor-pointer transition-colors hover:border-green-400
                       {{ 'border-green-500 bg-green-50' if cur_goal == val else 'border-gray-200' }}"
@@ -209,19 +209,19 @@
       <div id="fields-fat_loss" class="{{ '' if cur_goal == 'fat_loss' else 'hidden' }} space-y-4">
         <div class="grid grid-cols-3 gap-4">
           <div>
-            <label class="label">% Grasa actual</label>
+            <label class="label text-xs">% Grasa actual</label>
             <input type="number" name="current_fat_pct" class="input" step="0.1" min="5" max="60"
               value="{{ profile.current_fat_pct if profile and profile.current_fat_pct else '' }}"
               placeholder="Ej: 22">
           </div>
           <div>
-            <label class="label">% Grasa objetivo</label>
+            <label class="label text-xs">% Grasa objetivo</label>
             <input type="number" name="target_fat_pct" class="input" step="0.1" min="5" max="60"
               value="{{ profile.target_fat_pct if profile and profile.target_fat_pct else '' }}"
               placeholder="Ej: 15">
           </div>
           <div>
-            <label class="label">En cuántos días</label>
+            <label class="label text-xs">En cuántos días</label>
             <input type="number" name="target_days" class="input" min="30" max="365"
               value="{{ profile.target_days if profile and profile.target_days else '' }}"
               placeholder="Ej: 90">
@@ -249,8 +249,17 @@
 
       <div id="fields-custom" class="{{ '' if cur_goal == 'custom' else 'hidden' }}">
         <label class="label">Describe tu objetivo</label>
-        <textarea name="goal_description" class="input w-full min-h-[90px] resize-y" rows="3"
-                  placeholder="Ej: Quiero bajar de peso pero sin sacrificar músculo. Tengo una maratón en 3 meses y necesito energía para entrenar 5 días por semana...">{{ profile.goal_description or '' if profile else '' }}</textarea>
+        <div class="relative">
+          <textarea name="goal_description" id="goal-description-text" class="input w-full min-h-[90px] resize-y pb-10" rows="3"
+                    placeholder="Ej: Quiero bajar de peso pero sin sacrificar músculo. Tengo una maratón en 3 meses y necesito energía para entrenar 5 días por semana...">{{ profile.goal_description or '' if profile else '' }}</textarea>
+          <button type="button" onclick="generarObjetivoIA()" id="btn-generar-objetivo"
+                  class="absolute bottom-2 right-2 text-xs bg-violet-600 text-white px-2.5 py-1 rounded-lg hover:bg-violet-700 transition-colors flex items-center gap-1 font-medium">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+            </svg>
+            Generar con IA
+          </button>
+        </div>
         <p class="text-xs text-gray-400 mt-1">Claude adaptará el plan exactamente a lo que describes</p>
       </div>
       <!-- Cálculo estimado — integrado -->
@@ -888,6 +897,34 @@ function toggleMeal(mealId, enabled) {
     timeInput.classList.add('opacity-30', 'cursor-not-allowed');
     if (autoBtn) autoBtn.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
     thumb.classList.remove('translate-x-5');
+  }
+}
+
+async function generarObjetivoIA() {
+  const textarea = document.getElementById('goal-description-text');
+  const btn = document.getElementById('btn-generar-objetivo');
+  const text = textarea.value.trim();
+  if (!text) {
+    textarea.focus();
+    textarea.setAttribute('placeholder', 'Escribe primero qué quieres lograr...');
+    return;
+  }
+  btn.disabled = true;
+  btn.innerHTML = '<svg class="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Generando...';
+  try {
+    const resp = await fetch('/perfil/generar-objetivo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: text })
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    textarea.value = data.description;
+  } catch(e) {
+    alert('Error al generar: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Generar con IA';
   }
 }
 </script>

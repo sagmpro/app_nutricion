@@ -88,6 +88,24 @@ async def proponer_horario(request: Request, db: Session = Depends(get_db)):
         return JSONResponse({"error": str(e)[:120]}, status_code=500)
 
 
+@router.post("/perfil/generar-objetivo")
+async def generar_objetivo_ia(request: Request, db: Session = Depends(get_db)):
+    from app.services.claude_service import generate_goal_description
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+    body = await request.json()
+    description = (body.get("description") or "").strip()
+    if not description:
+        return JSONResponse({"error": "Descripción vacía"}, status_code=400)
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
+    try:
+        result = generate_goal_description(profile, description)
+        return JSONResponse({"description": result})
+    except Exception as e:
+        return JSONResponse({"error": str(e)[:120]}, status_code=500)
+
+
 @router.post("/perfil")
 async def perfil_save(
     request: Request,

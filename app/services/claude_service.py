@@ -711,3 +711,39 @@ Categorías: Frutas y Verduras, Proteínas, Lácteos y Huevos, Cereales y Legumb
     )
     _log_usage("identify_stock_photo", message)
     return _parse_json(message.content[0].text)
+
+
+def generate_goal_description(profile, user_description: str) -> str:
+    """Refine the user's free-text goal into a clear, actionable objective for meal plan generation."""
+    profile_ctx = ""
+    if profile:
+        try:
+            from app.services.nutrition import calculate_bmr, calculate_tdee, get_activity_days_list
+            bmr = calculate_bmr(profile)
+            n_days = len(get_activity_days_list(profile))
+            tdee = calculate_tdee(bmr, n_days)
+            profile_ctx = (
+                f"\nDatos del usuario: {profile.age} años, {profile.gender}, "
+                f"{profile.weight_kg} kg, {profile.height_cm} cm. "
+                f"TMB {round(bmr)} kcal, TDEE {round(tdee)} kcal, {n_days} días/semana de entrenamiento."
+            )
+        except Exception:
+            pass
+
+    prompt = (
+        f"El usuario quiere personalizar su objetivo nutricional y ha escrito:\n\n"
+        f"\"{user_description}\"\n"
+        f"{profile_ctx}\n\n"
+        "Transforma esto en una descripción concisa (2-4 frases) y precisa para generar su plan de comidas personalizado. "
+        "Incluye: objetivo principal, contexto relevante (eventos, plazos, limitaciones) y cualquier preferencia mencionada. "
+        "Responde SOLO con la descripción mejorada, sin introducción ni explicaciones."
+    )
+    client = _get_client()
+    message = client.messages.create(
+        model=MODEL_HAIKU,
+        max_tokens=350,
+        system="Eres nutricionista. Conviertes descripciones informales de objetivos en texto claro y útil para generar planes alimenticios personalizados.",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    _log_usage("generate_goal_description", message)
+    return message.content[0].text.strip()
