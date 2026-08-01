@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Dashboard - NutriPlan{% endblock %}
+{% block title %}Inicio - NutriPlan{% endblock %}
 
 {% block content %}
 
@@ -15,226 +15,246 @@
 
 <!-- Greeting banner -->
 {% if greeting %}
-{% set bg = "bg-green-600 text-white" if greeting.color == "green" else ("bg-blue-600 text-white" if greeting.color == "blue" else "bg-amber-500 text-white") %}
-<div class="rounded-2xl p-5 mb-6 {{ bg }} flex items-center gap-4">
-  <span class="text-4xl flex-shrink-0">{{ greeting.emoji }}</span>
-  <div>
-    <h1 class="text-xl font-bold leading-tight">{{ greeting.greeting }}</h1>
-    <p class="text-sm opacity-90 mt-0.5">{{ greeting.message }}</p>
+{% set bg = "from-green-500 to-green-700" if greeting.color == "green" else ("from-blue-500 to-blue-700" if greeting.color == "blue" else "from-amber-400 to-amber-600") %}
+<div class="rounded-2xl px-5 py-4 mb-5 bg-gradient-to-br {{ bg }} text-white flex items-center gap-4 shadow-sm">
+  <span class="text-3xl flex-shrink-0">{{ greeting.emoji }}</span>
+  <div class="min-w-0 flex-1">
+    <h1 class="text-base font-bold leading-tight">{{ greeting.greeting }}</h1>
+    <p class="text-sm opacity-85 mt-0.5">{{ greeting.message }}</p>
   </div>
 </div>
 {% endif %}
 
-<!-- Stats row -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-
-  <div class="bg-green-600 rounded-2xl p-4 text-white">
-    <p class="text-xs font-medium text-green-200 mb-1 flex items-center gap-1">
-      🎯 Objetivo diario
-      <span class="tip text-green-300 hover:text-white ml-0.5"
-            data-tip="Calorías que debes consumir al día para alcanzar tu meta. Se calcula restando el déficit a tu TDEE.">ⓘ</span>
-    </p>
-    <p class="text-3xl font-bold">{{ stats.target_calories }}</p>
-    <p class="text-xs text-green-200 mt-0.5">kcal/día</p>
+<!-- Stats pills (3 compact) -->
+<div class="grid grid-cols-3 gap-3 mb-5">
+  <div class="bg-green-600 rounded-2xl px-3 py-3 text-white text-center shadow-sm">
+    <p class="text-[10px] font-semibold text-green-200 uppercase tracking-wide mb-1">🎯 Objetivo</p>
+    <p class="text-2xl font-bold leading-none">{{ stats.target_calories }}</p>
+    <p class="text-[10px] text-green-200 mt-1">kcal/día</p>
   </div>
-
-  <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-    <p class="text-xs font-medium text-gray-400 mb-1 flex items-center gap-1">
-      ⚡ TDEE
-      <span class="tip text-gray-300 hover:text-gray-600 ml-0.5"
-            data-tip="Total Daily Energy Expenditure: calorías totales que quemas al día incluyendo actividad física. Es tu punto de equilibrio calórico.">ⓘ</span>
-    </p>
-    <p class="text-3xl font-bold text-gray-800">{{ stats.tdee }}</p>
-    <p class="text-xs text-gray-400 mt-0.5">kcal/día</p>
+  <div class="bg-white rounded-2xl px-3 py-3 border border-gray-100 shadow-sm text-center">
+    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">⚡ TDEE</p>
+    <p class="text-2xl font-bold text-gray-800 leading-none">{{ stats.tdee }}</p>
+    <p class="text-[10px] text-gray-400 mt-1">kcal/día</p>
   </div>
-
-  <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-    <p class="text-xs font-medium text-gray-400 mb-1 flex items-center gap-1">
-      🔥 TMB
-      <span class="tip text-gray-300 hover:text-gray-600 ml-0.5"
-            data-tip="Tasa Metabólica Basal: calorías mínimas que tu cuerpo necesita en reposo absoluto para funcionar (respirar, circulación, órganos). Nunca deberías comer menos que esto.">ⓘ</span>
-    </p>
-    <p class="text-3xl font-bold text-gray-800">{{ stats.bmr }}</p>
-    <p class="text-xs text-gray-400 mt-0.5">kcal/día</p>
+  <div class="bg-white rounded-2xl px-3 py-3 border border-gray-100 shadow-sm text-center">
+    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">🏃 Activos</p>
+    <p class="text-2xl font-bold text-gray-800 leading-none">{{ stats.activity_days | length }}</p>
+    <p class="text-[10px] text-gray-400 mt-1">días/sem</p>
   </div>
-
-  <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-    <p class="text-xs font-medium text-gray-400 mb-1 flex items-center gap-1">
-      🏃 Días activos
-      <span class="tip text-gray-300 hover:text-gray-600 ml-0.5"
-            data-tip="Días a la semana que haces ejercicio. Más días activos = mayor TDEE, ya que quemas más calorías.">ⓘ</span>
-    </p>
-    <p class="text-3xl font-bold text-gray-800">{{ stats.activity_days | length }}</p>
-    <p class="text-xs text-gray-400 mt-0.5">días/semana</p>
-  </div>
-
 </div>
 
-<!-- Main grid -->
+<!-- Plan hero card -->
+<div class="card mb-5">
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="font-semibold text-gray-800">Plan de esta semana</h2>
+    {% if latest_plan %}
+    <a href="/plan/{{ latest_plan.id }}" class="text-xs font-medium text-green-600 hover:text-green-700">Ver completo →</a>
+    {% endif %}
+  </div>
+
+  {% if latest_plan %}
+    <!-- Status row -->
+    <div class="flex items-center gap-3 p-3.5 rounded-xl mb-4
+      {{ 'bg-green-50 border border-green-100' if latest_plan.status == 'approved' else 'bg-amber-50 border border-amber-100' }}">
+      {% if latest_plan.status == "approved" %}
+        <div class="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+          <svg class="w-4.5 h-4.5 text-green-600 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-green-700">Plan aprobado</p>
+          <p class="text-xs text-green-600 opacity-80">Semana del {{ latest_plan.week_start.strftime("%d/%m/%Y") }}</p>
+        </div>
+        <a href="/plan/{{ latest_plan.id }}" class="text-xs text-green-600 font-medium hover:text-green-700 flex-shrink-0">Ver →</a>
+      {% else %}
+        <div class="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-amber-700">Pendiente de aprobación</p>
+          <p class="text-xs text-amber-600 opacity-80">Semana del {{ latest_plan.week_start.strftime("%d/%m/%Y") }}</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Actions -->
+    <div class="flex gap-2.5">
+      {% if latest_plan.shopping_list %}
+        <a href="/compras/{{ latest_plan.shopping_list.id }}"
+           class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-green-50 hover:border-green-200 text-sm font-medium text-gray-700 hover:text-green-700 transition-colors">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+          </svg>
+          Lista de compras
+        </a>
+      {% else %}
+        <form method="POST" action="/plan/{{ latest_plan.id }}/lista-compras" class="flex-1"
+              data-loading data-loading-title="Generando lista de compras..."
+              data-loading-subtitle="Claude está consolidando todos los ingredientes.">
+          <button class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-green-50 hover:border-green-200 text-sm font-medium text-gray-700 hover:text-green-700 transition-colors">
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+            Generar compras
+          </button>
+        </form>
+      {% endif %}
+      {% if latest_plan.status != "approved" %}
+        <a href="/plan/{{ latest_plan.id }}"
+           class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-sm font-semibold text-white transition-colors">
+          Revisar y aprobar →
+        </a>
+      {% else %}
+        <a href="/plan"
+           class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-sm font-semibold text-white transition-colors">
+          ✨ Nuevo plan
+        </a>
+      {% endif %}
+    </div>
+
+  {% else %}
+    <!-- No plan state -->
+    <div class="text-center py-8">
+      <div class="w-14 h-14 rounded-2xl bg-green-50 border border-green-100 flex items-center justify-center mx-auto mb-3">
+        <svg class="w-7 h-7 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+      </div>
+      <p class="text-gray-500 text-sm mb-4">No tienes ningún plan para esta semana.</p>
+      <a href="/plan" class="btn-primary text-sm px-6">✨ Generar mi plan con IA</a>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Bottom 2-col -->
 <div class="grid md:grid-cols-2 gap-5">
 
-  <!-- Profile summary -->
+  <!-- Profile summary (condensed) -->
   <div class="card">
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="font-semibold text-gray-800">Mi Perfil</h2>
-      <a href="/perfil" class="btn-ghost text-xs text-green-600 hover:text-green-700 hover:bg-green-50">Editar →</a>
-    </div>
-    <div class="divide-y divide-gray-200 border border-gray-200 rounded-xl overflow-hidden">
-      {% set profile_rows = [
-        ("👤", "Nombre",       profile.name),
-        ("⚖️", "Peso / Altura", profile.weight_kg | string ~ " kg / " ~ profile.height_cm | string ~ " cm"),
-        ("🎂", "Edad",          profile.age | string ~ " años, " ~ ("Hombre" if profile.gender == "male" else "Mujer")),
-        ("🎯", "Objetivo",      "Déficit calórico" if profile.goal_type == "caloric_deficit" else "Pérdida de grasa"),
-      ] %}
-      {% for icon, label, value in profile_rows %}
-      <div class="flex items-center gap-3 px-4 py-3.5 {{ 'bg-gray-50' if loop.index is even else 'bg-white' }}">
-        <span class="text-base w-6 text-center flex-shrink-0">{{ icon }}</span>
-        <span class="text-xs font-medium text-gray-400 uppercase tracking-wide w-28 flex-shrink-0">{{ label }}</span>
-        <span class="text-sm font-semibold text-gray-800 flex-1 text-right">{{ value }}</span>
+    <div class="flex justify-between items-start mb-3">
+      <div class="min-w-0 flex-1">
+        <p class="font-bold text-gray-800 text-base leading-tight">{{ profile.name }}</p>
+        <p class="text-xs text-gray-400 mt-0.5">
+          {% if profile.goal_type == "caloric_deficit" %}Déficit calórico
+          {% elif profile.goal_type == "fat_loss" %}Pérdida de grasa
+          {% elif profile.goal_type == "muscle_gain" %}Ganancia muscular
+          {% elif profile.goal_type == "maintenance" %}Mantenimiento
+          {% elif profile.goal_type == "performance" %}Rendimiento deportivo
+          {% else %}Personalizado{% endif %}
+          &nbsp;·&nbsp;{{ profile.age }} años&nbsp;·&nbsp;{{ "Hombre" if profile.gender == "male" else "Mujer" }}
+        </p>
       </div>
-      {% endfor %}
-      {% if stats.activity_days %}
-      <div class="flex items-start gap-3 px-4 py-3.5 {{ 'bg-gray-50' if (profile_rows | length + 1) is even else 'bg-white' }}">
-        <span class="text-base w-6 text-center flex-shrink-0 mt-0.5">📅</span>
-        <span class="text-xs font-medium text-gray-400 uppercase tracking-wide w-28 flex-shrink-0 mt-0.5">Días activos</span>
-        <span class="text-sm font-semibold text-gray-800 flex-1 text-right leading-snug">{{ stats.activity_days | join(", ") }}</span>
-      </div>
-      {% endif %}
+      <a href="/perfil" class="text-xs font-medium text-green-600 hover:text-green-700 ml-3 flex-shrink-0">Editar →</a>
     </div>
-  </div>
 
-  <!-- Plan status -->
-  <div class="card">
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="font-semibold text-gray-800">Plan Semanal</h2>
-      {% if latest_plan %}
-      <a href="/plan/{{ latest_plan.id }}" class="btn-ghost text-xs text-green-600 hover:text-green-700 hover:bg-green-50">Ver plan →</a>
-      {% endif %}
+    <!-- Metrics chips -->
+    <div class="flex flex-wrap gap-2 mb-3">
+      <span class="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-1.5 rounded-lg">
+        <svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/>
+        </svg>
+        {{ profile.weight_kg }} kg
+      </span>
+      <span class="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-1.5 rounded-lg">
+        <svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/>
+        </svg>
+        {{ profile.height_cm }} cm
+      </span>
+      <span class="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-1.5 rounded-lg">
+        🔥 TMB {{ stats.bmr }}
+      </span>
     </div>
-    {% if latest_plan %}
-      <!-- Status badge -->
-      <div class="flex items-center gap-3 p-3 rounded-xl {{ 'bg-green-50 border border-green-100' if latest_plan.status == 'approved' else 'bg-amber-50 border border-amber-100' }} mb-4">
-        {% if latest_plan.status == "approved" %}
-          <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-            </svg>
-          </div>
-          <div>
-            <p class="text-sm font-semibold text-green-700">Plan aprobado</p>
-            <p class="text-xs text-green-600">Semana del {{ latest_plan.week_start.strftime("%d/%m/%Y") }}</p>
-          </div>
-        {% else %}
-          <div class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </div>
-          <div>
-            <p class="text-sm font-semibold text-amber-700">Pendiente de aprobación</p>
-            <p class="text-xs text-amber-600">Semana del {{ latest_plan.week_start.strftime("%d/%m/%Y") }}</p>
-          </div>
-        {% endif %}
-      </div>
-      <div class="space-y-2">
-        {% if latest_plan.shopping_list %}
-          <a href="/compras/{{ latest_plan.shopping_list.id }}" class="btn-secondary text-sm w-full">🛒 Ver lista de compras</a>
-        {% else %}
-          <form method="POST" action="/plan/{{ latest_plan.id }}/lista-compras"
-                data-loading data-loading-title="Generando lista de compras..."
-                data-loading-subtitle="Claude está consolidando todos los ingredientes.">
-            <button class="btn-primary text-sm w-full">🛒 Generar lista de compras</button>
-          </form>
-        {% endif %}
-        {% if latest_plan.status != "approved" %}
-          <a href="/plan/{{ latest_plan.id }}" class="btn-secondary text-sm w-full">Revisar y aprobar →</a>
-        {% endif %}
-      </div>
-    {% else %}
-      <div class="text-center py-6">
-        <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-          <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-          </svg>
+
+    <!-- Activity day dots -->
+    {% if stats.activity_days %}
+    {% set all_days_full = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] %}
+    {% set all_days_short = ["L", "M", "X", "J", "V", "S", "D"] %}
+    <div class="pt-2 border-t border-gray-100">
+      <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Días de entrenamiento</p>
+      <div class="flex gap-1.5">
+        {% for i in range(7) %}
+        {% set is_active = all_days_full[i] in stats.activity_days %}
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold
+          {{ 'bg-green-500 text-white shadow-sm' if is_active else 'bg-gray-100 text-gray-300' }}">
+          {{ all_days_short[i] }}
         </div>
-        <p class="text-gray-500 text-sm mb-4">No tienes ningún plan generado aún.</p>
-        <a href="/plan" class="btn-primary text-sm">Generar mi primer plan</a>
+        {% endfor %}
       </div>
+    </div>
     {% endif %}
   </div>
 
-  <!-- Stock summary -->
-  <div class="card">
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="font-semibold text-gray-800">Mi Despensa</h2>
-      <a href="/stock" class="btn-ghost text-xs text-green-600 hover:text-green-700 hover:bg-green-50">Gestionar →</a>
-    </div>
-    {% if stock_count > 0 %}
-      <div class="flex items-center gap-4 p-4 bg-green-50 border border-green-100 rounded-xl">
-        <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-          <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-          </svg>
-        </div>
-        <div>
-          <p class="text-2xl font-bold text-green-700">{{ stock_count }}</p>
-          <p class="text-sm text-green-600">ingredientes disponibles</p>
-        </div>
-      </div>
-    {% else %}
-      <div class="text-center py-6">
-        <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-          <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-          </svg>
-        </div>
-        <p class="text-gray-500 text-sm mb-4">Tu despensa está vacía.</p>
-        <a href="/stock" class="btn-secondary text-sm">Agregar ingredientes</a>
-      </div>
-    {% endif %}
-  </div>
+  <!-- Despensa + quick links -->
+  <div class="flex flex-col gap-3">
 
-  <!-- Quick actions -->
-  <div class="card">
-    <h2 class="font-semibold text-gray-800 mb-4">Acciones rápidas</h2>
-    <div class="space-y-2">
-      <a href="/plan" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50 hover:bg-green-50 hover:border-green-200 border border-transparent text-sm text-gray-700 transition-all group">
-        <div class="w-8 h-8 rounded-lg bg-white shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-green-100 group-hover:border-green-200 transition-colors">
-          <svg class="w-4 h-4 text-gray-500 group-hover:text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-          </svg>
-        </div>
-        <span class="flex-1 font-medium">Nuevo plan semanal</span>
-        <svg class="w-4 h-4 text-gray-300 group-hover:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
-      </a>
-      <a href="/perfil" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50 hover:bg-green-50 hover:border-green-200 border border-transparent text-sm text-gray-700 transition-all group">
-        <div class="w-8 h-8 rounded-lg bg-white shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-green-100 group-hover:border-green-200 transition-colors">
-          <svg class="w-4 h-4 text-gray-500 group-hover:text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-          </svg>
-        </div>
-        <span class="flex-1 font-medium">Actualizar configuración</span>
-        <svg class="w-4 h-4 text-gray-300 group-hover:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
-      </a>
-      <a href="/stock" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50 hover:bg-green-50 hover:border-green-200 border border-transparent text-sm text-gray-700 transition-all group">
-        <div class="w-8 h-8 rounded-lg bg-white shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-green-100 group-hover:border-green-200 transition-colors">
-          <svg class="w-4 h-4 text-gray-500 group-hover:text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <!-- Despensa row -->
+    <div class="card py-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl {{ 'bg-green-100' if stock_count > 0 else 'bg-gray-100' }} flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 {{ 'text-green-600' if stock_count > 0 else 'text-gray-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
           </svg>
         </div>
-        <span class="flex-1 font-medium">Gestionar mi despensa</span>
-        <svg class="w-4 h-4 text-gray-300 group-hover:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
-      </a>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-gray-800">Mi Despensa</p>
+          {% if stock_count > 0 %}
+            <p class="text-xs text-gray-400">{{ stock_count }} ingredientes disponibles</p>
+          {% else %}
+            <p class="text-xs text-gray-400">Sin ingredientes aún</p>
+          {% endif %}
+        </div>
+        <a href="/stock" class="text-xs font-medium text-green-600 hover:text-green-700 flex-shrink-0">Gestionar →</a>
+      </div>
     </div>
-  </div>
 
+    <!-- Quick links -->
+    <div class="card py-4 flex-1">
+      <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-3">Acciones rápidas</p>
+      <div class="space-y-1.5">
+        <a href="/plan" class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 hover:bg-green-50 hover:border-green-200 border border-transparent transition-colors group">
+          <div class="w-7 h-7 rounded-lg bg-white shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-green-100 group-hover:border-green-200 transition-colors">
+            <svg class="w-3.5 h-3.5 text-gray-500 group-hover:text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <span class="flex-1 text-sm font-medium text-gray-700 group-hover:text-green-700">Nuevo plan semanal</span>
+          <svg class="w-3.5 h-3.5 text-gray-300 group-hover:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </a>
+        <a href="/perfil" class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 hover:bg-green-50 hover:border-green-200 border border-transparent transition-colors group">
+          <div class="w-7 h-7 rounded-lg bg-white shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-green-100 group-hover:border-green-200 transition-colors">
+            <svg class="w-3.5 h-3.5 text-gray-500 group-hover:text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </div>
+          <span class="flex-1 text-sm font-medium text-gray-700 group-hover:text-green-700">Configuración</span>
+          <svg class="w-3.5 h-3.5 text-gray-300 group-hover:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </a>
+        <a href="/recetario" class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 hover:bg-green-50 hover:border-green-200 border border-transparent transition-colors group">
+          <div class="w-7 h-7 rounded-lg bg-white shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-green-100 group-hover:border-green-200 transition-colors">
+            <svg class="w-3.5 h-3.5 text-gray-500 group-hover:text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+            </svg>
+          </div>
+          <span class="flex-1 text-sm font-medium text-gray-700 group-hover:text-green-700">Mi recetario</span>
+          <svg class="w-3.5 h-3.5 text-gray-300 group-hover:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+  </div>
 </div>
+
 {% endif %}
 {% endblock %}
