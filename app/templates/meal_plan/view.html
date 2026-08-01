@@ -541,7 +541,7 @@ let _buscarPlanId = null, _buscarMealId = null, _buscarMode = 'stock';
 function openBuscarPlato(planId, mealId, mealName, mealType) {
   _buscarPlanId = planId;
   _buscarMealId = mealId;
-  document.getElementById('buscar-nombre-input').value = mealName;
+  document.getElementById('buscar-nombre-input').value = '';
   setBuscarMode('sugerir');
   document.getElementById('buscar-resultado').classList.add('hidden');
   document.getElementById('buscar-data').classList.add('hidden');
