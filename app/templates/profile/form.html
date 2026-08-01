@@ -389,28 +389,31 @@
             </div>
             <!-- Time controls in second line -->
             <div class="flex items-center gap-2 mt-1.5">
-              <!-- Manual time input (hidden when auto) -->
-              <input type="time" name="meal_time_{{ meal_id }}"
-                     id="meal-time-{{ meal_id }}"
-                     value="{{ saved_time }}"
-                     {{ "disabled" if not is_on or is_auto }}
-                     class="input w-[110px] text-sm py-1
-                            {{ 'opacity-30 cursor-not-allowed' if not is_on }}
-                            {{ 'hidden' if is_auto }}">
-              <!-- Auto calculated time display -->
-              <span id="meal-autotime-{{ meal_id }}"
-                    class="text-sm font-mono font-semibold text-green-700 {{ 'hidden' if not is_auto }}">
-                {{ effective_meal_times.get(meal_id, '') if is_auto else '' }}
-              </span>
+              <!-- Time area: takes all available space -->
+              <div class="flex-1 min-w-0">
+                <!-- Manual time input (hidden when auto) -->
+                <input type="time" name="meal_time_{{ meal_id }}"
+                       id="meal-time-{{ meal_id }}"
+                       value="{{ saved_time }}"
+                       {{ "disabled" if not is_on or is_auto }}
+                       class="input w-full text-sm py-1
+                              {{ 'opacity-30 cursor-not-allowed' if not is_on }}
+                              {{ 'hidden' if is_auto }}">
+                <!-- Auto calculated time display (same space as input) -->
+                <span id="meal-autotime-{{ meal_id }}"
+                      class="block text-sm font-mono font-semibold text-green-700 py-1 {{ 'hidden' if not is_auto }}">
+                  {{ effective_meal_times.get(meal_id, '') if is_auto else '' }}
+                </span>
+              </div>
               <!-- Hidden flag for auto mode -->
               <input type="hidden" id="meal-automode-{{ meal_id }}" name="meal_automode_{{ meal_id }}"
                      value="{{ '1' if is_auto else '0' }}">
-              <!-- Auto toggle button -->
+              <!-- Auto toggle button: fixed width so it always sits in the same column -->
               <button type="button" id="meal-autobtn-{{ meal_id }}"
                       onclick="toggleAutoTime('{{ meal_id }}')"
                       data-auto="{{ '1' if is_auto else '0' }}"
                       {{ "disabled" if not is_on }}
-                      class="text-xs px-2.5 py-1 rounded-lg border transition-colors whitespace-nowrap flex-shrink-0
+                      class="flex-shrink-0 w-16 text-center text-xs py-1 rounded-lg border transition-colors
                              {{ 'opacity-30 cursor-not-allowed pointer-events-none' if not is_on }}
                              {{ 'bg-green-100 border-green-400 text-green-700 font-semibold' if is_auto else 'border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700' }}">
                 Auto
