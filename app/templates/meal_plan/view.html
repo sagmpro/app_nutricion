@@ -181,6 +181,7 @@
 <div class="flex overflow-x-auto gap-1.5 pb-1 mb-5">
   {% for day in days %}
   <button onclick="showDay({{ loop.index0 }})" id="tab-{{ loop.index0 }}"
+    data-day="{{ day.day_num }}"
     class="day-tab flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all text-center min-w-[72px]">
     <span class="block font-semibold">{{ day.short }}</span>
     <span class="block text-xs opacity-70 mt-0.5">{{ day.total_calories }} kcal</span>
@@ -606,8 +607,23 @@ function showDay(idx) {
   let saved = null;
   try { saved = sessionStorage.getItem('np_day_{{ meal_plan.id }}'); } catch(e) {}
   const todayMon = (new Date().getDay() + 6) % 7;
-  const init = urlDay !== null ? parseInt(urlDay) : (saved !== null ? parseInt(saved) : todayMon);
-  showDay(Math.min(Math.max(0, init), 6));
+  const nTabs = document.querySelectorAll('.day-tab').length;
+
+  // Convert a day_of_week value (0=Mon…6=Sun) to a tab index (handles partial weeks)
+  function dayNumToTabIdx(dayNum) {
+    let found = -1;
+    document.querySelectorAll('.day-tab').forEach((t, i) => {
+      if (parseInt(t.dataset.day) === dayNum) found = i;
+    });
+    return found >= 0 ? found : 0;
+  }
+
+  let init;
+  if (urlDay !== null) init = dayNumToTabIdx(parseInt(urlDay));
+  else if (saved !== null) init = parseInt(saved);  // already a tab index
+  else init = dayNumToTabIdx(todayMon);
+
+  showDay(Math.min(Math.max(0, init), nTabs - 1));
 })();
 
 function togglePhotoForm(mealId) {

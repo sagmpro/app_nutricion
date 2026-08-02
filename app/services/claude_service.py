@@ -137,8 +137,8 @@ def _meal_type_context(meal_type: str) -> str:
     return f"\n{ctx}\n" if ctx else ""
 
 
-def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float, saved_meals: list | None = None, recently_used: list[str] | None = None) -> dict:
-    """Call Claude to generate a 7-day meal plan. Returns parsed JSON dict."""
+def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float, saved_meals: list | None = None, recently_used: list[str] | None = None, week_start=None) -> dict:
+    """Call Claude to generate a meal plan from week_start through Sunday. Returns parsed JSON dict."""
     from app.services.nutrition import get_activity_days_list, DAYS_OF_WEEK
 
     activity_days = get_activity_days_list(profile)
@@ -225,6 +225,13 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float,
     snack_note = (f"- Snacks ({', '.join(meal_labels_map[s] for s in enabled_snacks)}): usa SOLO 3-4 opciones distintas que se repiten a lo largo de la semana."
                   if enabled_snacks else "")
 
+    # Calculate day range (week_start to Sunday)
+    _DIAS_ES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    start_weekday = week_start.weekday() if week_start else 0
+    n_days = 7 - start_weekday
+    start_day_es = _DIAS_ES[start_weekday]
+    week_range_label = "lunes a domingo" if start_weekday == 0 else f"{start_day_es.lower()} a domingo"
+
     # Build recently-used section (for regeneration — force new dishes)
     recently_used_section = ""
     if recently_used:
@@ -258,7 +265,7 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float,
                 + "\n".join(lines) + "\n"
             )
 
-    prompt = f"""Genera un plan de alimentación para una semana completa (lunes a domingo).
+    prompt = f"""Genera un plan de alimentación para {n_days} día{"s" if n_days != 1 else ""} ({week_range_label}).
 
 Datos de la persona:
 - Peso: {profile.weight_kg} kg | Altura: {profile.height_cm} cm | Edad: {profile.age} años
@@ -302,8 +309,8 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown, sin texto adicional):
 {{
   "plan": [
     {{
-      "dia": "Lunes",
-      "dia_numero": 0,
+      "dia": "{start_day_es}",
+      "dia_numero": {start_weekday},
       "comidas": [
         {{
           "tipo": "desayuno",
@@ -327,7 +334,7 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown, sin texto adicional):
   ]
 }}
 
-Incluye los 7 días con exactamente {n_meals} comida(s) cada uno (tipos: {enabled_types_str}).
+Incluye los {n_days} días ({start_day_es} a Domingo, dia_numero del {start_weekday} al 6) con exactamente {n_meals} comida(s) cada uno (tipos: {enabled_types_str}).
 Respeta estrictamente las preferencias alimentarias indicadas.
 País del usuario: {_country(profile)} — usa ingredientes, nombres y medidas típicas de ese país. Los nombres de ingredientes deben ser consistentes con el vocabulario local (ej: en México "elote" no "choclo", en Argentina "choclo" no "maíz dulce")."""
 

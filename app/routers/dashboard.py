@@ -155,7 +155,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     next_week_start = None
     next_week_end = None
     if latest_plan:
-        next_week_start = latest_plan.week_start + timedelta(days=7)
+        current_plan_end = latest_plan.week_start + timedelta(days=6 - latest_plan.week_start.weekday())
+        next_week_start = current_plan_end + timedelta(days=1)  # always the following Monday
         next_week_end = next_week_start + timedelta(days=6)
 
     return templates.TemplateResponse(request, "dashboard.html", {

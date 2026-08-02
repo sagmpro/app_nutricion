@@ -43,7 +43,8 @@ def _build_days_data(meal_plan: MealPlan, profile=None) -> list[dict]:
             day_config_map.setdefault(cfg.day_of_week, []).append(cfg)
 
     days = []
-    for day_num in range(7):
+    days_present = sorted({m.day_of_week for m in meal_plan.meals}) or list(range(7))
+    for day_num in days_present:
         day_cfgs = day_config_map.get(day_num, [])
         is_training_day = len(day_cfgs) > 0
         # Use first session (earliest by order in DB) for meal-time calculation
@@ -221,7 +222,7 @@ async def generar_plan(request: Request, db: Session = Depends(get_db)):
         ).all()
 
         set_token_user_id(current_user.id)
-        result = claude_generate(profile, bmr, tdee, target, saved_meals=user_meals or None)
+        result = claude_generate(profile, bmr, tdee, target, saved_meals=user_meals or None, week_start=week_start)
         meal_plan.raw_json = json.dumps(result)
         _save_meals_from_response(db, meal_plan.id, result, user_id=current_user.id)
         db.commit()
@@ -255,7 +256,7 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
     household_member = hs.get_member(current_user.id, db)
 
     from datetime import timedelta
-    week_end = meal_plan.week_start + timedelta(days=6)
+    week_end = meal_plan.week_start + timedelta(days=6 - meal_plan.week_start.weekday())
     any_consumed = any(m.consumed for m in meal_plan.meals)
 
     return templates.TemplateResponse(request, "meal_plan/view.html", {
@@ -750,7 +751,7 @@ def regenerar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)
         ).all()
 
         set_token_user_id(current_user.id)
-        result = claude_generate(profile, bmr, tdee, target, saved_meals=user_meals or None, recently_used=recently_used)
+        result = claude_generate(profile, bmr, tdee, target, saved_meals=user_meals or None, recently_used=recently_used, week_start=meal_plan.week_start)
         meal_plan.raw_json = json.dumps(result)
         meal_plan.status = "pending"
         _save_meals_from_response(db, meal_plan.id, result, user_id=current_user.id)
