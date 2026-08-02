@@ -31,7 +31,7 @@ def _country(profile) -> str:
     return c or "España/Latinoamérica"
 
 
-def _log_usage(fn_name: str, message) -> None:
+def _log_usage(fn_name: str, message, model: str = MODEL) -> None:
     u = message.usage
     total = u.input_tokens + u.output_tokens
     logger.info("[tokens] %s — input=%d output=%d total=%d", fn_name, u.input_tokens, u.output_tokens, total)
@@ -44,6 +44,7 @@ def _log_usage(fn_name: str, message) -> None:
             db.add(TokenUsage(
                 user_id=user_id,
                 function_name=fn_name,
+                model=model,
                 input_tokens=u.input_tokens,
                 output_tokens=u.output_tokens,
             ))
@@ -326,7 +327,7 @@ País del usuario: {_country(profile)} — usa ingredientes, nombres y medidas t
         system="Eres un nutricionista deportivo experto con amplio conocimiento en rendimiento atlético, recuperación muscular, periodización nutricional y planificación de comidas para personas activas. Ajusta los planes considerando el momento del entrenamiento (pre/post-workout). Usa siempre ortografía española correcta con tildes y puntuación. Responde siempre con JSON válido, sin texto adicional ni bloques de código markdown.",
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_usage("generate_meal_plan", message)
+    _log_usage("generate_meal_plan", message, MODEL)
     return _parse_json(message.content[0].text)
 
 
@@ -413,7 +414,7 @@ Indica el estado cuando sea relevante: "garbanzos cocidos", "lentejas crudas", "
         system="Eres un nutricionista y chef creativo. Cada sugerencia debe ser diferente y sorprendente. Usa siempre ortografía española correcta con tildes. Responde siempre con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_usage("generate_single_meal", message)
+    _log_usage("generate_single_meal", message, MODEL)
     return _parse_json(message.content[0].text)
 
 
@@ -469,7 +470,7 @@ Si todos los ingredientes están cubiertos por el stock, devuelve {{"lista": []}
         system="Eres un asistente de compras. Usa ortografía española correcta con tildes en todos los nombres. Responde siempre con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_usage("generate_shopping_list", message)
+    _log_usage("generate_shopping_list", message, MODEL_HAIKU)
     return _parse_json(message.content[0].text)
 
 
@@ -499,7 +500,7 @@ Incluye 3-6 ingredientes principales con cantidades realistas. Usa gramos como u
 Los valores nutricionales deben corresponder a las cantidades de los ingredientes listados."""},
         ]}],
     )
-    _log_usage("analyze_food_photo", message)
+    _log_usage("analyze_food_photo", message, MODEL)
     return _parse_json(message.content[0].text)
 
 
@@ -524,7 +525,7 @@ Calcula los valores reales sumando el aporte nutricional de cada ingrediente en 
         system="Eres un nutricionista experto. Responde SOLO con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_usage("recalculate_calories_from_ingredients", message)
+    _log_usage("recalculate_calories_from_ingredients", message, MODEL_HAIKU)
     return _parse_json(message.content[0].text)
 
 
@@ -550,7 +551,7 @@ Máximo 8 pasos concisos. Cocina española/latinoamericana."""
         system="Eres un chef experto. Usa ortografía española correcta con tildes. Responde siempre con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_usage("generate_recipe", message)
+    _log_usage("generate_recipe", message, MODEL_HAIKU)
     return _parse_json(message.content[0].text)
 
 
@@ -606,7 +607,7 @@ Incluye en enabled_meals y meal_times SOLO las comidas que recomiendas. Formato 
         system="Eres un nutricionista deportivo experto. Usa ortografía española correcta con tildes. Responde siempre con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_usage("propose_meal_schedule", message)
+    _log_usage("propose_meal_schedule", message, MODEL_HAIKU)
     return _parse_json(message.content[0].text)
 
 
@@ -657,7 +658,7 @@ País del usuario: {_country(profile)} — usa ingredientes y nombres típicos d
         system="Eres un chef y nutricionista experto. Genera recetas reales con pasos detallados. Usa ortografía española correcta con tildes. Responde SOLO con JSON válido.",
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_usage("generate_real_recipe_meal", message)
+    _log_usage("generate_real_recipe_meal", message, MODEL)
     return _parse_json(message.content[0].text)
 
 
@@ -737,7 +738,7 @@ País del usuario: {_country(profile)} — usa ingredientes y nombres típicos d
         system="Eres un chef y nutricionista experto. Usa ortografía española correcta con tildes. Responde SOLO con JSON válido.",
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_usage("buscar_plato_por_nombre", message)
+    _log_usage("buscar_plato_por_nombre", message, MODEL)
     return _parse_json(message.content[0].text)
 
 
@@ -794,7 +795,7 @@ Incluye 4-7 ingredientes con cantidades realistas. Usa nombres de ingredientes e
         system="Eres un chef y nutricionista experto. Responde SOLO con JSON válido, sin texto adicional.",
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_usage("generate_meal_for_recetario", message)
+    _log_usage("generate_meal_for_recetario", message, MODEL_HAIKU)
     return _parse_json(message.content[0].text)
 
 
@@ -814,7 +815,7 @@ Responde ÚNICAMENTE con JSON válido:
 Categorías: Frutas y Verduras, Proteínas, Lácteos y Huevos, Cereales y Legumbres, Aceites y Condimentos, Otros"""},
         ]}],
     )
-    _log_usage("identify_stock_photo", message)
+    _log_usage("identify_stock_photo", message, MODEL)
     return _parse_json(message.content[0].text)
 
 
@@ -854,7 +855,7 @@ País del usuario: {_country(profile)} — usa ingredientes y nombres típicos d
         system="Eres un nutricionista experto. Usa ortografía española correcta con tildes. Responde SOLO con JSON válido.",
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_usage("generate_cheat_meal", message)
+    _log_usage("generate_cheat_meal", message, MODEL_HAIKU)
     return _parse_json(message.content[0].text)
 
 
@@ -890,5 +891,5 @@ def generate_goal_description(profile, user_description: str) -> str:
         system="Eres nutricionista. Conviertes descripciones informales de objetivos en texto claro y útil para generar planes alimenticios personalizados. Usa siempre ortografía española correcta con tildes y puntuación.",
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_usage("generate_goal_description", message)
+    _log_usage("generate_goal_description", message, MODEL_HAIKU)
     return message.content[0].text.strip()

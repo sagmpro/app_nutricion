@@ -16,7 +16,7 @@
         {% endif %}
       </div>
       <div class="flex items-center gap-3">
-        <p class="text-gray-400 text-sm">{{ meal_plan.week_start.strftime("%d/%m/%y") }} al {{ week_end.strftime("%d/%m/%y") }}</p>
+        <p class="text-gray-400 text-sm">Semana: {{ meal_plan.week_start.strftime("%d/%m/%y") }} al {{ week_end.strftime("%d/%m/%y") }}</p>
         <form id="form-eliminar-plan" method="POST" action="/plan/{{ meal_plan.id }}/eliminar">
           <button type="button"
                   onclick="pedirConfirmacion('🗑 Eliminar plan', '¿Eliminar este plan permanentemente? Esta acción no se puede deshacer.', 'form-eliminar-plan')"

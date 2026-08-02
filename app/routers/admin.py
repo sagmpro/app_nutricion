@@ -113,11 +113,52 @@ def eliminar_usuario(user_id: int, request: Request, db: Session = Depends(get_d
     return RedirectResponse(f"/admin/usuarios?success=Usuario+{user.email}+eliminado", status_code=303)
 
 
+_TOKEN_PRICING: dict[str, dict[str, float]] = {
+    "claude-sonnet-4-6":          {"input": 3.00,  "output": 15.00},
+    "claude-haiku-4-5-20251001":  {"input": 0.80,  "output": 4.00},
+}
+_DEFAULT_PRICING = {"input": 3.00, "output": 15.00}
+
+
+def _token_cost(model: str | None, input_tok: int, output_tok: int) -> float:
+    p = _TOKEN_PRICING.get(model or "", _DEFAULT_PRICING)
+    return (input_tok * p["input"] + output_tok * p["output"]) / 1_000_000
+
+
 @router.get("/admin/tokens")
 def admin_tokens(request: Request, db: Session = Depends(get_db)):
     current = _require_admin(request, db)
     if isinstance(current, RedirectResponse):
         return current
+
+    # Breakdown by function + model per user (used to compute cost accurately)
+    breakdown_raw = (
+        db.query(
+            TokenUsage.user_id,
+            TokenUsage.function_name,
+            TokenUsage.model,
+            func.sum(TokenUsage.input_tokens).label("input_total"),
+            func.sum(TokenUsage.output_tokens).label("output_total"),
+            func.count(TokenUsage.id).label("calls"),
+        )
+        .group_by(TokenUsage.user_id, TokenUsage.function_name, TokenUsage.model)
+        .all()
+    )
+
+    breakdown_by_user: dict = {}
+    user_costs: dict[int, float] = {}
+    for r in breakdown_raw:
+        cost = _token_cost(r.model, r.input_total or 0, r.output_total or 0)
+        entry = {
+            "function_name": r.function_name,
+            "model": r.model or "—",
+            "input_total": r.input_total or 0,
+            "output_total": r.output_total or 0,
+            "calls": r.calls,
+            "cost": cost,
+        }
+        breakdown_by_user.setdefault(r.user_id, []).append(entry)
+        user_costs[r.user_id] = user_costs.get(r.user_id, 0.0) + cost
 
     # Totals per user
     rows = (
@@ -134,22 +175,6 @@ def admin_tokens(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
-    # Breakdown by function per user
-    breakdown = (
-        db.query(
-            TokenUsage.user_id,
-            TokenUsage.function_name,
-            func.sum(TokenUsage.input_tokens).label("input_total"),
-            func.sum(TokenUsage.output_tokens).label("output_total"),
-            func.count(TokenUsage.id).label("calls"),
-        )
-        .group_by(TokenUsage.user_id, TokenUsage.function_name)
-        .all()
-    )
-    breakdown_by_user: dict = {}
-    for r in breakdown:
-        breakdown_by_user.setdefault(r.user_id, []).append(r)
-
     # Grand totals
     grand = db.query(
         func.sum(TokenUsage.input_tokens),
@@ -157,13 +182,17 @@ def admin_tokens(request: Request, db: Session = Depends(get_db)):
         func.count(TokenUsage.id),
     ).first()
 
+    grand_cost = sum(user_costs.values())
+
     return templates.TemplateResponse(request, "admin/tokens.html", {
         "current_user": current,
         "rows": rows,
         "breakdown_by_user": breakdown_by_user,
+        "user_costs": user_costs,
         "grand_input": grand[0] or 0,
         "grand_output": grand[1] or 0,
         "grand_calls": grand[2] or 0,
+        "grand_cost": grand_cost,
     })
 
 

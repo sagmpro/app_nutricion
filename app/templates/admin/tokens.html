@@ -15,7 +15,7 @@
   </div>
 
   <!-- Grand total pills -->
-  <div class="grid grid-cols-3 gap-4 mb-8">
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
     <div class="bg-white border border-gray-200 rounded-2xl p-4 text-center shadow-sm">
       <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Total input</p>
       <p class="text-2xl font-bold text-blue-600">{{ "{:,}".format(grand_input) }}</p>
@@ -30,6 +30,11 @@
       <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Llamadas IA</p>
       <p class="text-2xl font-bold text-purple-600">{{ "{:,}".format(grand_calls) }}</p>
       <p class="text-xs text-gray-400 mt-0.5">total</p>
+    </div>
+    <div class="bg-white border border-gray-200 rounded-2xl p-4 text-center shadow-sm">
+      <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Costo estimado</p>
+      <p class="text-2xl font-bold text-amber-600">${{ "%.4f"|format(grand_cost) }}</p>
+      <p class="text-xs text-gray-400 mt-0.5">USD</p>
     </div>
   </div>
 
@@ -48,11 +53,13 @@
             <th class="px-5 py-3 font-medium text-right">Output</th>
             <th class="px-5 py-3 font-medium text-right">Total</th>
             <th class="px-5 py-3 font-medium text-right">Llamadas</th>
+            <th class="px-5 py-3 font-medium text-right">Costo</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
           {% for row in rows %}
           {% set total = (row.input_total or 0) + (row.output_total or 0) %}
+          {% set cost = user_costs.get(row.id, 0.0) %}
           <tr class="hover:bg-gray-50 cursor-pointer" onclick="toggleBreakdown({{ row.id }})">
             <td class="px-5 py-3 text-gray-800 font-medium">
               <span class="text-gray-300 text-xs mr-1">▶</span>
@@ -62,19 +69,22 @@
             <td class="px-5 py-3 text-right text-green-600">{{ "{:,}".format(row.output_total or 0) }}</td>
             <td class="px-5 py-3 text-right font-semibold text-gray-800">{{ "{:,}".format(total) }}</td>
             <td class="px-5 py-3 text-right text-gray-500">{{ row.calls }}</td>
+            <td class="px-5 py-3 text-right font-semibold text-amber-600">${{ "%.4f"|format(cost) }}</td>
           </tr>
           <!-- Breakdown row (hidden by default) -->
           <tr id="breakdown-{{ row.id }}" class="hidden bg-gray-50">
-            <td colspan="5" class="px-8 py-3">
+            <td colspan="6" class="px-8 py-3">
               {% if breakdown_by_user.get(row.id) %}
               <table class="w-full text-xs">
                 <thead>
                   <tr class="text-gray-400">
                     <th class="text-left py-1 font-medium">Función</th>
+                    <th class="text-left py-1 font-medium">Modelo</th>
                     <th class="text-right py-1 font-medium">Input</th>
                     <th class="text-right py-1 font-medium">Output</th>
                     <th class="text-right py-1 font-medium">Total</th>
                     <th class="text-right py-1 font-medium">Calls</th>
+                    <th class="text-right py-1 font-medium">Costo</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
@@ -82,10 +92,12 @@
                   {% set fn_total = (fn.input_total or 0) + (fn.output_total or 0) %}
                   <tr>
                     <td class="py-1 text-gray-600 font-mono">{{ fn.function_name }}</td>
+                    <td class="py-1 text-gray-400 font-mono text-xs">{{ fn.model }}</td>
                     <td class="py-1 text-right text-blue-500">{{ "{:,}".format(fn.input_total or 0) }}</td>
                     <td class="py-1 text-right text-green-500">{{ "{:,}".format(fn.output_total or 0) }}</td>
                     <td class="py-1 text-right font-semibold text-gray-700">{{ "{:,}".format(fn_total) }}</td>
                     <td class="py-1 text-right text-gray-400">{{ fn.calls }}</td>
+                    <td class="py-1 text-right text-amber-500">${{ "%.5f"|format(fn.cost) }}</td>
                   </tr>
                   {% endfor %}
                 </tbody>
@@ -100,6 +112,12 @@
       </table>
     </div>
   </div>
+
+  <!-- Pricing note -->
+  <p class="text-xs text-gray-400 text-right">
+    Precios estimados: Sonnet $3/$15 · Haiku $0.80/$4 por MTok (input/output)
+  </p>
+
   {% else %}
   <div class="bg-white border border-gray-200 rounded-2xl p-10 text-center text-gray-400 shadow-sm">
     <p class="text-4xl mb-3">📊</p>

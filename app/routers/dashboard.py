@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -152,6 +152,12 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
         greeting = _build_greeting(profile, plans_count, today_consumed, today_total, week_consumed, week_total)
 
+    next_week_start = None
+    next_week_end = None
+    if latest_plan:
+        next_week_start = latest_plan.week_start + timedelta(days=7)
+        next_week_end = next_week_start + timedelta(days=6)
+
     return templates.TemplateResponse(request, "dashboard.html", {
         "profile": profile,
         "latest_plan": latest_plan,
@@ -159,4 +165,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "stats": stats,
         "greeting": greeting,
         "current_user": current_user,
+        "next_week_start": next_week_start,
+        "next_week_end": next_week_end,
     })
