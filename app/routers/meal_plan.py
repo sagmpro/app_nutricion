@@ -226,7 +226,7 @@ async def generar_plan(request: Request, db: Session = Depends(get_db)):
         meal_plan.raw_json = json.dumps(result)
         _save_meals_from_response(db, meal_plan.id, result, user_id=current_user.id)
         db.commit()
-        return RedirectResponse(f"/plan/{meal_plan.id}", status_code=303)
+        return RedirectResponse(f"/plan/{meal_plan.id}?success=¡Plan+generado+exitosamente!", status_code=303)
 
     except Exception as e:
         db.delete(meal_plan)
