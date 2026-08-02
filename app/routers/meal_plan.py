@@ -254,11 +254,15 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
 
     household_member = hs.get_member(current_user.id, db)
 
+    from datetime import timedelta
+    week_end = meal_plan.week_start + timedelta(days=6)
+
     return templates.TemplateResponse(request, "meal_plan/view.html", {
         "meal_plan": meal_plan,
         "days": days,
         "all_plans": all_plans,
         "has_shopping_list": meal_plan.shopping_list is not None,
+        "week_end": week_end,
         "error": request.query_params.get("error"),
         "success": request.query_params.get("success"),
         "current_user": current_user,
