@@ -103,7 +103,17 @@
         {% if current_user is defined and current_user %}
         <span class="text-green-300 text-xs font-normal opacity-80">{{ current_user.email.split('@')[0] }}</span>
         {% endif %}
+        <span id="nav-today-date" class="text-green-200 text-xs font-normal opacity-70"></span>
       </a>
+      <script>
+      (function(){
+        const DIAS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+        const MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+        const n=new Date();
+        const el=document.getElementById('nav-today-date');
+        if(el) el.textContent=DIAS[n.getDay()]+' '+n.getDate()+' '+MESES[n.getMonth()];
+      })();
+      </script>
       <!-- Desktop nav -->
       <div class="hidden md:flex items-center gap-1">
 
