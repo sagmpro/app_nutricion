@@ -60,116 +60,105 @@
   </div>
 
   <!-- Action toolbar -->
-  <div class="p-3 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
-    <div class="flex items-center gap-1.5 min-w-max">
+  <div class="flex items-center gap-1 px-2 py-2 bg-white rounded-2xl border border-gray-100 shadow-sm">
 
-      <!-- Primary -->
-      {% if meal_plan.status == "approved" %}
-        {% if has_shopping_list %}
-          <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-primary text-sm" title="Ver compras">🛒 <span class="hidden sm:inline">Ver compras</span></a>
-        {% else %}
-          <form method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
-                data-loading data-loading-title="Generando lista de compras..."
-                data-loading-subtitle="Claude está consolidando los ingredientes de toda la semana.">
-            <button class="btn-primary text-sm" title="Generar compras">🛒 <span class="hidden sm:inline">Generar compras</span></button>
-          </form>
-        {% endif %}
+    <!-- Primary -->
+    {% if meal_plan.status == "approved" %}
+      {% if has_shopping_list %}
+        <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-primary text-xs" style="padding:0.375rem 0.625rem;font-size:0.75rem" title="Ver compras">🛒</a>
       {% else %}
-        <form method="POST" action="/plan/{{ meal_plan.id }}/aprobar">
-          <button class="btn-primary text-sm" title="Aprobar plan">✓ <span class="hidden sm:inline">Aprobar plan</span></button>
+        <form method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
+              data-loading data-loading-title="Generando lista de compras..."
+              data-loading-subtitle="Claude está consolidando los ingredientes de toda la semana.">
+          <button class="btn-primary text-xs" style="padding:0.375rem 0.625rem;font-size:0.75rem" title="Generar lista de compras">🛒</button>
         </form>
       {% endif %}
-
-      <div class="w-px h-6 bg-gray-200 mx-2"></div>
-
-      <!-- Secondary: copy to next week -->
-      <form id="form-copiar" method="POST" action="/plan/{{ meal_plan.id }}/copiar"
-            data-loading data-loading-title="Copiando plan..."
-            data-loading-subtitle="Creando una copia del plan para la próxima semana.">
-        <button type="button" class="btn-secondary text-sm" title="Próxima semana"
-                onclick="pedirConfirmacion('📋 Próxima semana', '¿Copiar este plan a la próxima semana? Se creará un nuevo plan con las mismas comidas.', 'form-copiar')">
-          📋 <span class="hidden sm:inline">Próxima semana</span>
-        </button>
+    {% else %}
+      <form method="POST" action="/plan/{{ meal_plan.id }}/aprobar">
+        <button class="btn-primary text-xs" style="padding:0.375rem 0.625rem;font-size:0.75rem" title="Aprobar plan">✓ <span class="hidden sm:inline">Aprobar</span></button>
       </form>
+    {% endif %}
 
-      <div class="w-px h-6 bg-gray-200 mx-2"></div>
-
-      <!-- Secondary: regenerate -->
-      {% if any_consumed %}
-      <button type="button" disabled
-              title="No se puede regenerar: ya hay comidas consumidas"
-              class="btn-secondary text-sm opacity-40 cursor-not-allowed">
-        ↺ <span class="hidden sm:inline">Regenerar</span>
+    <!-- Copy to next week -->
+    <form id="form-copiar" method="POST" action="/plan/{{ meal_plan.id }}/copiar"
+          data-loading data-loading-title="Copiando plan..."
+          data-loading-subtitle="Creando una copia del plan para la próxima semana.">
+      <button type="button" class="btn-secondary text-xs" style="padding:0.375rem 0.625rem;font-size:0.75rem" title="Próxima semana"
+              onclick="pedirConfirmacion('📋 Próxima semana', '¿Copiar este plan a la próxima semana? Se creará un nuevo plan con las mismas comidas.', 'form-copiar')">
+        📋
       </button>
-      {% elif ai_limits.plan_regenerate.exhausted %}
-      <button type="button" disabled
-              title="Límite semanal de regeneraciones alcanzado (se reinicia el lunes)"
-              class="btn-secondary text-sm opacity-40 cursor-not-allowed">
-        ↺ <span class="hidden sm:inline">Regenerar</span>
+    </form>
+
+    <!-- Regenerate -->
+    {% if any_consumed %}
+    <button type="button" disabled title="No se puede regenerar: ya hay comidas consumidas"
+            class="btn-secondary opacity-40 cursor-not-allowed" style="padding:0.375rem 0.625rem;font-size:0.75rem">↺</button>
+    {% elif ai_limits.plan_regenerate.exhausted %}
+    <button type="button" disabled title="Límite semanal de regeneraciones alcanzado (se reinicia el lunes)"
+            class="btn-secondary opacity-40 cursor-not-allowed" style="padding:0.375rem 0.625rem;font-size:0.75rem">↺</button>
+    {% else %}
+    <form id="form-regenerar" method="POST" action="/plan/{{ meal_plan.id }}/regenerar"
+          data-loading data-loading-title="Regenerando plan..."
+          data-loading-subtitle="Claude está creando un nuevo plan para ti.">
+      <button type="button" class="btn-secondary text-xs" style="padding:0.375rem 0.625rem;font-size:0.75rem"
+              title="Regenerar plan ({{ ai_limits.plan_regenerate.remaining }}/{{ ai_limits.plan_regenerate.limit }} restantes)"
+              onclick="pedirConfirmacion('↺ Regenerar plan', '¿Regenerar el plan completo con IA? Se reemplazarán todas las comidas actuales.\n\nUsos restantes esta semana: {{ ai_limits.plan_regenerate.remaining }}/{{ ai_limits.plan_regenerate.limit }}.', 'form-regenerar')">
+        ↺
+      </button>
+    </form>
+    {% endif %}
+
+    <!-- Undo regenerate -->
+    {% if meal_plan.previous_raw_json %}
+    <form id="form-deshacer" method="POST" action="/plan/{{ meal_plan.id }}/deshacer-regenerar">
+      <button type="button" class="btn-secondary" style="padding:0.375rem 0.625rem;font-size:0.75rem;color:#d97706;border-color:#fcd34d"
+              title="Volver al plan anterior"
+              onclick="pedirConfirmacion('↩ Deshacer regenerar', '¿Volver al plan anterior? Se descartará el plan actual y se restaurará el de antes.', 'form-deshacer')">
+        ↩
+      </button>
+    </form>
+    {% endif %}
+
+    <!-- Shopping (pending only) -->
+    {% if meal_plan.status != "approved" %}
+      {% if has_shopping_list %}
+        <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-secondary text-xs" style="padding:0.375rem 0.625rem;font-size:0.75rem" title="Ver compras">🛒</a>
+      {% else %}
+        <form id="form-compras" method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
+              data-loading data-loading-title="Generando lista de compras..."
+              data-loading-subtitle="Claude está consolidando los ingredientes.">
+          <button type="button" class="btn-secondary text-xs" style="padding:0.375rem 0.625rem;font-size:0.75rem" title="Generar compras"
+                  onclick="pedirConfirmacion('🛒 Generar compras', '¿Generar la lista de compras? Se consolidarán todos los ingredientes del plan.', 'form-compras')">
+            🛒
+          </button>
+        </form>
+      {% endif %}
+    {% endif %}
+
+    <!-- Nuevo plan (approved only) -->
+    {% if meal_plan.status == "approved" %}
+    <button type="button" class="btn-secondary text-xs" style="padding:0.375rem 0.625rem;font-size:0.75rem" title="Nuevo plan"
+            onclick="pedirConfirmacion('+ Nuevo plan', '¿Crear un nuevo plan semanal? Irás a la página de generación. El plan actual se conserva.', null, '/plan')">
+      +
+    </button>
+    {% endif %}
+
+    <!-- Household share -->
+    {% if household_member %}
+    <form id="form-compartir" method="POST" action="/hogar/plan-compartido/{{ meal_plan.id }}/toggle">
+      {% if meal_plan.is_shared %}
+      <button type="button" class="btn-secondary" style="padding:0.375rem 0.625rem;font-size:0.75rem;color:#16a34a;border-color:#16a34a" title="Dejar de compartir"
+              onclick="pedirConfirmacion('🏠 Dejar de compartir', '¿Dejar de compartir este plan con el hogar? Los demás miembros dejarán de verlo.', 'form-compartir')">
+        🏠
       </button>
       {% else %}
-      <form id="form-regenerar" method="POST" action="/plan/{{ meal_plan.id }}/regenerar"
-            data-loading data-loading-title="Regenerando plan..."
-            data-loading-subtitle="Claude está creando un nuevo plan para ti.">
-        <button type="button" class="btn-secondary text-sm"
-                onclick="pedirConfirmacion('↺ Regenerar plan', '¿Regenerar el plan completo con IA? Se reemplazarán todas las comidas actuales.\n\nUsos restantes esta semana: {{ ai_limits.plan_regenerate.remaining }}/{{ ai_limits.plan_regenerate.limit }}.', 'form-regenerar')">
-          ↺ <span class="hidden sm:inline">Regenerar</span>
-        </button>
-      </form>
-      {% endif %}
-
-      {% if meal_plan.previous_raw_json %}
-      <form id="form-deshacer" method="POST" action="/plan/{{ meal_plan.id }}/deshacer-regenerar">
-        <button type="button" class="btn-secondary text-sm text-amber-600 border-amber-300 hover:bg-amber-50" title="Volver al plan anterior"
-                onclick="pedirConfirmacion('↩ Deshacer regenerar', '¿Volver al plan anterior? Se descartará el plan actual y se restaurará el de antes.', 'form-deshacer')">
-          ↩ <span class="hidden sm:inline">Deshacer</span>
-        </button>
-      </form>
-      {% endif %}
-
-      <!-- Secondary: shopping (only when pending) -->
-      {% if meal_plan.status != "approved" %}
-        <div class="w-px h-6 bg-gray-200 mx-2 hidden sm:block"></div>
-        {% if has_shopping_list %}
-          <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-secondary text-sm hidden sm:inline-flex" title="Ver compras">🛒 <span class="hidden sm:inline">Ver compras</span></a>
-        {% else %}
-          <form id="form-compras" method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
-                data-loading data-loading-title="Generando lista de compras..."
-                data-loading-subtitle="Claude está consolidando los ingredientes.">
-            <button type="button" class="btn-secondary text-sm" title="Generar compras"
-                    onclick="pedirConfirmacion('🛒 Generar compras', '¿Generar la lista de compras? Se consolidarán todos los ingredientes del plan.', 'form-compras')">
-              🛒 <span class="hidden sm:inline">Compras</span>
-            </button>
-          </form>
-        {% endif %}
-      {% endif %}
-
-      {% if meal_plan.status == "approved" %}
-      <div class="w-px h-6 bg-gray-200 mx-2"></div>
-      <button type="button" class="btn-secondary text-sm" title="Nuevo plan"
-              onclick="pedirConfirmacion('+ Nuevo plan', '¿Crear un nuevo plan semanal? Irás a la página de generación. El plan actual se conserva.', null, '/plan')">
-        + <span class="hidden sm:inline">Nuevo</span>
+      <button type="button" class="btn-secondary text-xs" style="padding:0.375rem 0.625rem;font-size:0.75rem" title="Compartir con el hogar"
+              onclick="pedirConfirmacion('🏠 Compartir', '¿Compartir este plan con tu hogar? Todos los miembros podrán verlo.', 'form-compartir')">
+        🏠
       </button>
       {% endif %}
-
-      <!-- Household share button (only if user is in a household) -->
-      {% if household_member %}
-      <div class="w-px h-6 bg-gray-200 mx-2"></div>
-      <form id="form-compartir" method="POST" action="/hogar/plan-compartido/{{ meal_plan.id }}/toggle">
-        {% if meal_plan.is_shared %}
-        <button type="button" class="btn-secondary text-sm" style="color:#16a34a; border-color:#16a34a" title="Dejar de compartir"
-                onclick="pedirConfirmacion('🏠 Dejar de compartir', '¿Dejar de compartir este plan con el hogar? Los demás miembros dejarán de verlo.', 'form-compartir')">
-          🏠 <span class="hidden sm:inline">Compartido</span>
-        </button>
-        {% else %}
-        <button type="button" class="btn-secondary text-sm" title="Compartir con el hogar"
-                onclick="pedirConfirmacion('🏠 Compartir', '¿Compartir este plan con tu hogar? Todos los miembros podrán verlo.', 'form-compartir')">
-          🏠 <span class="hidden sm:inline">Compartir</span>
-        </button>
-        {% endif %}
-      </form>
-      {% endif %}
-    </div>
+    </form>
+    {% endif %}
 
   </div>
 </div>
