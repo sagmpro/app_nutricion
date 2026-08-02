@@ -533,6 +533,59 @@ def generar_receta(plan_id: int, meal_id: int, request: Request, db: Session = D
         return JSONResponse({"error": str(e)[:100]}, status_code=500)
 
 
+@router.get("/plan/{plan_id}/comida/{meal_id}/recetario-opciones")
+async def recetario_opciones(plan_id: int, meal_id: int, request: Request, db: Session = Depends(get_db)):
+    """Return saved meals for the current meal type — used to populate Stock chips (no Claude)."""
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
+    if not meal_plan:
+        return JSONResponse({"error": "Plan no encontrado"}, status_code=404)
+
+    meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    if not meal:
+        return JSONResponse({"error": "Comida no encontrada"}, status_code=404)
+
+    from app.models.saved_meal import SavedMeal
+    from sqlalchemy import case as sa_case
+
+    exclude_names = [m.name for m in meal_plan.meals if m.day_of_week == meal.day_of_week]
+
+    saved = (
+        db.query(SavedMeal)
+        .filter(
+            SavedMeal.user_id == current_user.id,
+            SavedMeal.meal_type == meal.meal_type,
+            SavedMeal.is_excluded == False,  # noqa: E712
+        )
+        .order_by(
+            sa_case((SavedMeal.name.notin_(exclude_names), 0), else_=1),
+            SavedMeal.rating.desc().nullslast(),
+            SavedMeal.times_served.desc(),
+        )
+        .limit(20)
+        .all()
+    )
+
+    opciones = [
+        {
+            "nombre": sm.name,
+            "descripcion": sm.description or "",
+            "calorias": sm.calories,
+            "proteinas_g": sm.protein_g,
+            "carbohidratos_g": sm.carbs_g,
+            "grasas_g": sm.fat_g,
+            "ingredientes": json.loads(sm.ingredients_json or "[]"),
+            "from_recetario": True,
+        }
+        for sm in saved
+    ]
+
+    return JSONResponse({"opciones": opciones})
+
+
 @router.post("/plan/{plan_id}/comida/{meal_id}/sugerir-nombres")
 async def sugerir_nombres(
     plan_id: int,

@@ -471,8 +471,13 @@ setTimeout(dismissToast, 5000);
       </div>
 
       <!-- Stock mode -->
-      <div id="mode-stock-info" class="hidden text-xs text-gray-500 bg-green-50 border border-green-100 rounded-xl p-3 mb-3">
-        Elige una receta aleatoria de tu recetario para este tipo de comida. No consume intentos con IA.
+      <div id="mode-stock-info" class="hidden mb-3">
+        <p class="text-xs text-gray-500 bg-green-50 border border-green-100 rounded-xl px-3 py-2 mb-2">
+          Elige una receta guardada en tu recetario. No consume intentos con IA.
+        </p>
+        <p id="stock-chips-loading" class="hidden text-xs text-gray-400 text-center py-2">Cargando recetario...</p>
+        <div id="stock-chips" class="hidden flex-wrap gap-1.5"></div>
+        <p id="stock-chips-empty" class="hidden text-xs text-amber-600 text-center py-2 bg-amber-50 rounded-xl px-3">Sin recetas guardadas para este tipo de comida.</p>
       </div>
 
       <!-- Name search mode -->
@@ -802,14 +807,23 @@ async function analyzeFood(planId, mealId, input) {
 
 // ---- Buscar / cambiar plato ----
 let _buscarPlanId = null, _buscarMealId = null, _buscarMode = 'stock';
+let _stockOpciones = [];
 
 function openBuscarPlato(planId, mealId, mealName, mealType) {
   _buscarPlanId = planId;
   _buscarMealId = mealId;
   document.getElementById('buscar-nombre-input').value = '';
-  const chipsEl = document.getElementById('nombre-chips');
-  chipsEl.innerHTML = '';
-  chipsEl.classList.add('hidden');
+  // Reset nombre chips
+  const nombreChips = document.getElementById('nombre-chips');
+  nombreChips.innerHTML = '';
+  nombreChips.classList.add('hidden');
+  // Reset stock chips
+  _stockOpciones = [];
+  document.getElementById('stock-chips').innerHTML = '';
+  document.getElementById('stock-chips').classList.add('hidden');
+  document.getElementById('stock-chips-loading').classList.add('hidden');
+  document.getElementById('stock-chips-empty').classList.add('hidden');
+
   setBuscarMode('sugerir');
   document.getElementById('buscar-resultado').classList.add('hidden');
   document.getElementById('buscar-data').classList.add('hidden');
@@ -836,12 +850,11 @@ function setBuscarMode(mode) {
   document.getElementById('mode-capricho-info').classList.toggle('hidden', mode !== 'capricho');
   document.getElementById('nombre-input-row').classList.toggle('hidden', mode !== 'buscar' && mode !== 'capricho');
   // "Ver opciones" sub-button only in buscar mode
-  const sugerirBtn = document.getElementById('sugerir-nombres-btn');
-  sugerirBtn.classList.toggle('hidden', mode !== 'buscar');
-  // Reset chips when switching mode
-  const chipsEl = document.getElementById('nombre-chips');
-  chipsEl.innerHTML = '';
-  chipsEl.classList.add('hidden');
+  document.getElementById('sugerir-nombres-btn').classList.toggle('hidden', mode !== 'buscar');
+  // Reset nombre chips when switching mode
+  const nombreChips = document.getElementById('nombre-chips');
+  nombreChips.innerHTML = '';
+  nombreChips.classList.add('hidden');
   if (mode === 'capricho') {
     document.getElementById('buscar-nombre-input').placeholder = 'Ej: Hamburguesa, Helado de chocolate, Pizza...';
   } else if (mode === 'buscar') {
@@ -850,20 +863,72 @@ function setBuscarMode(mode) {
   const btn = document.getElementById('buscar-btn');
   const configs = {
     sugerir:  ['✨ Sugerir alternativa', '#9333ea'],
-    stock:    ['🗂️ Elegir del recetario', '#16a34a'],
+    stock:    ['🗂️ Elegir al azar', '#16a34a'],
     buscar:   ['🔍 Buscar plato', '#2563eb'],
     capricho: ['🍔 Registrar capricho', '#ea580c'],
   };
   const [txt, bg] = configs[mode] || configs.sugerir;
   btn.textContent = txt;
   btn.style.cssText = `width:100%;padding:0.5rem;border-radius:0.75rem;font-size:0.875rem;font-weight:500;background:${bg};color:#fff;`;
+  // Auto-load recetario chips when switching to stock
+  if (mode === 'stock' && _buscarPlanId) cargarChipsRecetario();
 }
 
+// ---- Stock: chips del recetario ----
+async function cargarChipsRecetario() {
+  const loadingEl = document.getElementById('stock-chips-loading');
+  const chipsEl   = document.getElementById('stock-chips');
+  const emptyEl   = document.getElementById('stock-chips-empty');
+
+  if (_stockOpciones.length > 0) return; // already loaded for this meal
+
+  loadingEl.classList.remove('hidden');
+  chipsEl.classList.add('hidden');
+  emptyEl.classList.add('hidden');
+
+  try {
+    const resp = await fetch(`/plan/${_buscarPlanId}/comida/${_buscarMealId}/recetario-opciones`);
+    const data = await resp.json();
+    _stockOpciones = data.opciones || [];
+
+    if (_stockOpciones.length === 0) {
+      emptyEl.classList.remove('hidden');
+    } else {
+      chipsEl.innerHTML = _stockOpciones.map((op, i) =>
+        `<button type="button" onclick="elegirOpcionStock(${i})"
+                 class="stock-chip px-3 py-1 rounded-full border border-green-200 text-xs text-green-700 bg-green-50 hover:bg-green-100 transition-colors">
+           ${op.nombre}
+         </button>`
+      ).join('');
+      chipsEl.classList.remove('hidden');
+      chipsEl.classList.add('flex');
+    }
+  } catch(e) {
+    emptyEl.textContent = '❌ Error al cargar el recetario';
+    emptyEl.classList.remove('hidden');
+  }
+  loadingEl.classList.add('hidden');
+}
+
+function elegirOpcionStock(idx) {
+  const data = _stockOpciones[idx];
+  if (!data) return;
+  document.querySelectorAll('.stock-chip').forEach((c, i) => {
+    const sel = i === idx;
+    c.classList.toggle('bg-green-600', sel);  c.classList.toggle('text-white', sel);
+    c.classList.toggle('border-green-600', sel);
+    c.classList.toggle('bg-green-50', !sel);  c.classList.toggle('text-green-700', !sel);
+    c.classList.toggle('border-green-200', !sel);
+  });
+  _mostrarResultado(data);
+}
+
+// ---- Nombre: chips de sugerencia ----
 async function verSugerenciasNombres() {
   const keyword = document.getElementById('buscar-nombre-input').value.trim();
   if (!keyword) { document.getElementById('buscar-nombre-input').focus(); return; }
 
-  const btn = document.getElementById('sugerir-nombres-btn');
+  const btn     = document.getElementById('sugerir-nombres-btn');
   const chipsEl = document.getElementById('nombre-chips');
   btn.textContent = '...';
   btn.disabled = true;
@@ -880,8 +945,7 @@ async function verSugerenciasNombres() {
 
     const nombres = data.nombres || [];
     chipsEl.innerHTML = nombres.map(n =>
-      `<button type="button"
-               onclick="elegirNombre(this)"
+      `<button type="button" onclick="elegirNombre(this)"
                class="nombre-chip px-3 py-1 rounded-full border border-blue-200 text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">
          ${n}
        </button>`
@@ -893,21 +957,60 @@ async function verSugerenciasNombres() {
     chipsEl.classList.remove('hidden');
     chipsEl.classList.add('flex');
   }
-
   btn.textContent = 'Ver opciones';
   btn.disabled = false;
 }
 
 function elegirNombre(chipEl) {
-  // Highlight selected chip
   document.querySelectorAll('.nombre-chip').forEach(c => {
     c.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
     c.classList.add('bg-blue-50', 'text-blue-700', 'border-blue-200');
   });
   chipEl.classList.remove('bg-blue-50', 'text-blue-700', 'border-blue-200');
   chipEl.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
-  // Fill input with the chosen name
   document.getElementById('buscar-nombre-input').value = chipEl.textContent.trim();
+}
+
+// ---- Shared result renderer ----
+function _mostrarResultado(data) {
+  document.getElementById('buscar-resultado').classList.remove('hidden');
+  document.getElementById('buscar-loading').classList.add('hidden');
+  document.getElementById('buscar-error').classList.add('hidden');
+
+  document.getElementById('res-nombre').textContent = data.nombre || '';
+  document.getElementById('res-calorias').textContent = (data.calorias || 0) + ' kcal';
+  document.getElementById('res-descripcion').textContent = data.descripcion || '';
+  document.getElementById('res-p').textContent = data.proteinas_g ?? data.proteinas ?? 0;
+  document.getElementById('res-c').textContent = data.carbohidratos_g ?? data.carbohidratos ?? 0;
+  document.getElementById('res-g').textContent = data.grasas_g ?? data.grasas ?? 0;
+
+  const ings = data.ingredientes || [];
+  document.getElementById('res-ingredientes').innerHTML = ings.map(i =>
+    `<li class="text-xs text-gray-500 flex items-start gap-1"><span class="text-gray-300">·</span>${i.nombre}: ${i.cantidad} ${i.unidad}</li>`
+  ).join('');
+
+  const receta = data.receta_detallada || '';
+  const pasos = receta.split('\n').filter(p => p.trim());
+  const recetaWrap = document.getElementById('res-receta-wrap');
+  if (pasos.length) {
+    document.getElementById('res-receta').innerHTML = pasos.map(p => `<li>${p}</li>`).join('');
+    recetaWrap.classList.remove('hidden');
+  } else {
+    recetaWrap.classList.add('hidden');
+  }
+
+  document.getElementById('reemplazar-form').action = `/plan/${_buscarPlanId}/comida/${_buscarMealId}/reemplazar`;
+  document.getElementById('rep-is-capricho').value = _buscarMode === 'capricho' ? '1' : '0';
+  document.getElementById('rep-nombre').value = data.nombre || '';
+  document.getElementById('rep-descripcion').value = data.descripcion || '';
+  document.getElementById('rep-calorias').value = data.calorias || 0;
+  document.getElementById('rep-proteinas').value = data.proteinas_g ?? data.proteinas ?? 0;
+  document.getElementById('rep-carbohidratos').value = data.carbohidratos_g ?? data.carbohidratos ?? 0;
+  document.getElementById('rep-grasas').value = data.grasas_g ?? data.grasas ?? 0;
+  document.getElementById('rep-ingredientes-json').value = JSON.stringify(ings);
+  document.getElementById('rep-receta').value = receta;
+
+  document.getElementById('buscar-data').classList.remove('hidden');
 }
 
 async function buscarPlato() {
@@ -924,8 +1027,7 @@ async function buscarPlato() {
 
   const formData = new FormData();
   const modeMap = { sugerir: 'sugerir', stock: 'si', buscar: 'no', capricho: 'capricho' };
-  const nombreEnvio = _buscarMode === 'stock'
-    ? 'Genera un plato saludable con los ingredientes disponibles en el stock'
+  const nombreEnvio = _buscarMode === 'stock' ? 'azar'
     : (_buscarMode === 'sugerir' ? 'sugerir' : nombre);
   formData.append('nombre', nombreEnvio);
   formData.append('usar_stock', modeMap[_buscarMode] || 'no');
@@ -939,43 +1041,7 @@ async function buscarPlato() {
     }
     const data = await resp.json();
     if (data.error) throw new Error(data.error);
-
-    document.getElementById('res-nombre').textContent = data.nombre || '';
-    document.getElementById('res-calorias').textContent = (data.calorias || 0) + ' kcal';
-    document.getElementById('res-descripcion').textContent = data.descripcion || '';
-    document.getElementById('res-p').textContent = data.proteinas_g ?? data.proteinas ?? 0;
-    document.getElementById('res-c').textContent = data.carbohidratos_g ?? data.carbohidratos ?? 0;
-    document.getElementById('res-g').textContent = data.grasas_g ?? data.grasas ?? 0;
-
-    const ings = data.ingredientes || [];
-    document.getElementById('res-ingredientes').innerHTML = ings.map(i =>
-      `<li class="text-xs text-gray-500 flex items-start gap-1"><span class="text-gray-300">·</span>${i.nombre}: ${i.cantidad} ${i.unidad}</li>`
-    ).join('');
-
-    const receta = data.receta_detallada || '';
-    const pasos = receta.split('\n').filter(p => p.trim());
-    const recetaWrap = document.getElementById('res-receta-wrap');
-    if (pasos.length) {
-      document.getElementById('res-receta').innerHTML = pasos.map(p => `<li>${p}</li>`).join('');
-      recetaWrap.classList.remove('hidden');
-    } else {
-      recetaWrap.classList.add('hidden');
-    }
-
-    // Fill hidden form
-    document.getElementById('reemplazar-form').action = `/plan/${_buscarPlanId}/comida/${_buscarMealId}/reemplazar`;
-    document.getElementById('rep-is-capricho').value = _buscarMode === 'capricho' ? '1' : '0';
-    document.getElementById('rep-nombre').value = data.nombre || '';
-    document.getElementById('rep-descripcion').value = data.descripcion || '';
-    document.getElementById('rep-calorias').value = data.calorias || 0;
-    document.getElementById('rep-proteinas').value = data.proteinas_g ?? data.proteinas ?? 0;
-    document.getElementById('rep-carbohidratos').value = data.carbohidratos_g ?? data.carbohidratos ?? 0;
-    document.getElementById('rep-grasas').value = data.grasas_g ?? data.grasas ?? 0;
-    document.getElementById('rep-ingredientes-json').value = JSON.stringify(ings);
-    document.getElementById('rep-receta').value = receta;
-
-    document.getElementById('buscar-loading').classList.add('hidden');
-    document.getElementById('buscar-data').classList.remove('hidden');
+    _mostrarResultado(data);
   } catch(e) {
     document.getElementById('buscar-loading').classList.add('hidden');
     document.getElementById('buscar-error').textContent = '❌ ' + e.message;
