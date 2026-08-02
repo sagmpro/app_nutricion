@@ -11,6 +11,7 @@ from app.models.saved_meal import SavedMeal
 from app.models.exercise_type import ExerciseType
 from app.models.activity_day import ActivityDayConfig
 from app.models.token_usage import TokenUsage
+from app.models.ai_action_log import AIActionLog
 
 __all__ = [
     "UserProfile", "MealPlan", "Meal",
@@ -20,4 +21,5 @@ __all__ = [
     "SavedMeal",
     "ExerciseType", "ActivityDayConfig",
     "TokenUsage",
+    "AIActionLog",
 ]

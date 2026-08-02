@@ -10,6 +10,7 @@ from app.models.meal_plan import MealPlan
 from app.models.food_stock import FoodStock
 from app.services.auth_service import get_current_user
 from app.services.nutrition import calculate_bmr, calculate_tdee, calculate_target_calories, get_activity_days_list, DAYS_OF_WEEK
+from app.services.ai_limits import get_all_limits
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -159,6 +160,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         next_week_start = current_plan_end + timedelta(days=1)  # always the following Monday
         next_week_end = next_week_start + timedelta(days=6)
 
+    ai_limits = get_all_limits(db, current_user.id)
+
     return templates.TemplateResponse(request, "dashboard.html", {
         "profile": profile,
         "latest_plan": latest_plan,
@@ -168,4 +171,5 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "current_user": current_user,
         "next_week_start": next_week_start,
         "next_week_end": next_week_end,
+        "ai_limits": ai_limits,
     })

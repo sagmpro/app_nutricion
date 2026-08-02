@@ -14,6 +14,7 @@ from app.models.saved_meal import SavedMeal, upsert_saved_meal
 from app.models.activity_day import ActivityDayConfig
 from app.services.auth_service import get_current_user
 from app.services import household_service as hs
+from app.services.ai_limits import get_remaining, log_action, get_all_limits, plan_from_recetario, meal_from_recetario
 from app.services.nutrition import (
     calculate_bmr, calculate_tdee, calculate_target_calories,
     get_activity_days_list, get_effective_meal_times, DAYS_OF_WEEK, DAYS_SHORT,
@@ -222,12 +223,18 @@ async def generar_plan(request: Request, db: Session = Depends(get_db)):
             SavedMeal.is_excluded == False,  # noqa: E712
         ).all()
 
-        set_token_user_id(current_user.id)
-        result = claude_generate(profile, bmr, tdee, target, saved_meals=user_meals or None, week_start=week_start)
+        if get_remaining(db, current_user.id, "plan_generate") == 0:
+            result = plan_from_recetario(db, current_user.id, profile, week_start)
+            success_msg = _urlquote("Plan generado desde tu recetario (límite de IA alcanzado este mes)")
+        else:
+            set_token_user_id(current_user.id)
+            result = claude_generate(profile, bmr, tdee, target, saved_meals=user_meals or None, week_start=week_start)
+            log_action(db, current_user.id, "plan_generate")
+            success_msg = _urlquote("¡Plan generado exitosamente!")
         meal_plan.raw_json = json.dumps(result)
         _save_meals_from_response(db, meal_plan.id, result, user_id=current_user.id)
         db.commit()
-        return RedirectResponse(f"/plan/{meal_plan.id}?success=¡Plan+generado+exitosamente!", status_code=303)
+        return RedirectResponse(f"/plan/{meal_plan.id}?success={success_msg}", status_code=303)
 
     except Exception as e:
         db.delete(meal_plan)
@@ -260,6 +267,8 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
     week_end = meal_plan.week_start + timedelta(days=6 - meal_plan.week_start.weekday())
     any_consumed = any(m.consumed for m in meal_plan.meals)
 
+    ai_limits = get_all_limits(db, current_user.id)
+
     return templates.TemplateResponse(request, "meal_plan/view.html", {
         "meal_plan": meal_plan,
         "days": days,
@@ -271,6 +280,7 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
         "success": request.query_params.get("success"),
         "current_user": current_user,
         "household_member": household_member,
+        "ai_limits": ai_limits,
     })
 
 
@@ -590,6 +600,17 @@ async def buscar_plato(
             "is_post_workout": is_post,
         }
 
+    # Fallback al recetario si el límite semanal de cambios IA está agotado
+    if get_remaining(db, current_user.id, "meal_change") == 0:
+        exclude_names = [m.name for m in meal_plan.meals if m.day_of_week == meal.day_of_week]
+        fallback = meal_from_recetario(db, current_user.id, meal.meal_type, exclude_names)
+        if fallback:
+            return JSONResponse(fallback)
+        return JSONResponse(
+            {"error": "Límite de cambios con IA alcanzado esta semana y no hay recetas guardadas para este tipo de comida."},
+            status_code=429,
+        )
+
     set_token_user_id(current_user.id)
     try:
         if usar_stock == "sugerir":
@@ -627,6 +648,7 @@ async def buscar_plato(
                 profile=profile,
                 workout_context=workout_context,
             )
+        log_action(db, current_user.id, "meal_change")
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -730,6 +752,10 @@ def regenerar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)
     if any(m.consumed for m in meal_plan.meals):
         return RedirectResponse(f"/plan/{plan_id}?error=No+se+puede+regenerar:+ya+hay+comidas+marcadas+como+consumidas.", status_code=303)
 
+    if get_remaining(db, current_user.id, "plan_regenerate") == 0:
+        msg = _urlquote("Límite de regeneraciones semanales alcanzado (2/2). Se reinicia cada lunes.")
+        return RedirectResponse(f"/plan/{plan_id}?error={msg}", status_code=303)
+
     profile = meal_plan.profile
     # Capture current meal names before deletion (to force variety on regen)
     recently_used = list({m.name for m in meal_plan.meals})
@@ -756,6 +782,7 @@ def regenerar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)
         meal_plan.raw_json = json.dumps(result)
         meal_plan.status = "pending"
         _save_meals_from_response(db, meal_plan.id, result, user_id=current_user.id)
+        log_action(db, current_user.id, "plan_regenerate")
         db.commit()
         return RedirectResponse(f"/plan/{plan_id}?success=Plan+regenerado.+Puedes+deshacer+si+prefieres+el+anterior.", status_code=303)
 
