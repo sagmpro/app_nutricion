@@ -919,11 +919,13 @@ function cerrarConfirmacion() {
 }
 
 function ejecutarConfirmacion() {
+  const target = _confirmTarget;
+  const url = _confirmUrl;
   cerrarConfirmacion();
-  if (_confirmUrl) {
-    window.location.href = _confirmUrl;
-  } else if (_confirmTarget) {
-    document.getElementById(_confirmTarget).submit();
+  if (url) {
+    window.location.href = url;
+  } else if (target) {
+    document.getElementById(target).submit();
   }
 }
 
