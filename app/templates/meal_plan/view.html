@@ -108,17 +108,14 @@
               title="Límite semanal de regeneraciones alcanzado (se reinicia el lunes)"
               class="btn-secondary text-sm opacity-40 cursor-not-allowed">
         ↺ <span class="hidden sm:inline">Regenerar</span>
-        <span class="text-xs ml-1 opacity-60">0/{{ ai_limits.plan_regenerate.limit }}</span>
       </button>
       {% else %}
       <form id="form-regenerar" method="POST" action="/plan/{{ meal_plan.id }}/regenerar"
             data-loading data-loading-title="Regenerando plan..."
             data-loading-subtitle="Claude está creando un nuevo plan para ti.">
         <button type="button" class="btn-secondary text-sm"
-                title="Regenerar ({{ ai_limits.plan_regenerate.remaining }}/{{ ai_limits.plan_regenerate.limit }} restantes esta semana)"
-                onclick="pedirConfirmacion('↺ Regenerar plan', '¿Regenerar el plan completo con IA? Se reemplazarán todas las comidas actuales.', 'form-regenerar')">
+                onclick="pedirConfirmacion('↺ Regenerar plan', '¿Regenerar el plan completo con IA? Se reemplazarán todas las comidas actuales.\n\nUsos restantes esta semana: {{ ai_limits.plan_regenerate.remaining }}/{{ ai_limits.plan_regenerate.limit }}.', 'form-regenerar')">
           ↺ <span class="hidden sm:inline">Regenerar</span>
-          <span class="text-xs ml-1 opacity-60">{{ ai_limits.plan_regenerate.remaining }}/{{ ai_limits.plan_regenerate.limit }}</span>
         </button>
       </form>
       {% endif %}
