@@ -78,6 +78,13 @@
       <div class="w-px h-6 bg-gray-200 mx-2"></div>
 
       <!-- Secondary: regenerate -->
+      {% if any_consumed %}
+      <button type="button" disabled
+              title="No se puede regenerar: ya hay comidas consumidas"
+              class="btn-secondary text-sm opacity-40 cursor-not-allowed">
+        ↺ <span class="hidden sm:inline">Regenerar</span>
+      </button>
+      {% else %}
       <form id="form-regenerar" method="POST" action="/plan/{{ meal_plan.id }}/regenerar"
             data-loading data-loading-title="Regenerando plan..."
             data-loading-subtitle="Claude está creando un nuevo plan para ti.">
@@ -86,6 +93,7 @@
           ↺ <span class="hidden sm:inline">Regenerar</span>
         </button>
       </form>
+      {% endif %}
 
       {% if meal_plan.previous_raw_json %}
       <form id="form-deshacer" method="POST" action="/plan/{{ meal_plan.id }}/deshacer-regenerar">

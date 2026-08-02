@@ -256,6 +256,7 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
 
     from datetime import timedelta
     week_end = meal_plan.week_start + timedelta(days=6)
+    any_consumed = any(m.consumed for m in meal_plan.meals)
 
     return templates.TemplateResponse(request, "meal_plan/view.html", {
         "meal_plan": meal_plan,
@@ -263,6 +264,7 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
         "all_plans": all_plans,
         "has_shopping_list": meal_plan.shopping_list is not None,
         "week_end": week_end,
+        "any_consumed": any_consumed,
         "error": request.query_params.get("error"),
         "success": request.query_params.get("success"),
         "current_user": current_user,
@@ -720,6 +722,9 @@ def regenerar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)
     meal_plan = _get_user_plan(db, plan_id, current_user.id)
     if not meal_plan:
         return RedirectResponse("/plan", status_code=303)
+
+    if any(m.consumed for m in meal_plan.meals):
+        return RedirectResponse(f"/plan/{plan_id}?error=No+se+puede+regenerar:+ya+hay+comidas+marcadas+como+consumidas.", status_code=303)
 
     profile = meal_plan.profile
     # Back up current plan before overwriting
