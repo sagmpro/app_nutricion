@@ -1,5 +1,6 @@
 import json
 from datetime import date, datetime, timedelta
+from urllib.parse import quote as _urlquote
 from fastapi import APIRouter, Depends, Form, Request, UploadFile, File
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -231,7 +232,7 @@ async def generar_plan(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         db.delete(meal_plan)
         db.commit()
-        return RedirectResponse(f"/plan?error={str(e)[:100]}", status_code=303)
+        return RedirectResponse(f"/plan?error={_urlquote(str(e)[:120])}", status_code=303)
 
 
 @router.get("/plan/{plan_id}")
@@ -338,7 +339,7 @@ def regenerar_comida(plan_id: int, meal_id: int, request: Request, db: Session =
         upsert_saved_meal(db, current_user.id, meal)
         db.commit()
     except Exception as e:
-        return RedirectResponse(f"/plan/{plan_id}?error=Error+regenerando+comida:+{str(e)[:80]}&day={meal.day_of_week}", status_code=303)
+        return RedirectResponse(f"/plan/{plan_id}?error={_urlquote(f'Error regenerando comida: {str(e)[:80]}')}&day={meal.day_of_week}", status_code=303)
 
     return RedirectResponse(f"/plan/{plan_id}?day={meal.day_of_week}", status_code=303)
 
@@ -759,7 +760,16 @@ def regenerar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)
         return RedirectResponse(f"/plan/{plan_id}?success=Plan+regenerado.+Puedes+deshacer+si+prefieres+el+anterior.", status_code=303)
 
     except Exception as e:
-        return RedirectResponse(f"/plan/{plan_id}?error={str(e)[:100]}", status_code=303)
+        # Auto-restore previous meals so the plan is never left empty
+        if meal_plan.previous_raw_json:
+            try:
+                prev = json.loads(meal_plan.previous_raw_json)
+                _save_meals_from_response(db, meal_plan.id, prev)
+                db.commit()
+            except Exception:
+                pass
+        msg = _urlquote(f"Error al regenerar: {str(e)[:120]}")
+        return RedirectResponse(f"/plan/{plan_id}?error={msg}", status_code=303)
 
 
 @router.post("/plan/{plan_id}/deshacer-regenerar")
@@ -786,7 +796,7 @@ def deshacer_regenerar(plan_id: int, request: Request, db: Session = Depends(get
         db.commit()
         return RedirectResponse(f"/plan/{plan_id}?success=Plan+anterior+restaurado.", status_code=303)
     except Exception as e:
-        return RedirectResponse(f"/plan/{plan_id}?error={str(e)[:100]}", status_code=303)
+        return RedirectResponse(f"/plan/{plan_id}?error={_urlquote(str(e)[:100])}", status_code=303)
 
 
 @router.post("/plan/{plan_id}/comida/{meal_id}/eliminar")
