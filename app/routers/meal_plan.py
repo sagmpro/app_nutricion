@@ -729,6 +729,9 @@ def regenerar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)
         return RedirectResponse(f"/plan/{plan_id}?error=No+se+puede+regenerar:+ya+hay+comidas+marcadas+como+consumidas.", status_code=303)
 
     profile = meal_plan.profile
+    # Capture current meal names before deletion (to force variety on regen)
+    recently_used = list({m.name for m in meal_plan.meals})
+
     # Back up current plan before overwriting
     meal_plan.previous_raw_json = meal_plan.raw_json
     for meal in list(meal_plan.meals):
@@ -747,7 +750,7 @@ def regenerar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)
         ).all()
 
         set_token_user_id(current_user.id)
-        result = claude_generate(profile, bmr, tdee, target, saved_meals=user_meals or None)
+        result = claude_generate(profile, bmr, tdee, target, saved_meals=user_meals or None, recently_used=recently_used)
         meal_plan.raw_json = json.dumps(result)
         meal_plan.status = "pending"
         _save_meals_from_response(db, meal_plan.id, result, user_id=current_user.id)

@@ -137,7 +137,7 @@ def _meal_type_context(meal_type: str) -> str:
     return f"\n{ctx}\n" if ctx else ""
 
 
-def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float, saved_meals: list | None = None) -> dict:
+def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float, saved_meals: list | None = None, recently_used: list[str] | None = None) -> dict:
     """Call Claude to generate a 7-day meal plan. Returns parsed JSON dict."""
     from app.services.nutrition import get_activity_days_list, DAYS_OF_WEEK
 
@@ -225,6 +225,17 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float,
     snack_note = (f"- Snacks ({', '.join(meal_labels_map[s] for s in enabled_snacks)}): usa SOLO 3-4 opciones distintas que se repiten a lo largo de la semana."
                   if enabled_snacks else "")
 
+    # Build recently-used section (for regeneration — force new dishes)
+    recently_used_section = ""
+    if recently_used:
+        names_str = ", ".join(f'"{n}"' for n in recently_used[:40])
+        recently_used_section = (
+            f"\nPLATOS USADOS RECIENTEMENTE (obligatorio evitar la mayoría):\n"
+            f"{names_str}\n"
+            f"REGLA: el nuevo plan debe incluir un mínimo de 4 platos que NO aparezcan en la lista anterior. "
+            f"Puedes reutilizar como máximo 3 platos de esa lista si encajan muy bien nutricionalmente.\n"
+        )
+
     # Build recetario section
     recetario_section = ""
     has_recetario = False
@@ -243,7 +254,7 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float,
         if lines:
             has_recetario = True
             recetario_section = (
-                "\nRecetario del usuario (USAR ESTOS PLATOS EN EL PLAN — no inventar otros salvo que falten):\n"
+                "\nRecetario del usuario (platos ya conocidos que le gustan):\n"
                 + "\n".join(lines) + "\n"
             )
 
@@ -262,7 +273,7 @@ Preferencias alimentarias:
 
 Estilo de vida:
 {lifestyle_section}
-{recetario_section}
+{recetario_section}{recently_used_section}
 Comidas del día (SOLO estas, en este orden):
 {schedule_section}
 
@@ -281,7 +292,7 @@ Los horarios de entrenamiento y tipos de ejercicio están en "Estilo de vida". P
 
 INSTRUCCIONES IMPORTANTES:
 - Genera exactamente {n_meals} comida(s) por día (tipos: {enabled_types_str}). No añadas ni quites comidas.
-- {"USA EXCLUSIVAMENTE los platos del recetario para cada tipo de comida que tenga entradas. Si para un tipo de comida hay menos platos que días de la semana, puedes repetir o inventar los que falten." if has_recetario else "Desayuno, almuerzo y cena: máximo " + str(max_repeats) + " veces el mismo plato en la semana."}
+- {"VARIEDAD Y CREATIVIDAD: usa los platos del recetario como referencia de gustos, pero INVENTA platos nuevos para al menos 3 días de la semana. El plan debe sentirse fresco y variado, no repetir el mismo patrón semana tras semana. Máximo " + str(max_repeats) + " veces el mismo plato." if has_recetario else "CREATIVIDAD: inventa platos variados e interesantes. Desayuno, almuerzo y cena: máximo " + str(max_repeats) + " veces el mismo plato en la semana."}
 {snack_note}
 - Descripciones breves (máx 15 palabras).
 - Ingredientes: máximo 5 por comida.
@@ -324,7 +335,8 @@ País del usuario: {_country(profile)} — usa ingredientes, nombres y medidas t
     message = client.messages.create(
         model=MODEL,
         max_tokens=16000,
-        system="Eres un nutricionista deportivo experto con amplio conocimiento en rendimiento atlético, recuperación muscular, periodización nutricional y planificación de comidas para personas activas. Ajusta los planes considerando el momento del entrenamiento (pre/post-workout). Usa siempre ortografía española correcta con tildes y puntuación. Responde siempre con JSON válido, sin texto adicional ni bloques de código markdown.",
+        temperature=1.0,
+        system="Eres un nutricionista deportivo experto con amplio conocimiento en rendimiento atlético, recuperación muscular, periodización nutricional y planificación de comidas para personas activas. Ajusta los planes considerando el momento del entrenamiento (pre/post-workout). Sé CREATIVO y VARIADO en los platos — evita caer siempre en los mismos nombres. Usa siempre ortografía española correcta con tildes y puntuación. Responde siempre con JSON válido, sin texto adicional ni bloques de código markdown.",
         messages=[{"role": "user", "content": prompt}],
     )
     _log_usage("generate_meal_plan", message, MODEL)
