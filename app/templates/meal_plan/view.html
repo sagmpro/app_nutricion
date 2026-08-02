@@ -45,6 +45,7 @@
         {% else %}
         <p class="text-gray-400 text-sm">Semana: {{ meal_plan.week_start.strftime("%d/%m/%y") }} al {{ week_end.strftime("%d/%m/%y") }}</p>
         {% endif %}
+        <span id="today-label" class="text-xs text-blue-500 font-medium"></span>
         <form id="form-eliminar-plan" method="POST" action="/plan/{{ meal_plan.id }}/eliminar">
           <button type="button"
                   onclick="pedirConfirmacion('🗑 Eliminar plan', '¿Eliminar este plan permanentemente? Esta acción no se puede deshacer.', 'form-eliminar-plan')"
@@ -627,38 +628,54 @@ function showDay(idx) {
   document.getElementById('tab-' + idx)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 }
 
-// Init: URL param > sessionStorage > today (if in range) or closest plan day
+// Init: URL param > sessionStorage (skip if just generated/regenerated) > closest plan day
 (function() {
-  const urlDay = new URLSearchParams(window.location.search).get('day');
+  const params   = new URLSearchParams(window.location.search);
+  const urlDay   = params.get('day');
+  const urlSuccess = params.get('success');  // present right after gen/regen
   let saved = null;
   try { saved = sessionStorage.getItem('np_day_{{ meal_plan.id }}'); } catch(e) {}
 
   const tabs = Array.from(document.querySelectorAll('.day-tab'));
   const nTabs = tabs.length;
 
-  // Convert a day_of_week value to tab index (for URL ?day= param)
   function dayNumToTabIdx(dayNum) {
     const i = tabs.findIndex(t => parseInt(t.dataset.day) === dayNum);
     return i >= 0 ? i : 0;
   }
 
+  // Parse ISO date as LOCAL midnight to avoid UTC-offset surprises
+  function localDate(iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  // Populate "Hoy: Lun 03/08/26" label
+  const DIAS_CORTO = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2,'0');
+  const mm = String(now.getMonth()+1).padStart(2,'0');
+  const yy = String(now.getFullYear()).slice(-2);
+  const lbl = document.getElementById('today-label');
+  if (lbl) lbl.textContent = `Hoy: ${DIAS_CORTO[now.getDay()]} ${dd}/${mm}/${yy}`;
+
   let init;
   if (urlDay !== null) {
+    // Server sent explicit day (e.g. after replacing a meal)
     init = dayNumToTabIdx(parseInt(urlDay));
-  } else if (saved !== null) {
+  } else if (saved !== null && !urlSuccess) {
+    // Resume last visited tab — but skip after gen/regen so date logic runs fresh
     init = parseInt(saved);
   } else {
     // Find the tab whose calendar date is closest to today
-    // (exact match = today is in range; otherwise nearest past or future day)
-    const planStart = new Date('{{ meal_plan.week_start.isoformat() }}');
-    planStart.setHours(0, 0, 0, 0);
-    const planStartDayNum = {{ meal_plan.week_start.weekday() }};  // 0=Mon
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const planStart    = localDate('{{ meal_plan.week_start.isoformat() }}');
+    const planStartDay = {{ meal_plan.week_start.weekday() }};  // 0=Mon…6=Sun
+    const today        = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     let bestIdx = 0, bestDiff = Infinity;
     tabs.forEach((tab, i) => {
       const tabDate = new Date(planStart);
-      tabDate.setDate(planStart.getDate() + (parseInt(tab.dataset.day) - planStartDayNum));
+      tabDate.setDate(planStart.getDate() + (parseInt(tab.dataset.day) - planStartDay));
       const diff = Math.abs(tabDate - today);
       if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
     });
