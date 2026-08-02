@@ -335,7 +335,7 @@ País del usuario: {_country(profile)} — usa ingredientes, nombres y medidas t
     message = client.messages.create(
         model=MODEL,
         max_tokens=16000,
-        temperature=1.0,
+        temperature=0.7,
         system="Eres un nutricionista deportivo experto con amplio conocimiento en rendimiento atlético, recuperación muscular, periodización nutricional y planificación de comidas para personas activas. Ajusta los planes considerando el momento del entrenamiento (pre/post-workout). Sé CREATIVO y VARIADO en los platos — evita caer siempre en los mismos nombres. Usa siempre ortografía española correcta con tildes y puntuación. Responde siempre con JSON válido, sin texto adicional ni bloques de código markdown.",
         messages=[{"role": "user", "content": prompt}],
     )
