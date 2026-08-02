@@ -644,6 +644,7 @@ async def reemplazar_plato(
     grasas: str = Form(default="0"),
     ingredientes_json: str = Form(default="[]"),
     receta_detallada: str = Form(default=""),
+    is_capricho: str = Form(default="0"),
 ):
     """Replace a meal with a user-selected dish (from the search modal)."""
     current_user = get_current_user(request, db)
@@ -674,7 +675,8 @@ async def reemplazar_plato(
         meal.actual_calories = None
         meal.actual_name = None
         meal.regen_count = 0
-        upsert_saved_meal(db, current_user.id, meal)
+        if is_capricho != "1":
+            upsert_saved_meal(db, current_user.id, meal)
         db.commit()
 
     return RedirectResponse(f"/plan/{plan_id}?success=Comida+reemplazada&day={day_num}", status_code=303)

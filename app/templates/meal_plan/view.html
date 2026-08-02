@@ -486,6 +486,7 @@
         </div>
         <!-- Hidden replacement form -->
         <form id="reemplazar-form" method="POST">
+          <input type="hidden" name="is_capricho" id="rep-is-capricho" value="0">
           <input type="hidden" name="nombre" id="rep-nombre">
           <input type="hidden" name="descripcion" id="rep-descripcion">
           <input type="hidden" name="calorias" id="rep-calorias">
@@ -825,6 +826,7 @@ async function buscarPlato() {
 
     // Fill hidden form
     document.getElementById('reemplazar-form').action = `/plan/${_buscarPlanId}/comida/${_buscarMealId}/reemplazar`;
+    document.getElementById('rep-is-capricho').value = _buscarMode === 'capricho' ? '1' : '0';
     document.getElementById('rep-nombre').value = data.nombre || '';
     document.getElementById('rep-descripcion').value = data.descripcion || '';
     document.getElementById('rep-calorias').value = data.calorias || 0;
