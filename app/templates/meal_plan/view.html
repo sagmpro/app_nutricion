@@ -16,7 +16,35 @@
         {% endif %}
       </div>
       <div class="flex items-center gap-3">
+        {% if all_plans | length > 1 %}
+        <!-- Semana como dropdown -->
+        <div class="relative" id="week-dropdown-wrap">
+          <button type="button" onclick="toggleWeekDropdown()"
+                  class="flex items-center gap-1 text-gray-500 text-sm hover:text-gray-800 transition-colors group">
+            <span>Semana: {{ meal_plan.week_start.strftime("%d/%m/%y") }} al {{ week_end.strftime("%d/%m/%y") }}</span>
+            <svg class="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600 transition-transform" id="week-chevron"
+                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div id="week-dropdown"
+               class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-30 min-w-[200px] py-1 overflow-hidden">
+            {% for p in all_plans %}
+            {% set p_end = p.week_start.strftime("%d/%m/%y") %}
+            <a href="/plan/{{ p.id }}"
+               class="flex items-center justify-between px-4 py-2 text-sm hover:bg-gray-50 transition-colors
+                      {{ 'font-semibold text-green-700 bg-green-50' if p.id == meal_plan.id else 'text-gray-700' }}">
+              <span>{{ p.week_start.strftime("%d/%m/%y") }}</span>
+              <span class="text-xs ml-3 {{ 'text-green-600' if p.status == 'approved' else 'text-amber-500' }}">
+                {{ "✓ Aprobado" if p.status == "approved" else "⏳ Pendiente" }}
+              </span>
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
         <p class="text-gray-400 text-sm">Semana: {{ meal_plan.week_start.strftime("%d/%m/%y") }} al {{ week_end.strftime("%d/%m/%y") }}</p>
+        {% endif %}
         <form id="form-eliminar-plan" method="POST" action="/plan/{{ meal_plan.id }}/eliminar">
           <button type="button"
                   onclick="pedirConfirmacion('🗑 Eliminar plan', '¿Eliminar este plan permanentemente? Esta acción no se puede deshacer.', 'form-eliminar-plan')"
@@ -29,15 +57,6 @@
         </form>
       </div>
     </div>
-    {% if all_plans | length > 1 %}
-    <select onchange="window.location='/plan/'+this.value" class="input w-auto text-sm flex-shrink-0">
-      {% for p in all_plans %}
-      <option value="{{ p.id }}" {{ "selected" if p.id == meal_plan.id }}>
-        {{ p.week_start.strftime("%d/%m") }} {{ "✓" if p.status == "approved" else "⏳" }}
-      </option>
-      {% endfor %}
-    </select>
-    {% endif %}
   </div>
 
   <!-- Action toolbar -->
@@ -859,6 +878,24 @@ async function toggleRecipe(planId, mealId) {
   }
   btn.disabled = false;
 }
+
+// ---- Week dropdown ----
+function toggleWeekDropdown() {
+  const dd = document.getElementById('week-dropdown');
+  const ch = document.getElementById('week-chevron');
+  if (!dd) return;
+  dd.classList.toggle('hidden');
+  ch && ch.classList.toggle('rotate-180');
+}
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('week-dropdown-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const dd = document.getElementById('week-dropdown');
+    const ch = document.getElementById('week-chevron');
+    if (dd) dd.classList.add('hidden');
+    if (ch) ch.classList.remove('rotate-180');
+  }
+});
 
 // ---- Confirmation modal ----
 let _confirmTarget = null; // form id or null for navigation
