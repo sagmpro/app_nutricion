@@ -477,6 +477,10 @@ setTimeout(dismissToast, 5000);
         </p>
         <p id="stock-chips-loading" class="hidden text-xs text-gray-400 text-center py-2">Cargando recetario...</p>
         <div id="stock-chips" class="hidden flex-wrap gap-1.5"></div>
+        <button id="stock-regen-btn" type="button" onclick="rotarStockChips()"
+                class="hidden mt-2 text-xs text-green-600 hover:text-green-800 underline underline-offset-2">
+          Ver otras opciones
+        </button>
         <p id="stock-chips-empty" class="hidden text-xs text-amber-600 text-center py-2 bg-amber-50 rounded-xl px-3">Sin recetas guardadas para este tipo de comida.</p>
       </div>
 
@@ -807,7 +811,7 @@ async function analyzeFood(planId, mealId, input) {
 
 // ---- Buscar / cambiar plato ----
 let _buscarPlanId = null, _buscarMealId = null, _buscarMode = 'stock';
-let _stockOpciones = [];
+let _stockOpciones = [], _stockOffset = 0;
 
 function openBuscarPlato(planId, mealId, mealName, mealType) {
   _buscarPlanId = planId;
@@ -819,10 +823,12 @@ function openBuscarPlato(planId, mealId, mealName, mealType) {
   nombreChips.classList.add('hidden');
   // Reset stock chips
   _stockOpciones = [];
+  _stockOffset = 0;
   document.getElementById('stock-chips').innerHTML = '';
   document.getElementById('stock-chips').classList.add('hidden');
   document.getElementById('stock-chips-loading').classList.add('hidden');
   document.getElementById('stock-chips-empty').classList.add('hidden');
+  document.getElementById('stock-regen-btn').classList.add('hidden');
 
   setBuscarMode('sugerir');
   document.getElementById('buscar-resultado').classList.add('hidden');
@@ -880,7 +886,7 @@ async function cargarChipsRecetario() {
   const chipsEl   = document.getElementById('stock-chips');
   const emptyEl   = document.getElementById('stock-chips-empty');
 
-  if (_stockOpciones.length > 0) return; // already loaded for this meal
+  if (_stockOpciones.length > 0) { _renderStockChips(); return; }
 
   loadingEl.classList.remove('hidden');
   chipsEl.classList.add('hidden');
@@ -889,19 +895,14 @@ async function cargarChipsRecetario() {
   try {
     const resp = await fetch(`/plan/${_buscarPlanId}/comida/${_buscarMealId}/recetario-opciones`);
     const data = await resp.json();
-    _stockOpciones = data.opciones || [];
+    // Shuffle so each open gives a different starting order
+    _stockOpciones = (data.opciones || []).sort(() => Math.random() - 0.5);
+    _stockOffset = 0;
 
     if (_stockOpciones.length === 0) {
       emptyEl.classList.remove('hidden');
     } else {
-      chipsEl.innerHTML = _stockOpciones.map((op, i) =>
-        `<button type="button" onclick="elegirOpcionStock(${i})"
-                 class="stock-chip px-3 py-1 rounded-full border border-green-200 text-xs text-green-700 bg-green-50 hover:bg-green-100 transition-colors">
-           ${op.nombre}
-         </button>`
-      ).join('');
-      chipsEl.classList.remove('hidden');
-      chipsEl.classList.add('flex');
+      _renderStockChips();
     }
   } catch(e) {
     emptyEl.textContent = '❌ Error al cargar el recetario';
@@ -910,15 +911,48 @@ async function cargarChipsRecetario() {
   loadingEl.classList.add('hidden');
 }
 
+function _renderStockChips() {
+  const chipsEl  = document.getElementById('stock-chips');
+  const regenBtn = document.getElementById('stock-regen-btn');
+  const total    = _stockOpciones.length;
+  const count    = Math.min(3, total);
+
+  chipsEl.innerHTML = Array.from({length: count}, (_, i) => {
+    const idx = (_stockOffset + i) % total;
+    const op  = _stockOpciones[idx];
+    return `<button type="button" onclick="elegirOpcionStock(${idx})"
+                    class="stock-chip px-3 py-1 rounded-full border border-green-200 text-xs text-green-700 bg-green-50 hover:bg-green-100 transition-colors">
+              ${op.nombre}
+            </button>`;
+  }).join('');
+
+  chipsEl.classList.remove('hidden');
+  chipsEl.classList.add('flex');
+  regenBtn.classList.toggle('hidden', total <= 3);
+}
+
+function rotarStockChips() {
+  _stockOffset = (_stockOffset + 3) % _stockOpciones.length;
+  // Deselect any shown result so user picks from new set
+  document.getElementById('buscar-resultado').classList.add('hidden');
+  document.getElementById('buscar-data').classList.add('hidden');
+  _renderStockChips();
+}
+
 function elegirOpcionStock(idx) {
   const data = _stockOpciones[idx];
   if (!data) return;
-  document.querySelectorAll('.stock-chip').forEach((c, i) => {
-    const sel = i === idx;
-    c.classList.toggle('bg-green-600', sel);  c.classList.toggle('text-white', sel);
-    c.classList.toggle('border-green-600', sel);
-    c.classList.toggle('bg-green-50', !sel);  c.classList.toggle('text-green-700', !sel);
-    c.classList.toggle('border-green-200', !sel);
+  // Highlight selected — match by rendered chip index (not global idx)
+  document.querySelectorAll('.stock-chip').forEach(c => {
+    c.classList.remove('bg-green-600', 'text-white', 'border-green-600');
+    c.classList.add('bg-green-50', 'text-green-700', 'border-green-200');
+  });
+  // Find the clicked chip by name match
+  document.querySelectorAll('.stock-chip').forEach(c => {
+    if (c.textContent.trim() === data.nombre) {
+      c.classList.remove('bg-green-50', 'text-green-700', 'border-green-200');
+      c.classList.add('bg-green-600', 'text-white', 'border-green-600');
+    }
   });
   _mostrarResultado(data);
 }

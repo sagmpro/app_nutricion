@@ -40,10 +40,11 @@ def classify_health(ingredients_json: str) -> Optional[bool]:
 def upsert_saved_meal(db, user_id: int, meal) -> None:
     """Save or update a meal in the user's recipe repository."""
     from datetime import datetime as _dt
+    from sqlalchemy import func as _func
     existing = db.query(SavedMeal).filter(
         SavedMeal.user_id == user_id,
-        SavedMeal.name == meal.name,
         SavedMeal.meal_type == meal.meal_type,
+        _func.lower(SavedMeal.name) == meal.name.lower(),
     ).first()
     if existing:
         existing.times_served += 1
