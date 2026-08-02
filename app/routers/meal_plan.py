@@ -629,7 +629,9 @@ async def buscar_plato(
             )
         return JSONResponse(result)
     except Exception as e:
-        return JSONResponse({"error": str(e)[:100]}, status_code=500)
+        import traceback, logging
+        logging.error("buscar_plato error: %s\n%s", e, traceback.format_exc())
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @router.post("/plan/{plan_id}/comida/{meal_id}/reemplazar")
