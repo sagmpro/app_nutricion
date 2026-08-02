@@ -186,6 +186,13 @@
             ✨ Nuevo plan
           </button>
         {% endif %}
+      {% else %}
+        <a href="/plan"
+           class="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-sm font-semibold text-white transition-colors">
+          ✨ Crear mi primer plan
+        </a>
+      {% endif %}
+      {% if latest_plan %}
         {% if latest_plan.shopping_list %}
           <a href="/compras/{{ latest_plan.shopping_list.id }}"
              class="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-green-50 hover:border-green-200 text-sm font-medium text-gray-700 hover:text-green-700 transition-colors">
