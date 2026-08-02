@@ -601,27 +601,43 @@ function showDay(idx) {
   document.getElementById('tab-' + idx)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 }
 
-// Init: URL param > sessionStorage > today's weekday (0=Mon, 6=Sun)
+// Init: URL param > sessionStorage > today (if in range) or closest plan day
 (function() {
   const urlDay = new URLSearchParams(window.location.search).get('day');
   let saved = null;
   try { saved = sessionStorage.getItem('np_day_{{ meal_plan.id }}'); } catch(e) {}
-  const todayMon = (new Date().getDay() + 6) % 7;
-  const nTabs = document.querySelectorAll('.day-tab').length;
 
-  // Convert a day_of_week value (0=Mon…6=Sun) to a tab index (handles partial weeks)
+  const tabs = Array.from(document.querySelectorAll('.day-tab'));
+  const nTabs = tabs.length;
+
+  // Convert a day_of_week value to tab index (for URL ?day= param)
   function dayNumToTabIdx(dayNum) {
-    let found = -1;
-    document.querySelectorAll('.day-tab').forEach((t, i) => {
-      if (parseInt(t.dataset.day) === dayNum) found = i;
-    });
-    return found >= 0 ? found : 0;
+    const i = tabs.findIndex(t => parseInt(t.dataset.day) === dayNum);
+    return i >= 0 ? i : 0;
   }
 
   let init;
-  if (urlDay !== null) init = dayNumToTabIdx(parseInt(urlDay));
-  else if (saved !== null) init = parseInt(saved);  // already a tab index
-  else init = dayNumToTabIdx(todayMon);
+  if (urlDay !== null) {
+    init = dayNumToTabIdx(parseInt(urlDay));
+  } else if (saved !== null) {
+    init = parseInt(saved);
+  } else {
+    // Find the tab whose calendar date is closest to today
+    // (exact match = today is in range; otherwise nearest past or future day)
+    const planStart = new Date('{{ meal_plan.week_start.isoformat() }}');
+    planStart.setHours(0, 0, 0, 0);
+    const planStartDayNum = {{ meal_plan.week_start.weekday() }};  // 0=Mon
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+
+    let bestIdx = 0, bestDiff = Infinity;
+    tabs.forEach((tab, i) => {
+      const tabDate = new Date(planStart);
+      tabDate.setDate(planStart.getDate() + (parseInt(tab.dataset.day) - planStartDayNum));
+      const diff = Math.abs(tabDate - today);
+      if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+    });
+    init = bestIdx;
+  }
 
   showDay(Math.min(Math.max(0, init), nTabs - 1));
 })();
