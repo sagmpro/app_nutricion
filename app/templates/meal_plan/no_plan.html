@@ -78,9 +78,8 @@
 
 {% block scripts %}
 <script>
-// Default date to today
-const today = new Date().toISOString().split('T')[0];
-document.getElementById('week_start').value = today;
+const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+document.getElementById('week_start').value = tomorrow.toISOString().split('T')[0];
 
 document.querySelectorAll('.diet-card').forEach(card => {
   card.addEventListener('click', () => {
