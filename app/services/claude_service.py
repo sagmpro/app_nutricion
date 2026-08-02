@@ -917,3 +917,31 @@ def generate_goal_description(profile, user_description: str) -> str:
     )
     _log_usage("generate_goal_description", message, MODEL_HAIKU)
     return message.content[0].text.strip()
+
+
+def suggest_meal_names(keyword: str, meal_type: str, country: str = "España/Latinoamérica") -> list[str]:
+    """Return 5 dish name suggestions for a keyword. Uses Haiku — no limit tracking."""
+    _MEAL_LABELS = {
+        "desayuno": "desayuno", "media_manana": "media mañana",
+        "almuerzo": "almuerzo", "media_tarde": "merienda", "cena": "cena",
+    }
+    tipo = _MEAL_LABELS.get(meal_type, meal_type)
+    prompt = (
+        f"Sugiere exactamente 5 nombres de platos para {tipo} que estén relacionados con \"{keyword}\" "
+        f"(cocina de {country}). "
+        "Responde SOLO con un array JSON de 5 strings, sin explicaciones. Ejemplo: "
+        "[\"Pollo al ajillo\", \"Pollo tikka masala\", \"Pollo al limón\", \"Sopa de pollo\", \"Ensalada de pollo\"]"
+    )
+    client = _get_client()
+    message = client.messages.create(
+        model=MODEL_HAIKU,
+        max_tokens=150,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    _log_usage("suggest_meal_names", message, MODEL_HAIKU)
+    text = message.content[0].text.strip()
+    start = text.find("[")
+    end = text.rfind("]") + 1
+    if start == -1 or end == 0:
+        return []
+    return json.loads(text[start:end])

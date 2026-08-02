@@ -28,6 +28,7 @@ from app.services.claude_service import (
     analyze_food_photo as claude_analyze_photo,
     recalculate_calories_from_ingredients as claude_recalculate,
     generate_recipe as claude_generate_recipe,
+    suggest_meal_names as claude_suggest_names,
     set_token_user_id,
 )
 
@@ -528,6 +529,34 @@ def generar_receta(plan_id: int, meal_id: int, request: Request, db: Session = D
         meal.recipe_text = json.dumps(result)
         db.commit()
         return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"error": str(e)[:100]}, status_code=500)
+
+
+@router.post("/plan/{plan_id}/comida/{meal_id}/sugerir-nombres")
+async def sugerir_nombres(
+    plan_id: int,
+    meal_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    keyword: str = Form(...),
+):
+    """Return 5 dish name suggestions for a keyword — Haiku only, no AI limit consumed."""
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+
+    meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    if not meal:
+        return JSONResponse({"error": "Comida no encontrada"}, status_code=404)
+
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
+    country = getattr(profile, "country", None) or "España/Latinoamérica"
+
+    set_token_user_id(current_user.id)
+    try:
+        nombres = claude_suggest_names(keyword.strip(), meal.meal_type, country)
+        return JSONResponse({"nombres": nombres})
     except Exception as e:
         return JSONResponse({"error": str(e)[:100]}, status_code=500)
 

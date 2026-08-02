@@ -477,7 +477,7 @@ setTimeout(dismissToast, 5000);
 
       <!-- Name search mode -->
       <div id="mode-buscar-info" class="hidden text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-xl p-3 mb-3">
-        Escribe el nombre del plato que deseas. Claude buscará la receta completa con ingredientes y valores nutricionales.
+        Escribe una palabra y obtén sugerencias. Luego elige una y genera la receta completa.
       </div>
 
       <!-- Capricho mode -->
@@ -487,9 +487,17 @@ setTimeout(dismissToast, 5000);
 
       <!-- Search input (buscar and capricho modes) -->
       <div id="nombre-input-row" class="hidden mb-3">
-        <input type="text" id="buscar-nombre-input" placeholder="Ej: Pollo al curry, Pasta carbonara..."
-               class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-               onkeydown="if(event.key==='Enter'){buscarPlato();}">
+        <div class="flex gap-2">
+          <input type="text" id="buscar-nombre-input" placeholder="Ej: pollo, pasta, ensalada..."
+                 class="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                 onkeydown="if(event.key==='Enter'){ _buscarMode==='buscar' ? verSugerenciasNombres() : buscarPlato(); }">
+          <button id="sugerir-nombres-btn" type="button" onclick="verSugerenciasNombres()"
+                  class="hidden px-3 py-2 rounded-xl text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors whitespace-nowrap">
+            Ver opciones
+          </button>
+        </div>
+        <!-- Suggestion chips container -->
+        <div id="nombre-chips" class="hidden flex-wrap gap-1.5 mt-2"></div>
       </div>
 
       <button id="buscar-btn" onclick="buscarPlato()"
@@ -799,6 +807,9 @@ function openBuscarPlato(planId, mealId, mealName, mealType) {
   _buscarPlanId = planId;
   _buscarMealId = mealId;
   document.getElementById('buscar-nombre-input').value = '';
+  const chipsEl = document.getElementById('nombre-chips');
+  chipsEl.innerHTML = '';
+  chipsEl.classList.add('hidden');
   setBuscarMode('sugerir');
   document.getElementById('buscar-resultado').classList.add('hidden');
   document.getElementById('buscar-data').classList.add('hidden');
@@ -824,10 +835,17 @@ function setBuscarMode(mode) {
   document.getElementById('mode-buscar-info').classList.toggle('hidden', mode !== 'buscar');
   document.getElementById('mode-capricho-info').classList.toggle('hidden', mode !== 'capricho');
   document.getElementById('nombre-input-row').classList.toggle('hidden', mode !== 'buscar' && mode !== 'capricho');
+  // "Ver opciones" sub-button only in buscar mode
+  const sugerirBtn = document.getElementById('sugerir-nombres-btn');
+  sugerirBtn.classList.toggle('hidden', mode !== 'buscar');
+  // Reset chips when switching mode
+  const chipsEl = document.getElementById('nombre-chips');
+  chipsEl.innerHTML = '';
+  chipsEl.classList.add('hidden');
   if (mode === 'capricho') {
     document.getElementById('buscar-nombre-input').placeholder = 'Ej: Hamburguesa, Helado de chocolate, Pizza...';
   } else if (mode === 'buscar') {
-    document.getElementById('buscar-nombre-input').placeholder = 'Ej: Pollo al curry, Pasta carbonara...';
+    document.getElementById('buscar-nombre-input').placeholder = 'Ej: pollo, pasta, ensalada...';
   }
   const btn = document.getElementById('buscar-btn');
   const configs = {
@@ -839,6 +857,57 @@ function setBuscarMode(mode) {
   const [txt, bg] = configs[mode] || configs.sugerir;
   btn.textContent = txt;
   btn.style.cssText = `width:100%;padding:0.5rem;border-radius:0.75rem;font-size:0.875rem;font-weight:500;background:${bg};color:#fff;`;
+}
+
+async function verSugerenciasNombres() {
+  const keyword = document.getElementById('buscar-nombre-input').value.trim();
+  if (!keyword) { document.getElementById('buscar-nombre-input').focus(); return; }
+
+  const btn = document.getElementById('sugerir-nombres-btn');
+  const chipsEl = document.getElementById('nombre-chips');
+  btn.textContent = '...';
+  btn.disabled = true;
+
+  const fd = new FormData();
+  fd.append('keyword', keyword);
+
+  try {
+    const resp = await fetch(`/plan/${_buscarPlanId}/comida/${_buscarMealId}/sugerir-nombres`, {
+      method: 'POST', body: fd,
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    const nombres = data.nombres || [];
+    chipsEl.innerHTML = nombres.map(n =>
+      `<button type="button"
+               onclick="elegirNombre(this)"
+               class="nombre-chip px-3 py-1 rounded-full border border-blue-200 text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">
+         ${n}
+       </button>`
+    ).join('');
+    chipsEl.classList.toggle('hidden', nombres.length === 0);
+    chipsEl.classList.add('flex');
+  } catch(e) {
+    chipsEl.innerHTML = `<span class="text-xs text-red-500">❌ ${e.message}</span>`;
+    chipsEl.classList.remove('hidden');
+    chipsEl.classList.add('flex');
+  }
+
+  btn.textContent = 'Ver opciones';
+  btn.disabled = false;
+}
+
+function elegirNombre(chipEl) {
+  // Highlight selected chip
+  document.querySelectorAll('.nombre-chip').forEach(c => {
+    c.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+    c.classList.add('bg-blue-50', 'text-blue-700', 'border-blue-200');
+  });
+  chipEl.classList.remove('bg-blue-50', 'text-blue-700', 'border-blue-200');
+  chipEl.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+  // Fill input with the chosen name
+  document.getElementById('buscar-nombre-input').value = chipEl.textContent.trim();
 }
 
 async function buscarPlato() {
