@@ -474,21 +474,57 @@ Si todos los ingredientes están cubiertos por el stock, devuelve {{"lista": []}
 
 
 def analyze_food_photo(image_bytes: bytes, media_type: str) -> dict:
-    """Analyze a food photo or nutrition label and estimate calories/macros."""
+    """Analyze a food photo or nutrition label and estimate calories/macros with ingredients."""
     image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
     client = _get_client()
     message = client.messages.create(
         model=MODEL,
-        max_tokens=500,
+        max_tokens=700,
         messages=[{"role": "user", "content": [
             {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_data}},
-            {"type": "text", "text": """Analiza esta imagen. Puede ser una foto de comida o una etiqueta nutricional.
-Estima las calorías y macronutrientes.
+            {"type": "text", "text": """Analiza esta imagen de comida o etiqueta nutricional.
+Identifica los ingredientes visibles con sus cantidades estimadas y calcula el total nutricional.
 Responde ÚNICAMENTE con JSON válido:
-{"nombre": "Nombre del alimento", "calorias": 350, "proteinas_g": 25, "carbohidratos_g": 40, "grasas_g": 10}"""},
+{
+  "nombre": "Nombre del plato",
+  "calorias": 350,
+  "proteinas_g": 25.0,
+  "carbohidratos_g": 40.0,
+  "grasas_g": 10.0,
+  "ingredientes": [
+    {"nombre": "Ingrediente", "cantidad": 100, "unidad": "g"}
+  ]
+}
+Incluye 3-6 ingredientes principales con cantidades realistas. Usa gramos como unidad preferente.
+Los valores nutricionales deben corresponder a las cantidades de los ingredientes listados."""},
         ]}],
     )
     _log_usage("analyze_food_photo", message)
+    return _parse_json(message.content[0].text)
+
+
+def recalculate_calories_from_ingredients(nombre: str, ingredientes: list) -> dict:
+    """Recalculate nutritional values for a dish given adjusted ingredient quantities."""
+    ing_lines = "\n".join(
+        f"- {i['nombre']}: {i['cantidad']} {i['unidad']}" for i in ingredientes
+    )
+    prompt = f"""Recalcula los valores nutricionales de "{nombre}" usando EXACTAMENTE estas cantidades:
+
+{ing_lines}
+
+Responde ÚNICAMENTE con JSON válido:
+{{"calorias": 0, "proteinas_g": 0.0, "carbohidratos_g": 0.0, "grasas_g": 0.0}}
+
+Calcula los valores reales sumando el aporte nutricional de cada ingrediente en la cantidad indicada."""
+
+    client = _get_client()
+    message = client.messages.create(
+        model=MODEL_HAIKU,
+        max_tokens=200,
+        system="Eres un nutricionista experto. Responde SOLO con JSON válido, sin texto adicional.",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    _log_usage("recalculate_calories_from_ingredients", message)
     return _parse_json(message.content[0].text)
 
 

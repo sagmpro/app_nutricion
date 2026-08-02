@@ -24,6 +24,7 @@ from app.services.claude_service import (
     buscar_plato_por_nombre as claude_buscar_plato,
     generate_cheat_meal as claude_cheat_meal,
     analyze_food_photo as claude_analyze_photo,
+    recalculate_calories_from_ingredients as claude_recalculate,
     generate_recipe as claude_generate_recipe,
     set_token_user_id,
 )
@@ -421,6 +422,30 @@ async def foto_consumida_preview(
         image_bytes = await foto.read()
         media_type = foto.content_type or "image/jpeg"
         result = claude_analyze_photo(image_bytes, media_type)
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"error": str(e)[:100]}, status_code=500)
+
+
+@router.post("/plan/{plan_id}/comida/{meal_id}/recalcular-ingredientes")
+async def recalcular_ingredientes(
+    plan_id: int,
+    meal_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Recalculate nutritional values given adjusted ingredient quantities."""
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+    body = await request.json()
+    nombre = (body.get("nombre") or "").strip()
+    ingredientes = body.get("ingredientes") or []
+    if not ingredientes:
+        return JSONResponse({"error": "Sin ingredientes"}, status_code=400)
+    set_token_user_id(current_user.id)
+    try:
+        result = claude_recalculate(nombre, ingredientes)
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"error": str(e)[:100]}, status_code=500)

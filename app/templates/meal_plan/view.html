@@ -436,47 +436,62 @@
 
 <!-- Food photo confirmation modal -->
 <div id="foto-modal" class="hidden fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-    <h3 class="font-semibold text-gray-800 mb-1">¿Qué comiste?</h3>
-    <p class="text-xs text-gray-400 mb-4">Edita el nombre si la IA no acertó y recalcula.</p>
-    <form id="modal-form" method="POST">
-      <div class="space-y-3">
-        <div>
-          <label class="label text-sm">Nombre del alimento</label>
-          <div class="flex gap-2 items-center">
-            <input type="text" name="nombre" id="modal-nombre" class="input flex-1" required>
-            <button type="button" onclick="recalcularFoto()"
-                    id="recalc-btn"
-                    class="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors">
-              🔄 Recalcular
-            </button>
-          </div>
-          <p id="recalc-status" class="hidden text-xs mt-1"></p>
+  <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl flex flex-col max-h-[90vh]">
+    <div class="p-5 border-b border-gray-100">
+      <h3 class="font-semibold text-gray-800 mb-0.5">¿Qué comiste?</h3>
+      <p class="text-xs text-gray-400">Ajusta las cantidades y recalcula si es necesario.</p>
+    </div>
+    <div class="overflow-y-auto p-5 flex-1">
+      <form id="modal-form" method="POST">
+        <!-- Nombre -->
+        <div class="mb-4">
+          <label class="label text-sm">Nombre</label>
+          <input type="text" name="nombre" id="modal-nombre" class="input" required>
         </div>
-        <div>
-          <label class="label text-sm">Calorías estimadas</label>
-          <input type="number" name="calorias" id="modal-calorias" class="input" min="0" placeholder="0">
+
+        <!-- Ingredientes editables -->
+        <div class="mb-4">
+          <p class="label text-sm mb-2">Ingredientes identificados</p>
+          <div id="modal-ingredientes" class="space-y-2"></div>
         </div>
-        <div class="grid grid-cols-3 gap-2 p-3 bg-gray-50 rounded-xl">
-          <div class="text-center">
-            <p class="text-xs text-gray-400 mb-0.5">Proteínas</p>
-            <p class="text-sm font-semibold text-blue-600" id="modal-proteinas">—</p>
+
+        <!-- Recalcular -->
+        <button type="button" onclick="recalcularFoto()"
+                id="recalc-btn"
+                class="w-full py-2 rounded-xl text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors mb-4">
+          🔄 Recalcular calorías con IA
+        </button>
+        <p id="recalc-status" class="hidden text-xs text-center mb-3"></p>
+
+        <!-- Resultado nutricional -->
+        <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 mb-4">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs font-semibold text-gray-600">Calorías estimadas</p>
+            <p class="text-lg font-bold text-green-600" id="modal-calorias-display">—</p>
           </div>
-          <div class="text-center">
-            <p class="text-xs text-gray-400 mb-0.5">Carbos</p>
-            <p class="text-sm font-semibold text-orange-600" id="modal-carbos">—</p>
-          </div>
-          <div class="text-center">
-            <p class="text-xs text-gray-400 mb-0.5">Grasas</p>
-            <p class="text-sm font-semibold text-yellow-600" id="modal-grasas">—</p>
+          <input type="hidden" name="calorias" id="modal-calorias">
+          <div class="grid grid-cols-3 gap-2">
+            <div class="text-center">
+              <p class="text-xs text-gray-400 mb-0.5">Proteínas</p>
+              <p class="text-sm font-semibold text-blue-600" id="modal-proteinas">—</p>
+            </div>
+            <div class="text-center">
+              <p class="text-xs text-gray-400 mb-0.5">Carbos</p>
+              <p class="text-sm font-semibold text-orange-600" id="modal-carbos">—</p>
+            </div>
+            <div class="text-center">
+              <p class="text-xs text-gray-400 mb-0.5">Grasas</p>
+              <p class="text-sm font-semibold text-yellow-600" id="modal-grasas">—</p>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="flex gap-3 mt-5">
-        <button type="submit" class="btn-primary flex-1">✓ Confirmar</button>
-        <button type="button" onclick="closeFotoModal()" class="btn-secondary flex-1">Cancelar</button>
-      </div>
-    </form>
+
+        <div class="flex gap-3">
+          <button type="submit" class="btn-primary flex-1">✓ Confirmar</button>
+          <button type="button" onclick="closeFotoModal()" class="btn-secondary flex-1">Cancelar</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -522,6 +537,39 @@ function closeFotoModal() {
   document.getElementById('foto-modal').classList.add('hidden');
 }
 
+function _setFotoNutricion(data) {
+  const cal = data.calorias || 0;
+  document.getElementById('modal-calorias').value = cal;
+  document.getElementById('modal-calorias-display').textContent = cal + ' kcal';
+  document.getElementById('modal-proteinas').textContent = data.proteinas_g != null ? data.proteinas_g + 'g' : '—';
+  document.getElementById('modal-carbos').textContent = data.carbohidratos_g != null ? data.carbohidratos_g + 'g' : '—';
+  document.getElementById('modal-grasas').textContent = data.grasas_g != null ? data.grasas_g + 'g' : '—';
+}
+
+function _renderIngredientes(ingredientes) {
+  const container = document.getElementById('modal-ingredientes');
+  if (!ingredientes || !ingredientes.length) {
+    container.innerHTML = '<p class="text-xs text-gray-400">No se identificaron ingredientes.</p>';
+    return;
+  }
+  container.innerHTML = ingredientes.map((ing, i) => `
+    <div class="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+      <span class="text-xs text-gray-600 flex-1 truncate">${ing.nombre}</span>
+      <input type="number" min="0" step="1"
+             class="w-16 text-xs text-right border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-purple-300"
+             data-idx="${i}" value="${ing.cantidad}" onchange="updateIngrediente(${i}, this.value)">
+      <span class="text-xs text-gray-400 w-6">${ing.unidad}</span>
+    </div>`).join('');
+}
+
+let _fotoIngredientes = [];
+
+function updateIngrediente(idx, value) {
+  if (_fotoIngredientes[idx]) {
+    _fotoIngredientes[idx].cantidad = parseFloat(value) || 0;
+  }
+}
+
 async function recalcularFoto() {
   const nombre = document.getElementById('modal-nombre').value.trim();
   if (!nombre || _fotoPlanId === null || _fotoMealId === null) return;
@@ -529,32 +577,26 @@ async function recalcularFoto() {
   const statusEl = document.getElementById('recalc-status');
   const btn = document.getElementById('recalc-btn');
   statusEl.textContent = '⏳ Calculando...';
-  statusEl.className = 'text-xs mt-1 text-purple-600';
+  statusEl.className = 'text-xs text-center mb-3 text-purple-600';
   statusEl.classList.remove('hidden');
   btn.disabled = true;
   btn.classList.add('opacity-50');
 
-  const formData = new FormData();
-  formData.append('nombre', nombre);
-  formData.append('usar_stock', 'capricho');
-
   try {
-    const resp = await fetch(`/plan/${_fotoPlanId}/comida/${_fotoMealId}/buscar-plato`, {
-      method: 'POST', body: formData,
+    const resp = await fetch(`/plan/${_fotoPlanId}/comida/${_fotoMealId}/recalcular-ingredientes`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ nombre, ingredientes: _fotoIngredientes }),
     });
     const data = await resp.json();
     if (data.error) throw new Error(data.error);
-
-    document.getElementById('modal-calorias').value = data.calorias || '';
-    document.getElementById('modal-proteinas').textContent = data.proteinas_g != null ? data.proteinas_g + 'g' : '—';
-    document.getElementById('modal-carbos').textContent = data.carbohidratos_g != null ? data.carbohidratos_g + 'g' : '—';
-    document.getElementById('modal-grasas').textContent = data.grasas_g != null ? data.grasas_g + 'g' : '—';
+    _setFotoNutricion(data);
     statusEl.textContent = '✓ Recalculado';
-    statusEl.className = 'text-xs mt-1 text-green-600';
-    setTimeout(() => statusEl.classList.add('hidden'), 2000);
+    statusEl.className = 'text-xs text-center mb-3 text-green-600';
+    setTimeout(() => statusEl.classList.add('hidden'), 2500);
   } catch(e) {
     statusEl.textContent = '❌ ' + e.message;
-    statusEl.className = 'text-xs mt-1 text-red-600';
+    statusEl.className = 'text-xs text-center mb-3 text-red-600';
   }
   btn.disabled = false;
   btn.classList.remove('opacity-50');
@@ -581,11 +623,11 @@ async function analyzeFood(planId, mealId, input) {
     if (data.error) throw new Error(data.error);
 
     document.getElementById('modal-nombre').value = data.nombre || '';
-    document.getElementById('modal-calorias').value = data.calorias || '';
-    document.getElementById('modal-proteinas').textContent = data.proteinas_g != null ? data.proteinas_g + 'g' : '—';
-    document.getElementById('modal-carbos').textContent = data.carbohidratos_g != null ? data.carbohidratos_g + 'g' : '—';
-    document.getElementById('modal-grasas').textContent = data.grasas_g != null ? data.grasas_g + 'g' : '—';
     document.getElementById('modal-form').action = '/plan/' + planId + '/comida/' + mealId + '/confirmar-foto';
+    _fotoIngredientes = JSON.parse(JSON.stringify(data.ingredientes || []));
+    _renderIngredientes(_fotoIngredientes);
+    _setFotoNutricion(data);
+    document.getElementById('recalc-status').classList.add('hidden');
     document.getElementById('foto-modal').classList.remove('hidden');
     statusEl.classList.add('hidden');
   } catch(e) {
