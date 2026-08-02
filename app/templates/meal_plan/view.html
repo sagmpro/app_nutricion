@@ -438,12 +438,20 @@
 <div id="foto-modal" class="hidden fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-4">
   <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
     <h3 class="font-semibold text-gray-800 mb-1">¿Qué comiste?</h3>
-    <p class="text-xs text-gray-400 mb-4">Revisa y edita lo que se identificó antes de guardar.</p>
+    <p class="text-xs text-gray-400 mb-4">Edita el nombre si la IA no acertó y recalcula.</p>
     <form id="modal-form" method="POST">
       <div class="space-y-3">
         <div>
           <label class="label text-sm">Nombre del alimento</label>
-          <input type="text" name="nombre" id="modal-nombre" class="input" required>
+          <div class="flex gap-2 items-center">
+            <input type="text" name="nombre" id="modal-nombre" class="input flex-1" required>
+            <button type="button" onclick="recalcularFoto()"
+                    id="recalc-btn"
+                    class="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors">
+              🔄 Recalcular
+            </button>
+          </div>
+          <p id="recalc-status" class="hidden text-xs mt-1"></p>
         </div>
         <div>
           <label class="label text-sm">Calorías estimadas</label>
@@ -508,12 +516,54 @@ function togglePhotoForm(mealId) {
   }
 }
 
+let _fotoPlanId = null, _fotoMealId = null;
+
 function closeFotoModal() {
   document.getElementById('foto-modal').classList.add('hidden');
 }
 
+async function recalcularFoto() {
+  const nombre = document.getElementById('modal-nombre').value.trim();
+  if (!nombre || _fotoPlanId === null || _fotoMealId === null) return;
+
+  const statusEl = document.getElementById('recalc-status');
+  const btn = document.getElementById('recalc-btn');
+  statusEl.textContent = '⏳ Calculando...';
+  statusEl.className = 'text-xs mt-1 text-purple-600';
+  statusEl.classList.remove('hidden');
+  btn.disabled = true;
+  btn.classList.add('opacity-50');
+
+  const formData = new FormData();
+  formData.append('nombre', nombre);
+  formData.append('usar_stock', 'capricho');
+
+  try {
+    const resp = await fetch(`/plan/${_fotoPlanId}/comida/${_fotoMealId}/buscar-plato`, {
+      method: 'POST', body: formData,
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById('modal-calorias').value = data.calorias || '';
+    document.getElementById('modal-proteinas').textContent = data.proteinas_g != null ? data.proteinas_g + 'g' : '—';
+    document.getElementById('modal-carbos').textContent = data.carbohidratos_g != null ? data.carbohidratos_g + 'g' : '—';
+    document.getElementById('modal-grasas').textContent = data.grasas_g != null ? data.grasas_g + 'g' : '—';
+    statusEl.textContent = '✓ Recalculado';
+    statusEl.className = 'text-xs mt-1 text-green-600';
+    setTimeout(() => statusEl.classList.add('hidden'), 2000);
+  } catch(e) {
+    statusEl.textContent = '❌ ' + e.message;
+    statusEl.className = 'text-xs mt-1 text-red-600';
+  }
+  btn.disabled = false;
+  btn.classList.remove('opacity-50');
+}
+
 async function analyzeFood(planId, mealId, input) {
   if (!input.files[0]) return;
+  _fotoPlanId = planId;
+  _fotoMealId = mealId;
   const statusEl = document.getElementById('foto-status-' + mealId);
   statusEl.textContent = '⏳ Analizando...';
   statusEl.classList.remove('hidden');
