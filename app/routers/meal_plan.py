@@ -629,8 +629,6 @@ async def buscar_plato(
             )
         return JSONResponse(result)
     except Exception as e:
-        import traceback, logging
-        logging.error("buscar_plato error: %s\n%s", e, traceback.format_exc())
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
