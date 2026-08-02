@@ -718,6 +718,8 @@ def regenerar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)
         return RedirectResponse("/plan", status_code=303)
 
     profile = meal_plan.profile
+    # Back up current plan before overwriting
+    meal_plan.previous_raw_json = meal_plan.raw_json
     for meal in list(meal_plan.meals):
         db.delete(meal)
     db.commit()
@@ -739,7 +741,52 @@ def regenerar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)
         meal_plan.status = "pending"
         _save_meals_from_response(db, meal_plan.id, result, user_id=current_user.id)
         db.commit()
-        return RedirectResponse(f"/plan/{plan_id}", status_code=303)
+        return RedirectResponse(f"/plan/{plan_id}?success=Plan+regenerado.+Puedes+deshacer+si+prefieres+el+anterior.", status_code=303)
 
     except Exception as e:
         return RedirectResponse(f"/plan/{plan_id}?error={str(e)[:100]}", status_code=303)
+
+
+@router.post("/plan/{plan_id}/deshacer-regenerar")
+def deshacer_regenerar(plan_id: int, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
+    if not meal_plan or not meal_plan.previous_raw_json:
+        return RedirectResponse(f"/plan/{plan_id}?error=No+hay+plan+anterior+guardado.", status_code=303)
+
+    # Restore previous plan
+    for meal in list(meal_plan.meals):
+        db.delete(meal)
+    db.commit()
+
+    try:
+        previous = json.loads(meal_plan.previous_raw_json)
+        meal_plan.raw_json = meal_plan.previous_raw_json
+        meal_plan.previous_raw_json = None
+        meal_plan.status = "pending"
+        _save_meals_from_response(db, meal_plan.id, previous, user_id=current_user.id)
+        db.commit()
+        return RedirectResponse(f"/plan/{plan_id}?success=Plan+anterior+restaurado.", status_code=303)
+    except Exception as e:
+        return RedirectResponse(f"/plan/{plan_id}?error={str(e)[:100]}", status_code=303)
+
+
+@router.post("/plan/{plan_id}/comida/{meal_id}/eliminar")
+def eliminar_comida(plan_id: int, meal_id: int, request: Request, db: Session = Depends(get_db)):
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
+    if not meal_plan:
+        return RedirectResponse("/plan", status_code=303)
+
+    meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    day_num = meal.day_of_week if meal else 0
+    if meal:
+        db.delete(meal)
+        db.commit()
+    return RedirectResponse(f"/plan/{plan_id}?day={day_num}", status_code=303)

@@ -18,6 +18,7 @@ class MealPlan(Base):
     week_start: Mapped[date] = mapped_column(Date)
     status: Mapped[str] = mapped_column(String(20), default="pending")
     raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    previous_raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_shared: Mapped[bool] = mapped_column(Boolean, default=False)
     household_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("households.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

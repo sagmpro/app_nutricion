@@ -54,20 +54,35 @@
       <div class="w-px h-6 bg-gray-200 mx-2"></div>
 
       <!-- Secondary: copy to next week -->
-      <form method="POST" action="/plan/{{ meal_plan.id }}/copiar"
+      <form id="form-copiar" method="POST" action="/plan/{{ meal_plan.id }}/copiar"
             data-loading data-loading-title="Copiando plan..."
             data-loading-subtitle="Creando una copia del plan para la próxima semana.">
-        <button class="btn-secondary text-sm" title="Próxima semana">📋 <span class="hidden sm:inline">Próxima semana</span></button>
+        <button type="button" class="btn-secondary text-sm" title="Próxima semana"
+                onclick="pedirConfirmacion('📋 Próxima semana', '¿Copiar este plan a la próxima semana? Se creará un nuevo plan con las mismas comidas.', 'form-copiar')">
+          📋 <span class="hidden sm:inline">Próxima semana</span>
+        </button>
       </form>
 
       <div class="w-px h-6 bg-gray-200 mx-2"></div>
 
       <!-- Secondary: regenerate -->
-      <form method="POST" action="/plan/{{ meal_plan.id }}/regenerar"
+      <form id="form-regenerar" method="POST" action="/plan/{{ meal_plan.id }}/regenerar"
             data-loading data-loading-title="Regenerando plan..."
             data-loading-subtitle="Claude está creando un nuevo plan para ti.">
-        <button class="btn-secondary text-sm" title="Regenerar">↺ <span class="hidden sm:inline">Regenerar</span></button>
+        <button type="button" class="btn-secondary text-sm" title="Regenerar"
+                onclick="pedirConfirmacion('↺ Regenerar plan', '¿Regenerar el plan completo con IA? Se reemplazarán todas las comidas actuales.', 'form-regenerar')">
+          ↺ <span class="hidden sm:inline">Regenerar</span>
+        </button>
       </form>
+
+      {% if meal_plan.previous_raw_json %}
+      <form id="form-deshacer" method="POST" action="/plan/{{ meal_plan.id }}/deshacer-regenerar">
+        <button type="button" class="btn-secondary text-sm text-amber-600 border-amber-300 hover:bg-amber-50" title="Volver al plan anterior"
+                onclick="pedirConfirmacion('↩ Deshacer regenerar', '¿Volver al plan anterior? Se descartará el plan actual y se restaurará el de antes.', 'form-deshacer')">
+          ↩ <span class="hidden sm:inline">Deshacer</span>
+        </button>
+      </form>
+      {% endif %}
 
       <!-- Secondary: shopping (only when pending) -->
       {% if meal_plan.status != "approved" %}
@@ -75,26 +90,37 @@
         {% if has_shopping_list %}
           <a href="/compras/{{ meal_plan.shopping_list.id }}" class="btn-secondary text-sm hidden sm:inline-flex" title="Ver compras">🛒 <span class="hidden sm:inline">Ver compras</span></a>
         {% else %}
-          <form method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
+          <form id="form-compras" method="POST" action="/plan/{{ meal_plan.id }}/lista-compras"
                 data-loading data-loading-title="Generando lista de compras..."
-                data-loading-subtitle="Claude está consolidando los ingredientes."
-                class="hidden sm:block">
-            <button class="btn-secondary text-sm" title="Generar compras">🛒 <span class="hidden sm:inline">Generar compras</span></button>
+                data-loading-subtitle="Claude está consolidando los ingredientes.">
+            <button type="button" class="btn-secondary text-sm" title="Generar compras"
+                    onclick="pedirConfirmacion('🛒 Generar compras', '¿Generar la lista de compras? Se consolidarán todos los ingredientes del plan.', 'form-compras')">
+              🛒 <span class="hidden sm:inline">Compras</span>
+            </button>
           </form>
         {% endif %}
       {% endif %}
 
       <div class="w-px h-6 bg-gray-200 mx-2 hidden sm:block"></div>
-      <a href="/plan" class="btn-secondary text-sm hidden sm:inline-flex" title="Nuevo plan">+ <span class="hidden sm:inline">Nuevo</span></a>
+      <button type="button" class="btn-secondary text-sm" title="Nuevo plan"
+              onclick="pedirConfirmacion('+ Nuevo plan', '¿Crear un nuevo plan semanal? Irás a la página de generación. El plan actual se conserva.', null, '/plan')">
+        + <span class="hidden sm:inline">Nuevo</span>
+      </button>
 
       <!-- Household share button (only if user is in a household) -->
       {% if household_member %}
       <div class="w-px h-6 bg-gray-200 mx-2 hidden sm:block"></div>
-      <form method="POST" action="/hogar/plan-compartido/{{ meal_plan.id }}/toggle">
+      <form id="form-compartir" method="POST" action="/hogar/plan-compartido/{{ meal_plan.id }}/toggle">
         {% if meal_plan.is_shared %}
-        <button class="btn-secondary text-sm hidden sm:inline-flex" style="color:#16a34a; border-color:#16a34a" title="Dejar de compartir">🏠 Compartido</button>
+        <button type="button" class="btn-secondary text-sm" style="color:#16a34a; border-color:#16a34a" title="Dejar de compartir"
+                onclick="pedirConfirmacion('🏠 Dejar de compartir', '¿Dejar de compartir este plan con el hogar? Los demás miembros dejarán de verlo.', 'form-compartir')">
+          🏠 <span class="hidden sm:inline">Compartido</span>
+        </button>
         {% else %}
-        <button class="btn-secondary text-sm hidden sm:inline-flex" title="Compartir con el hogar">🏠 <span class="hidden sm:inline">Compartir</span></button>
+        <button type="button" class="btn-secondary text-sm" title="Compartir con el hogar"
+                onclick="pedirConfirmacion('🏠 Compartir', '¿Compartir este plan con tu hogar? Todos los miembros podrán verlo.', 'form-compartir')">
+          🏠 <span class="hidden sm:inline">Compartir</span>
+        </button>
         {% endif %}
       </form>
       {% endif %}
@@ -248,7 +274,7 @@
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 5H4m0 0l4 4m-4-4l4-4"/>
             </svg>
-            Cambiar comida
+            Cambiar
           </button>
 
           <!-- Ver receta (AJAX) -->
@@ -260,6 +286,18 @@
             </svg>
             {{ "Receta guardada" if meal.has_recipe else "Ver receta" }}
           </button>
+
+          <!-- Eliminar comida -->
+          <form id="form-del-{{ meal.id }}" method="POST" action="/plan/{{ meal_plan.id }}/comida/{{ meal.id }}/eliminar">
+            <button type="button"
+                    onclick="pedirConfirmacion('Eliminar comida', '¿Eliminar &quot;{{ meal.name | e }}&quot; del plan? No se puede deshacer.', 'form-del-{{ meal.id }}')"
+                    class="text-xs text-gray-300 hover:text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg transition-all flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+              Eliminar
+            </button>
+          </form>
 
         </div>
 
@@ -491,6 +529,22 @@
           <button type="button" onclick="closeFotoModal()" class="btn-secondary flex-1">Cancelar</button>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmation modal -->
+<div id="confirm-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+    <h3 id="confirm-title" class="font-semibold text-gray-800 mb-2 text-base"></h3>
+    <p id="confirm-msg" class="text-sm text-gray-500 mb-6 leading-relaxed"></p>
+    <div class="flex gap-3">
+      <button id="confirm-ok" class="flex-1 py-2.5 rounded-xl text-sm font-medium text-white" style="background:#16a34a;">
+        Continuar
+      </button>
+      <button onclick="cerrarConfirmacion()" class="flex-1 py-2.5 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">
+        Cancelar
+      </button>
     </div>
   </div>
 </div>
@@ -794,5 +848,37 @@ async function toggleRecipe(planId, mealId) {
   }
   btn.disabled = false;
 }
+
+// ---- Confirmation modal ----
+let _confirmTarget = null; // form id or null for navigation
+let _confirmUrl = null;    // url for navigation actions
+
+function pedirConfirmacion(titulo, mensaje, formId, url) {
+  _confirmTarget = formId || null;
+  _confirmUrl = url || null;
+  document.getElementById('confirm-title').textContent = titulo;
+  document.getElementById('confirm-msg').textContent = mensaje;
+  document.getElementById('confirm-modal').classList.remove('hidden');
+  document.getElementById('confirm-ok').onclick = ejecutarConfirmacion;
+}
+
+function cerrarConfirmacion() {
+  document.getElementById('confirm-modal').classList.add('hidden');
+  _confirmTarget = null;
+  _confirmUrl = null;
+}
+
+function ejecutarConfirmacion() {
+  cerrarConfirmacion();
+  if (_confirmUrl) {
+    window.location.href = _confirmUrl;
+  } else if (_confirmTarget) {
+    document.getElementById(_confirmTarget).submit();
+  }
+}
+
+document.getElementById('confirm-modal').addEventListener('click', function(e) {
+  if (e.target === this) cerrarConfirmacion();
+});
 </script>
 {% endblock %}
