@@ -17,7 +17,7 @@ def upgrade():
     op.create_table(
         "token_usage",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("function_name", sa.String(80), nullable=False),
         sa.Column("input_tokens", sa.Integer(), nullable=False, default=0),
         sa.Column("output_tokens", sa.Integer(), nullable=False, default=0),
