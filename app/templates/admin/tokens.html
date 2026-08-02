@@ -1,18 +1,63 @@
 {% extends "base.html" %}
-
 {% block title %}Tokens — Admin{% endblock %}
 
 {% block content %}
 <div class="max-w-5xl mx-auto">
 
   <!-- Header -->
-  <div class="flex items-center justify-between mb-6">
+  <div class="flex items-center justify-between mb-5">
     <div>
       <h1 class="text-2xl font-bold text-gray-900">Consumo de tokens</h1>
       <p class="text-gray-500 text-sm mt-0.5">Uso de la API de Claude por usuario</p>
     </div>
     <a href="/admin/usuarios" class="text-sm text-gray-500 hover:text-gray-700">← Usuarios</a>
   </div>
+
+  <!-- Filters -->
+  <form method="GET" action="/admin/tokens" class="bg-white border border-gray-200 rounded-2xl shadow-sm px-5 py-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+      <!-- Usuario -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Usuario</label>
+        <select name="user_id" class="input text-sm w-full">
+          <option value="">Todos</option>
+          {% for u in all_users %}
+          <option value="{{ u.id }}" {{ "selected" if f_user_id == u.id }}>{{ u.email }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <!-- Desde -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Desde</label>
+        <input type="date" name="date_from" value="{{ f_date_from }}" class="input text-sm w-full">
+      </div>
+      <!-- Hasta -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Hasta</label>
+        <input type="date" name="date_to" value="{{ f_date_to }}" class="input text-sm w-full">
+      </div>
+      <!-- Modelo -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Modelo IA</label>
+        <select name="model" class="input text-sm w-full">
+          <option value="">Todos</option>
+          {% for m in all_models %}
+          <option value="{{ m }}" {{ "selected" if f_model == m }}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-3">
+      <button type="submit" class="px-4 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors">
+        Filtrar
+      </button>
+      {% if f_user_id or f_date_from or f_date_to or f_model %}
+      <a href="/admin/tokens" class="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm hover:bg-gray-50 transition-colors">
+        × Limpiar
+      </a>
+      {% endif %}
+    </div>
+  </form>
 
   <!-- Grand total pills -->
   <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
@@ -40,7 +85,7 @@
 
   {% if rows %}
   <!-- Per-user table -->
-  <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6">
+  <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-4">
     <div class="px-5 py-4 border-b border-gray-100">
       <p class="text-sm font-semibold text-gray-700">Por usuario</p>
     </div>
@@ -62,7 +107,7 @@
           {% set cost = user_costs.get(row.id, 0.0) %}
           <tr class="hover:bg-gray-50 cursor-pointer" onclick="toggleBreakdown({{ row.id }})">
             <td class="px-5 py-3 text-gray-800 font-medium">
-              <span class="text-gray-300 text-xs mr-1">▶</span>
+              <span class="text-gray-300 text-xs mr-1" id="chevron-{{ row.id }}">▶</span>
               {{ row.email }}
             </td>
             <td class="px-5 py-3 text-right text-blue-600">{{ "{:,}".format(row.input_total or 0) }}</td>
@@ -71,7 +116,7 @@
             <td class="px-5 py-3 text-right text-gray-500">{{ row.calls }}</td>
             <td class="px-5 py-3 text-right font-semibold text-amber-600">${{ "%.4f"|format(cost) }}</td>
           </tr>
-          <!-- Breakdown row (hidden by default) -->
+          <!-- Breakdown row -->
           <tr id="breakdown-{{ row.id }}" class="hidden bg-gray-50">
             <td colspan="6" class="px-8 py-3">
               {% if breakdown_by_user.get(row.id) %}
@@ -92,7 +137,7 @@
                   {% set fn_total = (fn.input_total or 0) + (fn.output_total or 0) %}
                   <tr>
                     <td class="py-1 text-gray-600 font-mono">{{ fn.function_name }}</td>
-                    <td class="py-1 text-gray-400 font-mono text-xs">{{ fn.model }}</td>
+                    <td class="py-1 text-gray-400 font-mono">{{ fn.model }}</td>
                     <td class="py-1 text-right text-blue-500">{{ "{:,}".format(fn.input_total or 0) }}</td>
                     <td class="py-1 text-right text-green-500">{{ "{:,}".format(fn.output_total or 0) }}</td>
                     <td class="py-1 text-right font-semibold text-gray-700">{{ "{:,}".format(fn_total) }}</td>
@@ -113,7 +158,6 @@
     </div>
   </div>
 
-  <!-- Pricing note -->
   <p class="text-xs text-gray-400 text-right">
     Precios estimados: Sonnet $3/$15 · Haiku $0.80/$4 por MTok (input/output)
   </p>
@@ -121,8 +165,10 @@
   {% else %}
   <div class="bg-white border border-gray-200 rounded-2xl p-10 text-center text-gray-400 shadow-sm">
     <p class="text-4xl mb-3">📊</p>
-    <p class="font-medium text-gray-600">Sin datos aún</p>
+    <p class="font-medium text-gray-600">Sin datos{% if f_user_id or f_date_from or f_date_to or f_model %} para los filtros aplicados{% else %} aún{% endif %}</p>
+    {% if not (f_user_id or f_date_from or f_date_to or f_model) %}
     <p class="text-sm mt-1">Los tokens se registran a medida que los usuarios usan la IA.</p>
+    {% endif %}
   </div>
   {% endif %}
 
@@ -131,7 +177,10 @@
 <script>
 function toggleBreakdown(userId) {
   const row = document.getElementById('breakdown-' + userId);
-  if (row) row.classList.toggle('hidden');
+  const ch  = document.getElementById('chevron-' + userId);
+  if (!row) return;
+  const hidden = row.classList.toggle('hidden');
+  if (ch) ch.textContent = hidden ? '▶' : '▼';
 }
 </script>
 {% endblock %}

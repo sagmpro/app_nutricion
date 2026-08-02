@@ -131,8 +131,27 @@ def admin_tokens(request: Request, db: Session = Depends(get_db)):
     if isinstance(current, RedirectResponse):
         return current
 
-    # Breakdown by function + model per user (used to compute cost accurately)
-    breakdown_raw = (
+    # --- Parse filters from query params ---
+    qp = request.query_params
+    f_user_id  = int(qp["user_id"])  if qp.get("user_id")   else None
+    f_date_from = qp.get("date_from") or None   # "YYYY-MM-DD"
+    f_date_to   = qp.get("date_to")   or None
+    f_model     = qp.get("model")     or None
+
+    def _apply_filters(q):
+        if f_user_id:
+            q = q.filter(TokenUsage.user_id == f_user_id)
+        if f_date_from:
+            q = q.filter(TokenUsage.created_at >= f_date_from)
+        if f_date_to:
+            # include the full day
+            q = q.filter(TokenUsage.created_at < f_date_to + " 23:59:59")
+        if f_model:
+            q = q.filter(TokenUsage.model == f_model)
+        return q
+
+    # --- Breakdown by function + model per user ---
+    breakdown_raw = _apply_filters(
         db.query(
             TokenUsage.user_id,
             TokenUsage.function_name,
@@ -141,9 +160,7 @@ def admin_tokens(request: Request, db: Session = Depends(get_db)):
             func.sum(TokenUsage.output_tokens).label("output_total"),
             func.count(TokenUsage.id).label("calls"),
         )
-        .group_by(TokenUsage.user_id, TokenUsage.function_name, TokenUsage.model)
-        .all()
-    )
+    ).group_by(TokenUsage.user_id, TokenUsage.function_name, TokenUsage.model).all()
 
     breakdown_by_user: dict = {}
     user_costs: dict[int, float] = {}
@@ -160,29 +177,33 @@ def admin_tokens(request: Request, db: Session = Depends(get_db)):
         breakdown_by_user.setdefault(r.user_id, []).append(entry)
         user_costs[r.user_id] = user_costs.get(r.user_id, 0.0) + cost
 
-    # Totals per user
-    rows = (
+    # --- Totals per user ---
+    rows = _apply_filters(
         db.query(
             User.id,
             User.email,
             func.sum(TokenUsage.input_tokens).label("input_total"),
             func.sum(TokenUsage.output_tokens).label("output_total"),
             func.count(TokenUsage.id).label("calls"),
-        )
-        .join(TokenUsage, TokenUsage.user_id == User.id)
-        .group_by(User.id, User.email)
-        .order_by(func.sum(TokenUsage.input_tokens + TokenUsage.output_tokens).desc())
-        .all()
-    )
+        ).join(TokenUsage, TokenUsage.user_id == User.id)
+    ).group_by(User.id, User.email).order_by(
+        func.sum(TokenUsage.input_tokens + TokenUsage.output_tokens).desc()
+    ).all()
 
-    # Grand totals
-    grand = db.query(
-        func.sum(TokenUsage.input_tokens),
-        func.sum(TokenUsage.output_tokens),
-        func.count(TokenUsage.id),
+    # --- Grand totals ---
+    grand = _apply_filters(
+        db.query(
+            func.sum(TokenUsage.input_tokens),
+            func.sum(TokenUsage.output_tokens),
+            func.count(TokenUsage.id),
+        )
     ).first()
 
     grand_cost = sum(user_costs.values())
+
+    # --- Filter options ---
+    all_users  = db.query(User.id, User.email).join(TokenUsage, TokenUsage.user_id == User.id).distinct().order_by(User.email).all()
+    all_models = [r[0] for r in db.query(TokenUsage.model).distinct().filter(TokenUsage.model.isnot(None)).order_by(TokenUsage.model).all()]
 
     return templates.TemplateResponse(request, "admin/tokens.html", {
         "current_user": current,
@@ -193,6 +214,12 @@ def admin_tokens(request: Request, db: Session = Depends(get_db)):
         "grand_output": grand[1] or 0,
         "grand_calls": grand[2] or 0,
         "grand_cost": grand_cost,
+        "all_users": all_users,
+        "all_models": all_models,
+        "f_user_id":   f_user_id,
+        "f_date_from": f_date_from or "",
+        "f_date_to":   f_date_to   or "",
+        "f_model":     f_model     or "",
     })
 
 
