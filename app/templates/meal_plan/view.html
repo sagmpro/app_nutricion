@@ -472,7 +472,7 @@ setTimeout(dismissToast, 5000);
 
       <!-- Stock mode -->
       <div id="mode-stock-info" class="hidden text-xs text-gray-500 bg-green-50 border border-green-100 rounded-xl p-3 mb-3">
-        Claude generará un plato usando los ingredientes que tienes disponibles en tu stock.
+        Elige una receta aleatoria de tu recetario para este tipo de comida. No consume intentos con IA.
       </div>
 
       <!-- Name search mode -->
@@ -832,7 +832,7 @@ function setBuscarMode(mode) {
   const btn = document.getElementById('buscar-btn');
   const configs = {
     sugerir:  ['✨ Sugerir alternativa', '#9333ea'],
-    stock:    ['🏪 Generar con mi stock', '#16a34a'],
+    stock:    ['🗂️ Elegir del recetario', '#16a34a'],
     buscar:   ['🔍 Buscar plato', '#2563eb'],
     capricho: ['🍔 Registrar capricho', '#ea580c'],
   };

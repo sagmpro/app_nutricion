@@ -600,7 +600,18 @@ async def buscar_plato(
             "is_post_workout": is_post,
         }
 
-    # Fallback al recetario si el límite semanal de cambios IA está agotado
+    # Stock mode: pick from recetario directly — no Claude, no limit consumed
+    if usar_stock == "si":
+        exclude_names = [m.name for m in meal_plan.meals if m.day_of_week == meal.day_of_week]
+        recetario_meal = meal_from_recetario(db, current_user.id, meal.meal_type, exclude_names)
+        if recetario_meal:
+            return JSONResponse(recetario_meal)
+        return JSONResponse(
+            {"error": "No hay recetas guardadas en tu recetario para este tipo de comida."},
+            status_code=404,
+        )
+
+    # AI modes (sugerir / nombre / capricho): check weekly limit first
     if get_remaining(db, current_user.id, "meal_change") == 0:
         exclude_names = [m.name for m in meal_plan.meals if m.day_of_week == meal.day_of_week]
         fallback = meal_from_recetario(db, current_user.id, meal.meal_type, exclude_names)
@@ -636,15 +647,11 @@ async def buscar_plato(
                 profile=profile,
             )
         else:
-            stock_items = None
-            if usar_stock == "si":
-                raw_stock = db.query(FoodStock).filter(hs.stock_filter(current_user.id, db)).all()
-                stock_items = [{"nombre": s.name, "cantidad": s.quantity, "unidad": s.unit} for s in raw_stock]
             result = claude_buscar_plato(
                 nombre=nombre.strip(),
                 meal_type=meal.meal_type,
                 target_calories=target_calories,
-                stock_items=stock_items if usar_stock == "si" else None,
+                stock_items=None,
                 profile=profile,
                 workout_context=workout_context,
             )
