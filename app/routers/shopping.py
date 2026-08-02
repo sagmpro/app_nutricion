@@ -10,7 +10,7 @@ from app.models.shopping_list import ShoppingList
 from app.models.shopping_item import ShoppingItem
 from app.models.food_stock import FoodStock
 from app.services.auth_service import get_current_user
-from app.services.claude_service import generate_shopping_list as claude_shopping
+from app.services.claude_service import generate_shopping_list as claude_shopping, set_token_user_id
 from app.services import household_service as hs
 
 router = APIRouter()
@@ -124,6 +124,7 @@ def generar_lista(plan_id: int, request: Request, db: Session = Depends(get_db))
             {"nombre": s.name, "cantidad": s.quantity, "unidad": s.unit}
             for s in db.query(FoodStock).filter(hs.stock_filter(current_user.id, db)).all()
         ]
+        set_token_user_id(current_user.id)
         result = claude_shopping(all_ingredients, stock_items)
 
         for category_group in result.get("lista", []):

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
@@ -15,6 +16,7 @@ from app.models.shopping_item import ShoppingItem
 from app.models.food_stock import FoodStock
 from app.models.saved_meal import SavedMeal
 from app.models.household import HouseholdMember
+from app.models.token_usage import TokenUsage
 from app.services.auth_service import get_current_user
 from app.services.email_service import send_invitation_email
 from app.config import settings
@@ -109,6 +111,60 @@ def eliminar_usuario(user_id: int, request: Request, db: Session = Depends(get_d
     db.delete(user)
     db.commit()
     return RedirectResponse(f"/admin/usuarios?success=Usuario+{user.email}+eliminado", status_code=303)
+
+
+@router.get("/admin/tokens")
+def admin_tokens(request: Request, db: Session = Depends(get_db)):
+    current = _require_admin(request, db)
+    if isinstance(current, RedirectResponse):
+        return current
+
+    # Totals per user
+    rows = (
+        db.query(
+            User.id,
+            User.email,
+            func.sum(TokenUsage.input_tokens).label("input_total"),
+            func.sum(TokenUsage.output_tokens).label("output_total"),
+            func.count(TokenUsage.id).label("calls"),
+        )
+        .join(TokenUsage, TokenUsage.user_id == User.id)
+        .group_by(User.id, User.email)
+        .order_by(func.sum(TokenUsage.input_tokens + TokenUsage.output_tokens).desc())
+        .all()
+    )
+
+    # Breakdown by function per user
+    breakdown = (
+        db.query(
+            TokenUsage.user_id,
+            TokenUsage.function_name,
+            func.sum(TokenUsage.input_tokens).label("input_total"),
+            func.sum(TokenUsage.output_tokens).label("output_total"),
+            func.count(TokenUsage.id).label("calls"),
+        )
+        .group_by(TokenUsage.user_id, TokenUsage.function_name)
+        .all()
+    )
+    breakdown_by_user: dict = {}
+    for r in breakdown:
+        breakdown_by_user.setdefault(r.user_id, []).append(r)
+
+    # Grand totals
+    grand = db.query(
+        func.sum(TokenUsage.input_tokens),
+        func.sum(TokenUsage.output_tokens),
+        func.count(TokenUsage.id),
+    ).first()
+
+    return templates.TemplateResponse(request, "admin/tokens.html", {
+        "current_user": current,
+        "rows": rows,
+        "breakdown_by_user": breakdown_by_user,
+        "grand_input": grand[0] or 0,
+        "grand_output": grand[1] or 0,
+        "grand_calls": grand[2] or 0,
+    })
 
 
 @router.post("/admin/invitaciones/{inv_id}/cancelar")

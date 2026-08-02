@@ -25,6 +25,7 @@ from app.services.claude_service import (
     generate_cheat_meal as claude_cheat_meal,
     analyze_food_photo as claude_analyze_photo,
     generate_recipe as claude_generate_recipe,
+    set_token_user_id,
 )
 
 router = APIRouter()
@@ -218,6 +219,7 @@ async def generar_plan(request: Request, db: Session = Depends(get_db)):
             SavedMeal.is_excluded == False,  # noqa: E712
         ).all()
 
+        set_token_user_id(current_user.id)
         result = claude_generate(profile, bmr, tdee, target, saved_meals=user_meals or None)
         meal_plan.raw_json = json.dumps(result)
         _save_meals_from_response(db, meal_plan.id, result, user_id=current_user.id)
@@ -295,6 +297,7 @@ def regenerar_comida(plan_id: int, meal_id: int, request: Request, db: Session =
     other_meals = [m.name for m in meal_plan.meals if m.day_of_week == meal.day_of_week and m.id != meal_id]
     new_regen_count = (meal.regen_count or 0) + 1
 
+    set_token_user_id(current_user.id)
     try:
         if new_regen_count >= 3:
             # Use detailed real-recipe prompt after 3 regenerations
@@ -403,8 +406,17 @@ def consumir_comida(plan_id: int, meal_id: int, request: Request, db: Session = 
 
 
 @router.post("/plan/{plan_id}/comida/{meal_id}/foto-preview")
-async def foto_consumida_preview(plan_id: int, meal_id: int, foto: UploadFile = File(...)):
+async def foto_consumida_preview(
+    plan_id: int,
+    meal_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    foto: UploadFile = File(...),
+):
     """Analyze a food photo and return JSON — used by the AJAX confirmation modal."""
+    current_user = get_current_user(request, db)
+    if current_user:
+        set_token_user_id(current_user.id)
     try:
         image_bytes = await foto.read()
         media_type = foto.content_type or "image/jpeg"
@@ -462,6 +474,7 @@ def generar_receta(plan_id: int, meal_id: int, request: Request, db: Session = D
             return JSONResponse(json.loads(meal.recipe_text))
         except Exception:
             pass
+    set_token_user_id(current_user.id)
     try:
         ingredients = json.loads(meal.ingredients_json or "[]")
         result = claude_generate_recipe(
@@ -544,6 +557,7 @@ async def buscar_plato(
             "is_post_workout": is_post,
         }
 
+    set_token_user_id(current_user.id)
     try:
         if usar_stock == "sugerir":
             other_meals = db.query(Meal).filter(
@@ -694,6 +708,7 @@ def regenerar_plan(plan_id: int, request: Request, db: Session = Depends(get_db)
             SavedMeal.is_excluded == False,  # noqa: E712
         ).all()
 
+        set_token_user_id(current_user.id)
         result = claude_generate(profile, bmr, tdee, target, saved_meals=user_meals or None)
         meal_plan.raw_json = json.dumps(result)
         meal_plan.status = "pending"

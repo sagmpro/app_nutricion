@@ -74,13 +74,14 @@ def perfil_form(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/perfil/proponer-horario")
 async def proponer_horario(request: Request, db: Session = Depends(get_db)):
-    from app.services.claude_service import propose_meal_schedule
+    from app.services.claude_service import propose_meal_schedule, set_token_user_id
     current_user = get_current_user(request, db)
     if not current_user:
         return JSONResponse({"error": "No autorizado"}, status_code=401)
     profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
     if not profile:
         return JSONResponse({"error": "Perfil no encontrado"}, status_code=404)
+    set_token_user_id(current_user.id)
     try:
         result = propose_meal_schedule(profile)
         return JSONResponse(result)
@@ -90,7 +91,7 @@ async def proponer_horario(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/perfil/generar-objetivo")
 async def generar_objetivo_ia(request: Request, db: Session = Depends(get_db)):
-    from app.services.claude_service import generate_goal_description
+    from app.services.claude_service import generate_goal_description, set_token_user_id
     current_user = get_current_user(request, db)
     if not current_user:
         return JSONResponse({"error": "No autorizado"}, status_code=401)
@@ -99,6 +100,7 @@ async def generar_objetivo_ia(request: Request, db: Session = Depends(get_db)):
     if not description:
         return JSONResponse({"error": "Descripción vacía"}, status_code=400)
     profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
+    set_token_user_id(current_user.id)
     try:
         result = generate_goal_description(profile, description)
         return JSONResponse({"description": result})
@@ -360,7 +362,8 @@ async def generar_receta_ia(
 
     profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
 
-    from app.services.claude_service import generate_meal_for_recetario
+    from app.services.claude_service import generate_meal_for_recetario, set_token_user_id
+    set_token_user_id(current_user.id)
     try:
         result = generate_meal_for_recetario(profile, meal_type, description.strip())
     except Exception as e:

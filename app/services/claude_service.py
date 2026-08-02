@@ -2,6 +2,7 @@ import json
 import os
 import base64
 import logging
+from contextvars import ContextVar
 import anthropic
 from app.config import settings
 
@@ -9,6 +10,13 @@ MODEL = "claude-sonnet-4-6"
 MODEL_HAIKU = "claude-haiku-4-5-20251001"
 
 logger = logging.getLogger(__name__)
+
+_token_user_id: ContextVar[int | None] = ContextVar("token_user_id", default=None)
+
+
+def set_token_user_id(user_id: int | None) -> None:
+    """Set the current user id for token usage tracking. Call from routers before invoking Claude."""
+    _token_user_id.set(user_id)
 
 
 def _get_client() -> anthropic.Anthropic:
@@ -25,7 +33,24 @@ def _country(profile) -> str:
 
 def _log_usage(fn_name: str, message) -> None:
     u = message.usage
-    logger.info("[tokens] %s — input=%d output=%d total=%d", fn_name, u.input_tokens, u.output_tokens, u.input_tokens + u.output_tokens)
+    total = u.input_tokens + u.output_tokens
+    logger.info("[tokens] %s — input=%d output=%d total=%d", fn_name, u.input_tokens, u.output_tokens, total)
+    user_id = _token_user_id.get()
+    if user_id:
+        try:
+            from app.database import SessionLocal
+            from app.models.token_usage import TokenUsage
+            db = SessionLocal()
+            db.add(TokenUsage(
+                user_id=user_id,
+                function_name=fn_name,
+                input_tokens=u.input_tokens,
+                output_tokens=u.output_tokens,
+            ))
+            db.commit()
+            db.close()
+        except Exception as exc:
+            logger.warning("[tokens] failed to persist usage: %s", exc)
 
 
 def _parse_json(text: str) -> dict:

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.food_stock import FoodStock, STOCK_CATEGORIES
 from app.services.auth_service import get_current_user
-from app.services.claude_service import identify_stock_photo as claude_identify_photo
+from app.services.claude_service import identify_stock_photo as claude_identify_photo, set_token_user_id
 from app.services import household_service as hs
 
 router = APIRouter()
@@ -182,6 +182,7 @@ async def stock_desde_foto(request: Request, db: Session = Depends(get_db), foto
     if not current_user:
         return RedirectResponse("/login", status_code=303)
 
+    set_token_user_id(current_user.id)
     try:
         image_bytes = await foto.read()
         media_type = foto.content_type or "image/jpeg"

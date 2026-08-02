@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Tokens — Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Consumo de tokens</h1>
+      <p class="text-gray-500 text-sm mt-0.5">Uso de la API de Claude por usuario</p>
+    </div>
+    <a href="/admin/usuarios" class="text-sm text-gray-500 hover:text-gray-700">← Usuarios</a>
+  </div>
+
+  <!-- Grand total pills -->
+  <div class="grid grid-cols-3 gap-4 mb-8">
+    <div class="bg-white border border-gray-200 rounded-2xl p-4 text-center shadow-sm">
+      <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Total input</p>
+      <p class="text-2xl font-bold text-blue-600">{{ "{:,}".format(grand_input) }}</p>
+      <p class="text-xs text-gray-400 mt-0.5">tokens</p>
+    </div>
+    <div class="bg-white border border-gray-200 rounded-2xl p-4 text-center shadow-sm">
+      <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Total output</p>
+      <p class="text-2xl font-bold text-green-600">{{ "{:,}".format(grand_output) }}</p>
+      <p class="text-xs text-gray-400 mt-0.5">tokens</p>
+    </div>
+    <div class="bg-white border border-gray-200 rounded-2xl p-4 text-center shadow-sm">
+      <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Llamadas IA</p>
+      <p class="text-2xl font-bold text-purple-600">{{ "{:,}".format(grand_calls) }}</p>
+      <p class="text-xs text-gray-400 mt-0.5">total</p>
+    </div>
+  </div>
+
+  {% if rows %}
+  <!-- Per-user table -->
+  <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6">
+    <div class="px-5 py-4 border-b border-gray-100">
+      <p class="text-sm font-semibold text-gray-700">Por usuario</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-left text-xs text-gray-400 uppercase tracking-wider">
+            <th class="px-5 py-3 font-medium">Usuario</th>
+            <th class="px-5 py-3 font-medium text-right">Input</th>
+            <th class="px-5 py-3 font-medium text-right">Output</th>
+            <th class="px-5 py-3 font-medium text-right">Total</th>
+            <th class="px-5 py-3 font-medium text-right">Llamadas</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for row in rows %}
+          {% set total = (row.input_total or 0) + (row.output_total or 0) %}
+          <tr class="hover:bg-gray-50 cursor-pointer" onclick="toggleBreakdown({{ row.id }})">
+            <td class="px-5 py-3 text-gray-800 font-medium">
+              <span class="text-gray-300 text-xs mr-1">▶</span>
+              {{ row.email }}
+            </td>
+            <td class="px-5 py-3 text-right text-blue-600">{{ "{:,}".format(row.input_total or 0) }}</td>
+            <td class="px-5 py-3 text-right text-green-600">{{ "{:,}".format(row.output_total or 0) }}</td>
+            <td class="px-5 py-3 text-right font-semibold text-gray-800">{{ "{:,}".format(total) }}</td>
+            <td class="px-5 py-3 text-right text-gray-500">{{ row.calls }}</td>
+          </tr>
+          <!-- Breakdown row (hidden by default) -->
+          <tr id="breakdown-{{ row.id }}" class="hidden bg-gray-50">
+            <td colspan="5" class="px-8 py-3">
+              {% if breakdown_by_user.get(row.id) %}
+              <table class="w-full text-xs">
+                <thead>
+                  <tr class="text-gray-400">
+                    <th class="text-left py-1 font-medium">Función</th>
+                    <th class="text-right py-1 font-medium">Input</th>
+                    <th class="text-right py-1 font-medium">Output</th>
+                    <th class="text-right py-1 font-medium">Total</th>
+                    <th class="text-right py-1 font-medium">Calls</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  {% for fn in breakdown_by_user[row.id] | sort(attribute='input_total', reverse=True) %}
+                  {% set fn_total = (fn.input_total or 0) + (fn.output_total or 0) %}
+                  <tr>
+                    <td class="py-1 text-gray-600 font-mono">{{ fn.function_name }}</td>
+                    <td class="py-1 text-right text-blue-500">{{ "{:,}".format(fn.input_total or 0) }}</td>
+                    <td class="py-1 text-right text-green-500">{{ "{:,}".format(fn.output_total or 0) }}</td>
+                    <td class="py-1 text-right font-semibold text-gray-700">{{ "{:,}".format(fn_total) }}</td>
+                    <td class="py-1 text-right text-gray-400">{{ fn.calls }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <p class="text-xs text-gray-400">Sin datos de desglose.</p>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="bg-white border border-gray-200 rounded-2xl p-10 text-center text-gray-400 shadow-sm">
+    <p class="text-4xl mb-3">📊</p>
+    <p class="font-medium text-gray-600">Sin datos aún</p>
+    <p class="text-sm mt-1">Los tokens se registran a medida que los usuarios usan la IA.</p>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+function toggleBreakdown(userId) {
+  const row = document.getElementById('breakdown-' + userId);
+  if (row) row.classList.toggle('hidden');
+}
+</script>
+{% endblock %}

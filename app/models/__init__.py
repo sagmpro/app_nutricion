@@ -10,6 +10,7 @@ from app.models.household import Household, HouseholdMember
 from app.models.saved_meal import SavedMeal
 from app.models.exercise_type import ExerciseType
 from app.models.activity_day import ActivityDayConfig
+from app.models.token_usage import TokenUsage
 
 __all__ = [
     "UserProfile", "MealPlan", "Meal",
@@ -18,4 +19,5 @@ __all__ = [
     "Household", "HouseholdMember",
     "SavedMeal",
     "ExerciseType", "ActivityDayConfig",
+    "TokenUsage",
 ]
