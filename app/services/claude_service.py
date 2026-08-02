@@ -230,7 +230,12 @@ def generate_meal_plan(profile, bmr: float, tdee: float, target_calories: float,
     start_weekday = week_start.weekday() if week_start else 0
     n_days = 7 - start_weekday
     start_day_es = _DIAS_ES[start_weekday]
-    week_range_label = "lunes a domingo" if start_weekday == 0 else f"{start_day_es.lower()} a domingo"
+    if start_weekday == 0:
+        week_range_label = "lunes a domingo"
+    elif start_weekday == 6:
+        week_range_label = "domingo (solo un día)"
+    else:
+        week_range_label = f"{start_day_es.lower()} a domingo"
 
     # Build recently-used section (for regeneration — force new dishes)
     recently_used_section = ""
