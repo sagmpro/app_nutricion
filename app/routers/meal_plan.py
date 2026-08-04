@@ -289,6 +289,11 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
     # Viewer's pax — shown on meal cards; defaults to 1.0 if no profile
     viewer_pax: float = getattr(profile, "pax", 1.0) or 1.0
 
+    # Plan acceptance banner — only shown to the owner of a shared plan
+    plan_acceptance = None
+    if meal_plan.is_shared and meal_plan.profile and meal_plan.profile.user_id == current_user.id and household_member:
+        plan_acceptance = hs.get_plan_acceptance_status(household_member.household_id, meal_plan, db)
+
     return templates.TemplateResponse(request, "meal_plan/view.html", {
         "meal_plan": meal_plan,
         "days": days,
@@ -302,6 +307,7 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
         "household_member": household_member,
         "ai_limits": ai_limits,
         "viewer_pax": viewer_pax,
+        "plan_acceptance": plan_acceptance,
     })
 
 

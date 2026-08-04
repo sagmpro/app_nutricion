@@ -11,6 +11,7 @@ from app.models.food_stock import FoodStock
 from app.services.auth_service import get_current_user
 from app.services.nutrition import calculate_bmr, calculate_tdee, calculate_target_calories, get_activity_days_list, DAYS_OF_WEEK
 from app.services.ai_limits import get_all_limits
+from app.services import household_service as hs
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -162,6 +163,21 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
     ai_limits = get_all_limits(db, current_user.id)
 
+    # Household plan acceptance status (only relevant if current user shared a plan)
+    plan_acceptance = None
+    household_id = hs.get_household_id(current_user.id, db)
+    if household_id:
+        shared_plan = (
+            db.query(MealPlan)
+            .filter(MealPlan.household_id == household_id, MealPlan.is_shared == True)
+            .order_by(MealPlan.created_at.desc())
+            .first()
+        )
+        if shared_plan and shared_plan.profile and shared_plan.profile.user_id == current_user.id:
+            plan_acceptance = hs.get_plan_acceptance_status(household_id, shared_plan, db)
+            plan_acceptance["plan_id"] = shared_plan.id
+            plan_acceptance["week_start"] = shared_plan.week_start.strftime("%d/%m/%Y")
+
     return templates.TemplateResponse(request, "dashboard.html", {
         "profile": profile,
         "latest_plan": latest_plan,
@@ -172,4 +188,5 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "next_week_start": next_week_start,
         "next_week_end": next_week_end,
         "ai_limits": ai_limits,
+        "plan_acceptance": plan_acceptance,
     })

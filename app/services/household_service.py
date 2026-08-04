@@ -90,6 +90,45 @@ def get_member_pax_info(household_id: int, db: Session) -> list[dict]:
     return result
 
 
+def get_plan_acceptance_status(household_id: int, shared_plan, db: Session) -> dict:
+    """Return {accepted: [short_names], pending: [short_names]} for non-owner members.
+
+    A member is considered to have 'accepted' (copied) the plan if they have a personal
+    MealPlan with the same week_start as the shared plan.
+    """
+    from app.models.profile import UserProfile
+    from app.models.meal_plan import MealPlan
+
+    if not shared_plan:
+        return {"accepted": [], "pending": []}
+
+    members = db.query(HouseholdMember).filter(
+        HouseholdMember.household_id == household_id
+    ).all()
+
+    # Find the owner's user_id
+    owner_user_id = shared_plan.profile.user_id if shared_plan.profile else None
+
+    accepted = []
+    pending = []
+    for m in members:
+        if m.user_id == owner_user_id:
+            continue  # skip the plan owner
+        profile = db.query(UserProfile).filter(UserProfile.user_id == m.user_id).first()
+        dn = m.display_name or ""
+        short_name = dn if dn else (m.user.email.split("@")[0] if m.user else "?")
+        if profile:
+            has_copy = db.query(MealPlan).filter(
+                MealPlan.profile_id == profile.id,
+                MealPlan.week_start == shared_plan.week_start,
+            ).first() is not None
+        else:
+            has_copy = False
+        (accepted if has_copy else pending).append(short_name)
+
+    return {"accepted": accepted, "pending": pending}
+
+
 def migrate_stock_to_personal(user_id: int, db: Session) -> int:
     """Detach a user's stock items from the household when they leave. Returns count."""
     items = db.query(FoodStock).filter(FoodStock.user_id == user_id).all()

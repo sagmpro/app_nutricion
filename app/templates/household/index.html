@@ -309,11 +309,6 @@
                       onclick="document.getElementById('name-form-{{ m.user_id }}').classList.toggle('hidden')"
                       class="text-xs text-gray-400 hover:text-green-600 px-2 py-1 rounded-lg border border-gray-200 hover:border-green-300 transition-all">✏️</button>
               {% endif %}
-              {% if member.role == 'owner' and m.user_id != current_user.id %}
-              <form method="POST" action="/hogar/expulsar/{{ m.user_id }}" onsubmit="return confirm('¿Eliminar a {{ m_short }}?')">
-                <button type="submit" style="font-size:0.7rem;padding:0.2rem 0.5rem;color:#ef4444;border:1px solid #fca5a5;border-radius:0.5rem;background:white">×</button>
-              </form>
-              {% endif %}
             </div>
           </div>
           {% if m.user_id == current_user.id or member.role == 'owner' %}
@@ -324,6 +319,11 @@
                    maxlength="80" placeholder="Nombre de {{ m_short }} en el hogar"
                    class="input text-sm flex-1 min-w-0">
             <button type="submit" class="btn-primary flex-shrink-0" style="font-size:0.75rem;padding:0.45rem 0.7rem">OK</button>
+            {% if member.role == 'owner' and m.user_id != current_user.id %}
+            <form method="POST" action="/hogar/expulsar/{{ m.user_id }}" onsubmit="return confirm('¿Eliminar a {{ m_short }}?')" style="display:contents">
+              <button type="submit" class="flex-shrink-0" style="font-size:0.75rem;padding:0.45rem 0.6rem;color:#ef4444;border:1px solid #fca5a5;border-radius:0.5rem;background:white">🗑</button>
+            </form>
+            {% endif %}
           </form>
           {% endif %}
         </div>
