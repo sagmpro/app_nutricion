@@ -93,6 +93,7 @@ def hogar_index(request: Request, db: Session = Depends(get_db)):
                         scaled_ings.append(ing)
                 days_map[d].append({
                     "id": meal.id,
+                    "plan_id": shared_plan.id,
                     "name": meal.name,
                     "description": meal.description or "",
                     "meal_type": meal.meal_type,
@@ -102,6 +103,7 @@ def hogar_index(request: Request, db: Session = Depends(get_db)):
                     "carbs_g": meal.carbs_g,
                     "fat_g": meal.fat_g,
                     "consumed": meal.consumed,
+                    "has_recipe": bool(meal.recipe_text),
                     "ingredients": scaled_ings,
                 })
             for day_num in sorted(days_map):
