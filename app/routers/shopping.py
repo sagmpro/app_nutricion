@@ -332,3 +332,27 @@ def sincronizar_stock(list_id: int, request: Request, db: Session = Depends(get_
 
     db.commit()
     return RedirectResponse(f"/compras/{list_id}", status_code=303)
+
+
+@router.post("/compras/{list_id}/excluir-stock")
+def excluir_stock(list_id: int, request: Request, db: Session = Depends(get_db)):
+    """Delete shopping items that are already covered by stock."""
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    shopping_list = _get_user_shopping_list(db, list_id, current_user.id)
+    if not shopping_list:
+        return RedirectResponse("/compras", status_code=303)
+
+    stock_rows = db.query(FoodStock).filter(hs.stock_filter(current_user.id, db)).all()
+    stock_norms = {_norm(s.name) for s in stock_rows}
+
+    removed = 0
+    for item in list(shopping_list.items):
+        if _in_stock(item.name, stock_norms):
+            db.delete(item)
+            removed += 1
+
+    db.commit()
+    return RedirectResponse(f"/compras/{list_id}?success={removed}+ítems+eliminados+porque+ya+los+tienes+en+stock", status_code=303)
