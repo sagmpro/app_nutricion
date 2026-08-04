@@ -14,7 +14,7 @@ from app.models.saved_meal import SavedMeal, upsert_saved_meal
 from app.models.activity_day import ActivityDayConfig
 from app.services.auth_service import get_current_user
 from app.services import household_service as hs
-from app.services.ai_limits import get_remaining, log_action, get_all_limits, plan_from_recetario, meal_from_recetario
+from app.services.ai_limits import get_remaining, log_action, get_all_limits, plan_from_recetario, meal_from_recetario, LIMITS
 from app.services.nutrition import (
     calculate_bmr, calculate_tdee, calculate_target_calories,
     get_activity_days_list, get_effective_meal_times, DAYS_OF_WEEK, DAYS_SHORT,
@@ -695,12 +695,8 @@ async def buscar_plato(
 
     # AI modes (sugerir / nombre / capricho): check weekly limit first
     if get_remaining(db, current_user.id, "meal_change") == 0:
-        exclude_names = [m.name for m in meal_plan.meals if m.day_of_week == meal.day_of_week]
-        fallback = meal_from_recetario(db, current_user.id, meal.meal_type, exclude_names)
-        if fallback:
-            return JSONResponse(fallback)
         return JSONResponse(
-            {"error": "Límite de cambios con IA alcanzado esta semana y no hay recetas guardadas para este tipo de comida."},
+            {"error": f"Has alcanzado el límite semanal de cambios con IA ({LIMITS['meal_change']['count']}/semana). Usa el modo Stock para elegir del recetario."},
             status_code=429,
         )
 
@@ -788,9 +784,14 @@ async def reemplazar_plato(
         meal.actual_calories = None
         meal.actual_name = None
         meal.regen_count = 0
-        if is_capricho != "1":
-            upsert_saved_meal(db, current_user.id, meal)
+        # Commit meal change first — ensures it's saved even if saved_meals upsert fails
         db.commit()
+        if is_capricho != "1":
+            try:
+                upsert_saved_meal(db, current_user.id, meal)
+                db.commit()
+            except Exception:
+                db.rollback()
 
     return RedirectResponse(f"/plan/{plan_id}?success=Comida+reemplazada&day={day_num}", status_code=303)
 

@@ -17,7 +17,7 @@ from app.models.ai_action_log import AIActionLog
 LIMITS: dict[str, dict] = {
     "plan_generate":   {"count": 6, "period": "month"},
     "plan_regenerate": {"count": 2, "period": "week"},
-    "meal_change":     {"count": 3, "period": "week"},
+    "meal_change":     {"count": 10, "period": "week"},
 }
 
 
