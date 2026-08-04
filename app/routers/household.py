@@ -481,16 +481,31 @@ def marcar_cocinado(meal_id: int, request: Request, db: Session = Depends(get_db
     ).all()
     stock_by_norm = {_norm(s.name): s for s in stock_rows}
 
+    # Normalize units for lenient matching
+    _UNIT_ALIASES: dict[str, str] = {
+        "gramos": "g", "gr": "g", "gram": "g",
+        "mililitros": "ml", "mililitro": "ml",
+        "litros": "l", "litro": "l",
+        "kilogramos": "kg", "kilo": "kg", "kilos": "kg",
+        "unidades": "u", "unidad": "u", "und": "u", "piezas": "u", "pieza": "u",
+        "cucharadas": "cda", "cucharada": "cda",
+        "cucharaditas": "cdita", "cucharadita": "cdita",
+    }
+
+    def _norm_unit(u: str) -> str:
+        u = u.lower().strip()
+        return _UNIT_ALIASES.get(u, u)
+
     deducted = 0
     for ing in raw_ings:
         if not isinstance(ing, dict):
             continue
         nombre = ing.get("nombre", "")
         cantidad = float(ing.get("cantidad", 0)) * total_pax
-        unidad = ing.get("unidad", "")
+        unidad = _norm_unit(ing.get("unidad", ""))
         norm_name = _norm(nombre)
 
-        # Try exact match, then prefix match
+        # Try exact name match first, then prefix match
         stock_item = stock_by_norm.get(norm_name)
         if not stock_item:
             for k, v in stock_by_norm.items():
@@ -498,9 +513,17 @@ def marcar_cocinado(meal_id: int, request: Request, db: Session = Depends(get_db
                     stock_item = v
                     break
 
-        if stock_item and stock_item.unit == unidad:
-            stock_item.quantity = max(0.0, stock_item.quantity - cantidad)
-            deducted += 1
+        if stock_item:
+            stock_unit = _norm_unit(stock_item.unit)
+            if stock_unit == unidad:
+                # Same unit — deduct precisely
+                stock_item.quantity = max(0.0, stock_item.quantity - cantidad)
+                deducted += 1
+            elif stock_item.quantity > 0:
+                # Different units but item exists — deduct proportionally
+                # (best-effort: assume recipe cantidad covers one meal)
+                stock_item.quantity = max(0.0, stock_item.quantity - 1)
+                deducted += 1
 
     # Mark as consumed
     meal.consumed = True
