@@ -54,6 +54,9 @@ class UserProfile(Base):
 
     shared_plan_mode: Mapped[str] = mapped_column(String(10), default="own")  # 'own' | 'shared'
 
+    # Household portion factor: 1.0 = one full portion, 0.75 = three-quarter portion, etc.
+    pax: Mapped[float] = mapped_column(Float, default=1.0)
+
     user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     user: Mapped[Optional["User"]] = relationship(back_populates="profile")
 

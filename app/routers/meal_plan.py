@@ -286,6 +286,9 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
 
     ai_limits = get_all_limits(db, current_user.id)
 
+    # Viewer's pax — shown on meal cards; defaults to 1.0 if no profile
+    viewer_pax: float = getattr(profile, "pax", 1.0) or 1.0
+
     return templates.TemplateResponse(request, "meal_plan/view.html", {
         "meal_plan": meal_plan,
         "days": days,
@@ -298,6 +301,7 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
         "current_user": current_user,
         "household_member": household_member,
         "ai_limits": ai_limits,
+        "viewer_pax": viewer_pax,
     })
 
 

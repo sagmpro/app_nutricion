@@ -68,6 +68,27 @@
           <input type="number" name="height_cm" id="height" class="input"
             value="{{ profile.height_cm if profile else '' }}" placeholder="170" required oninput="calcBMR()">
         </div>
+        <div class="col-span-2 sm:col-span-4">
+          <hr class="border-gray-100 my-1">
+        </div>
+        <div class="col-span-2">
+          <label class="label">Mi porción (pax)</label>
+          <p class="text-xs text-gray-400 mb-2">¿Cuántas porciones comes tú? Úsalo para hogar compartido. 1 = una ración estándar.</p>
+          <div class="flex items-center gap-3">
+            <input type="range" name="pax" id="pax-slider"
+                   min="0.25" max="3" step="0.25"
+                   value="{{ profile.pax if profile else 1.0 }}"
+                   oninput="document.getElementById('pax-value').textContent = parseFloat(this.value).toFixed(2)"
+                   class="flex-1 accent-green-600">
+            <span id="pax-value" class="text-sm font-bold text-gray-800 w-10 text-right">
+              {{ "%.2f"|format(profile.pax if profile else 1.0) }}
+            </span>
+            <span class="text-sm text-gray-500">pax</span>
+          </div>
+          <div class="flex justify-between text-xs text-gray-400 mt-1 px-0.5">
+            <span>¼</span><span>½</span><span>¾</span><span>1</span><span>1¼</span><span>1½</span><span>1¾</span><span>2</span><span>2¼</span><span>2½</span><span>2¾</span><span>3</span>
+          </div>
+        </div>
         <div class="col-span-2">
           <label class="label">País de residencia</label>
           <select name="country" class="input">

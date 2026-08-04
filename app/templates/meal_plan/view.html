@@ -297,7 +297,7 @@ setTimeout(dismissToast, 5000);
           <span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg font-medium">P {{ meal.protein_g }}g</span>
           <span class="text-xs px-2 py-0.5 bg-orange-50 text-orange-600 rounded-lg font-medium">C {{ meal.carbs_g }}g</span>
           <span class="text-xs px-2 py-0.5 bg-yellow-50 text-yellow-600 rounded-lg font-medium">G {{ meal.fat_g }}g</span>
-          <span class="text-xs px-2 py-0.5 bg-gray-50 text-gray-900 rounded-lg font-bold">1 pax</span>
+          <span class="text-xs px-2 py-0.5 bg-gray-50 text-gray-900 rounded-lg font-bold">{{ viewer_pax | round(2) }} pax</span>
         </div>
 
         <!-- Ingredients -->

@@ -132,6 +132,7 @@ async def perfil_save(
     cooking_facilities: str = Form(default=""),
     max_meal_repeats: int = Form(default=2),
     country: str = Form(default=""),
+    pax: float = Form(default=1.0),
 ):
     current_user = get_current_user(request, db)
     if not current_user:
@@ -196,6 +197,7 @@ async def perfil_save(
     profile.cooking_facilities = cooking_facilities.strip() or None
     profile.max_meal_repeats = max(1, min(7, max_meal_repeats))
     profile.country = country.strip() or None
+    profile.pax = max(0.25, min(5.0, round(pax, 2)))
 
     all_meal_types = ["desayuno", "media_manana", "almuerzo", "media_tarde", "cena"]
     enabled = [mt for mt in all_meal_types if form_data.get(f"meal_enabled_{mt}") == "1"]
