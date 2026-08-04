@@ -491,17 +491,32 @@ def actualizar_display_name(
     request: Request,
     db: Session = Depends(get_db),
     nombre: str = Form(default=""),
+    target_user_id: int = Form(default=0),
 ):
-    """Update the current user's display name within their household."""
+    """Update a member's display name.
+    Owners can update any member; others can only update themselves.
+    """
     current_user = get_current_user(request, db)
     if not current_user:
         return RedirectResponse("/login", status_code=303)
 
-    member = hs.get_member(current_user.id, db)
-    if not member:
+    my_member = hs.get_member(current_user.id, db)
+    if not my_member:
         return RedirectResponse("/hogar?error=No+perteneces+a+un+hogar", status_code=303)
 
-    member.display_name = nombre.strip()[:80] or None
+    # Determine which member to update
+    uid = target_user_id if target_user_id else current_user.id
+    if uid != current_user.id and my_member.role != "owner":
+        return RedirectResponse("/hogar?tab=config&error=Solo+el+dueño+puede+renombrar+otros+miembros", status_code=303)
+
+    target_member = db.query(HouseholdMember).filter(
+        HouseholdMember.user_id == uid,
+        HouseholdMember.household_id == my_member.household_id,
+    ).first()
+    if not target_member:
+        return RedirectResponse("/hogar?tab=config&error=Miembro+no+encontrado", status_code=303)
+
+    target_member.display_name = nombre.strip()[:80] or None
     db.commit()
     return RedirectResponse("/hogar?tab=config&success=Nombre+actualizado", status_code=303)
 

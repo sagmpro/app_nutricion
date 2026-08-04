@@ -44,7 +44,7 @@
     <div class="flex gap-0 border-b border-gray-200 min-w-max">
       {% set tabs = [
         ("cocina",   "🍳 Cocina"),
-        ("config",   "⚙️ Hogar"),
+        ("config",   "⚙️ Ajustes"),
       ] %}
       {% for slug, label in tabs %}
       <a href="/hogar?tab={{ slug }}"
@@ -373,7 +373,7 @@
               </div>
             </div>
             <div class="flex items-center gap-1 flex-shrink-0">
-              {% if m.user_id == current_user.id %}
+              {% if m.user_id == current_user.id or member.role == 'owner' %}
               <button type="button"
                       onclick="document.getElementById('name-form-{{ m.user_id }}').classList.toggle('hidden')"
                       class="text-xs text-gray-400 hover:text-green-600 px-2 py-1 rounded-lg border border-gray-200 hover:border-green-300 transition-all">✏️</button>
@@ -385,12 +385,13 @@
               {% endif %}
             </div>
           </div>
-          <!-- Inline name editor (only for own row) -->
-          {% if m.user_id == current_user.id %}
+          <!-- Inline name editor (own row OR owner editing any member) -->
+          {% if m.user_id == current_user.id or member.role == 'owner' %}
           <form id="name-form-{{ m.user_id }}" method="POST" action="/hogar/miembro/display-name"
                 class="hidden mt-2 flex gap-2 items-center">
+            <input type="hidden" name="target_user_id" value="{{ m.user_id }}">
             <input type="text" name="nombre" value="{{ m.display_name or '' }}"
-                   maxlength="80" placeholder="Tu nombre en el hogar"
+                   maxlength="80" placeholder="Nombre de {{ m_short }} en el hogar"
                    class="input text-sm flex-1 min-w-0">
             <button type="submit" class="btn-primary flex-shrink-0" style="font-size:0.75rem;padding:0.45rem 0.7rem">OK</button>
           </form>
