@@ -553,6 +553,85 @@ def generar_receta(plan_id: int, meal_id: int, request: Request, db: Session = D
         return JSONResponse({"error": str(e)[:100]}, status_code=500)
 
 
+@router.post("/plan/{plan_id}/comida/{meal_id}/receta/regenerar")
+def regenerar_receta(plan_id: int, meal_id: int, request: Request, db: Session = Depends(get_db)):
+    """Force-regenerate the recipe for a meal, discarding any cached version."""
+    from app.models.household import HouseholdMember
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+
+    # Allow access to meals in a household's shared plan
+    meal = None
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
+    if meal_plan:
+        meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    if not meal:
+        # Try via household shared plan
+        member = db.query(HouseholdMember).filter(HouseholdMember.user_id == current_user.id).first()
+        if member:
+            shared_plan = db.query(MealPlan).filter(
+                MealPlan.id == plan_id,
+                MealPlan.household_id == member.household_id,
+                MealPlan.is_shared == True,
+            ).first()
+            if shared_plan:
+                meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    if not meal:
+        return JSONResponse({"error": "Comida no encontrada"}, status_code=404)
+
+    set_token_user_id(current_user.id)
+    try:
+        ingredients = json.loads(meal.ingredients_json or "[]")
+        result = claude_generate_recipe(
+            meal.name, ingredients,
+            MEAL_TYPE_LABELS.get(meal.meal_type, meal.meal_type),
+            meal.description or "",
+        )
+        meal.recipe_text = json.dumps(result)
+        db.commit()
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"error": str(e)[:100]}, status_code=500)
+
+
+@router.post("/plan/{plan_id}/comida/{meal_id}/receta/guardar")
+async def guardar_receta_manual(plan_id: int, meal_id: int, request: Request, db: Session = Depends(get_db)):
+    """Save manually edited recipe steps for a meal."""
+    from app.models.household import HouseholdMember
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+
+    meal = None
+    meal_plan = _get_user_plan(db, plan_id, current_user.id)
+    if meal_plan:
+        meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    if not meal:
+        member = db.query(HouseholdMember).filter(HouseholdMember.user_id == current_user.id).first()
+        if member:
+            shared_plan = db.query(MealPlan).filter(
+                MealPlan.id == plan_id,
+                MealPlan.household_id == member.household_id,
+                MealPlan.is_shared == True,
+            ).first()
+            if shared_plan:
+                meal = db.query(Meal).filter(Meal.id == meal_id, Meal.meal_plan_id == plan_id).first()
+    if not meal:
+        return JSONResponse({"error": "Comida no encontrada"}, status_code=404)
+
+    body = await request.json()
+    pasos = body.get("pasos", [])
+    if not isinstance(pasos, list):
+        return JSONResponse({"error": "Formato inválido"}, status_code=400)
+
+    recipe_data = json.loads(meal.recipe_text) if meal.recipe_text else {}
+    recipe_data["pasos"] = pasos
+    meal.recipe_text = json.dumps(recipe_data)
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
 @router.get("/plan/{plan_id}/comida/{meal_id}/recetario-opciones")
 async def recetario_opciones(plan_id: int, meal_id: int, request: Request, db: Session = Depends(get_db)):
     """Return saved meals for the current meal type — used to populate Stock chips (no Claude)."""

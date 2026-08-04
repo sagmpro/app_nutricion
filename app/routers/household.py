@@ -30,7 +30,7 @@ def hogar_index(request: Request, db: Session = Depends(get_db)):
     if not current_user:
         return RedirectResponse("/login", status_code=303)
 
-    tab = request.query_params.get("tab", "miembros")
+    tab = request.query_params.get("tab", "cocina")
     member = hs.get_member(current_user.id, db)
     household = None
     members = []
@@ -113,6 +113,11 @@ def hogar_index(request: Request, db: Session = Depends(get_db)):
                     "meals": days_map[day_num],
                 })
 
+    # True if the current user is the one who shared the active plan
+    is_plan_owner = bool(
+        shared_plan and shared_plan.profile and shared_plan.profile.user_id == current_user.id
+    ) if shared_plan else False
+
     return templates.TemplateResponse(request, "household/index.html", {
         "current_user": current_user,
         "member": member,
@@ -121,6 +126,7 @@ def hogar_index(request: Request, db: Session = Depends(get_db)):
         "stock_count": stock_count,
         "shopping_list": shopping_list,
         "shared_plan": shared_plan,
+        "is_plan_owner": is_plan_owner,
         "tab": tab,
         "shared_meal_types": shared_meal_types,
         "all_meal_types": ["desayuno", "media_manana", "almuerzo", "media_tarde", "cena"],
@@ -444,6 +450,26 @@ async def guardar_configuracion(request: Request, db: Session = Depends(get_db))
     db.commit()
 
     return RedirectResponse("/hogar?tab=config&success=Configuración+guardada", status_code=303)
+
+
+@router.post("/hogar/miembro/display-name")
+def actualizar_display_name(
+    request: Request,
+    db: Session = Depends(get_db),
+    nombre: str = Form(default=""),
+):
+    """Update the current user's display name within their household."""
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    member = hs.get_member(current_user.id, db)
+    if not member:
+        return RedirectResponse("/hogar?error=No+perteneces+a+un+hogar", status_code=303)
+
+    member.display_name = nombre.strip()[:80] or None
+    db.commit()
+    return RedirectResponse("/hogar?tab=config&success=Nombre+actualizado", status_code=303)
 
 
 @router.post("/hogar/cocina/comida/{meal_id}/consumir")

@@ -33,6 +33,7 @@ class HouseholdMember(Base):
     household_id: Mapped[int] = mapped_column(Integer, ForeignKey("households.id"), index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), unique=True, index=True)
     role: Mapped[str] = mapped_column(String(20), default="member")  # 'owner' | 'member'
+    display_name: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
     joined_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     household: Mapped["Household"] = relationship(back_populates="members")

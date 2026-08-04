@@ -43,9 +43,8 @@
   <div class="overflow-x-auto -mx-4 px-4">
     <div class="flex gap-0 border-b border-gray-200 min-w-max">
       {% set tabs = [
-        ("miembros", "🏠 Miembros"),
         ("cocina",   "🍳 Cocina"),
-        ("config",   "⚙️ Config"),
+        ("config",   "⚙️ Hogar"),
       ] %}
       {% for slug, label in tabs %}
       <a href="/hogar?tab={{ slug }}"
@@ -59,136 +58,9 @@
 
 
   {# =========================================== #}
-  {# TAB: MIEMBROS                               #}
-  {# =========================================== #}
-  {% if tab == "miembros" %}
-
-  <!-- Header card -->
-  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-    <div class="border-b border-gray-200 px-4 py-3 bg-gray-50 flex items-center justify-between gap-2">
-      <div class="min-w-0">
-        <h2 class="text-sm font-semibold text-gray-800 truncate">{{ household.name }}</h2>
-        <p class="text-xs text-gray-400 mt-0.5">{{ members|length }} miembro(s) · {{ stock_count }} en stock</p>
-      </div>
-      <form method="POST" action="/hogar/salir" onsubmit="return confirm('¿Seguro? Tu stock volverá a ser personal.')">
-        <button type="submit" class="btn-danger flex-shrink-0" style="font-size:0.7rem;padding:0.3rem 0.6rem">Salir</button>
-      </form>
-    </div>
-
-    <div class="p-4 space-y-4">
-      <!-- Members -->
-      <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Miembros</h3>
-      <div class="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">
-        {% for m in members %}
-        <div class="flex items-center justify-between px-3 py-2.5 bg-white hover:bg-gray-50 gap-2">
-          <div class="flex items-center gap-2 min-w-0">
-            <div class="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-xs font-bold flex-shrink-0">
-              {{ m.user.email[0].upper() }}
-            </div>
-            <div class="min-w-0">
-              <p class="text-sm font-medium text-gray-800 truncate">{{ m.user.email }}</p>
-              <p class="text-xs text-gray-400">
-                {% if m.role == 'owner' %}👑{% endif %}
-                {% if m.user_id == current_user.id %}Vos · {% endif %}
-                <strong>{% for info in member_pax_info if info.user_id == m.user_id %}{{ "%.2f"|format(info.pax) }}{% endfor %} pax</strong>
-              </p>
-            </div>
-          </div>
-          {% if member.role == 'owner' and m.user_id != current_user.id %}
-          <form method="POST" action="/hogar/expulsar/{{ m.user_id }}" onsubmit="return confirm('¿Eliminar?')">
-            <button type="submit" style="font-size:0.7rem;padding:0.2rem 0.5rem;color:#ef4444;border:1px solid #fca5a5;border-radius:0.5rem;background:white">×</button>
-          </form>
-          {% endif %}
-        </div>
-        {% endfor %}
-      </div>
-
-      <!-- Invite link -->
-      <div class="pt-1 border-t border-gray-100">
-        <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Link de invitación</h3>
-        <div class="flex gap-2 items-center">
-          <input id="invite-link" type="text" readonly
-            value="{{ request.url.scheme }}://{{ request.headers.get('host','localhost') }}/hogar/unirse/{{ household.invite_token }}"
-            class="input text-xs flex-1 min-w-0" style="font-family:monospace">
-          <button type="button" onclick="copyInviteLink()" class="btn-secondary flex-shrink-0" style="font-size:0.75rem;padding:0.45rem 0.7rem;white-space:nowrap">
-            📋
-          </button>
-        </div>
-        {% if member.role == 'owner' %}
-        <form method="POST" action="/hogar/regenerar-link" class="mt-1.5">
-          <button type="button" onclick="if(confirm('¿Generar nuevo link?')) this.form.submit()"
-            class="text-xs text-gray-400 hover:text-red-500 transition-colors">
-            🔄 Regenerar link
-          </button>
-        </form>
-        {% endif %}
-      </div>
-
-      <!-- Add by email -->
-      <div class="pt-1 border-t border-gray-100">
-        <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Agregar por email</h3>
-        <form method="POST" action="/hogar/invitar" class="flex gap-2 items-end">
-          <input type="email" name="email" class="input flex-1 min-w-0 text-sm" placeholder="email@ejemplo.com" required>
-          <button type="submit" class="btn-primary flex-shrink-0" style="white-space:nowrap;font-size:0.8rem;padding:0.5rem 0.8rem">+ Agregar</button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Resources grid -->
-  <div class="grid grid-cols-2 gap-3">
-    <a href="/stock" class="block bg-white rounded-2xl shadow border border-gray-200 p-4 hover:shadow-md transition-shadow">
-      <p class="text-xl mb-1">🥦</p>
-      <p class="text-2xl font-bold text-green-600">{{ stock_count }}</p>
-      <p class="text-xs text-gray-400 mt-0.5 leading-tight">items en stock</p>
-    </a>
-    {% if shopping_list %}
-    <a href="/compras/{{ shopping_list.id }}" class="block bg-white rounded-2xl shadow border border-gray-200 p-4 hover:shadow-md transition-shadow">
-      <p class="text-xl mb-1">🛒</p>
-      {% set checked = shopping_list.items | selectattr("checked") | list | length %}
-      {% set total = shopping_list.items | length %}
-      <p class="text-2xl font-bold text-green-600">{{ checked }}/{{ total }}</p>
-      <p class="text-xs text-gray-400 mt-0.5 leading-tight">compras marcadas</p>
-    </a>
-    {% else %}
-    <div class="bg-white rounded-2xl shadow border border-gray-200 p-4 opacity-60">
-      <p class="text-xl mb-1">🛒</p>
-      <p class="text-xs text-gray-400">Sin lista aún</p>
-    </div>
-    {% endif %}
-  </div>
-
-  <!-- Shared plan -->
-  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-    <div class="border-b border-gray-200 px-4 py-3 bg-gray-50">
-      <h2 class="text-sm font-semibold text-gray-800">🍽️ Plan compartido</h2>
-    </div>
-    <div class="p-4">
-      {% if shared_plan %}
-      <div class="space-y-3">
-        <div>
-          <p class="text-sm font-medium text-gray-800">Semana del {{ shared_plan.week_start.strftime('%d/%m/%Y') }}</p>
-          <p class="text-xs text-gray-400">{{ shared_plan.meals | length }} comidas</p>
-        </div>
-        <div class="flex gap-2">
-          <a href="/plan/{{ shared_plan.id }}" class="btn-secondary flex-1 text-center" style="font-size:0.8rem;padding:0.4rem 0.5rem">Ver plan</a>
-          <form method="POST" action="/hogar/plan-compartido/{{ shared_plan.id }}/copiar" class="flex-1">
-            <button type="submit" class="btn-primary w-full" style="font-size:0.8rem;padding:0.4rem 0.5rem">Copiar a mi perfil</button>
-          </form>
-        </div>
-      </div>
-      {% else %}
-      <p class="text-sm text-gray-500">Ningún miembro ha compartido un plan aún.</p>
-      <p class="text-xs text-gray-400 mt-1">Abrí un plan y hacé clic en <strong>Compartir con el hogar</strong>.</p>
-      {% endif %}
-    </div>
-  </div>
-
-
-  {# =========================================== #}
   {# TAB: COCINA COMPARTIDA                      #}
   {# =========================================== #}
-  {% elif tab == "cocina" %}
+  {% if tab == "cocina" %}
 
   {% if not shared_plan %}
   <div class="bg-white rounded-2xl shadow border border-gray-200 p-8 text-center text-gray-400">
@@ -210,7 +82,7 @@
   <div class="flex flex-wrap gap-x-3 gap-y-1 items-center text-xs text-gray-500 px-1">
     🍳 Hogar:
     {% for info in member_pax_info %}
-    <span class="font-medium text-gray-700">{{ info.email.split('@')[0] }} {{ "%.2f"|format(info.pax) }}px</span>
+    <span class="font-medium text-gray-700">{{ info.short_name }} {{ "%.2f"|format(info.pax) }}px</span>
     {% endfor %}
     <span class="ml-auto font-bold text-green-700">Total {{ "%.2f"|format(total_pax) }} pax</span>
   </div>
@@ -345,9 +217,32 @@
 
         <!-- Recipe box (AJAX) -->
         <div id="recipe-box-{{ meal.id }}" class="hidden mt-2 mb-3 p-3 bg-purple-50 rounded-xl border border-purple-100">
-          <p class="text-xs font-semibold text-purple-700 mb-2">📋 Receta paso a paso</p>
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs font-semibold text-purple-700">📋 Receta paso a paso</p>
+            <div class="flex gap-1">
+              <button type="button" onclick="editRecipe({{ meal.plan_id }}, {{ meal.id }})"
+                      id="recipe-edit-btn-{{ meal.id }}"
+                      class="text-xs text-purple-500 hover:text-purple-700 px-2 py-0.5 rounded-lg border border-purple-200 bg-white hover:bg-purple-50 transition-all">✏️ Editar</button>
+              <button type="button" onclick="regenRecipe({{ meal.plan_id }}, {{ meal.id }})"
+                      id="recipe-regen-btn-{{ meal.id }}"
+                      class="text-xs text-gray-400 hover:text-purple-600 px-2 py-0.5 rounded-lg border border-gray-200 bg-white hover:bg-purple-50 transition-all">🔄 Regenerar</button>
+            </div>
+          </div>
           <ol id="recipe-steps-{{ meal.id }}" class="text-xs text-gray-700 space-y-1 list-decimal list-inside leading-relaxed"></ol>
           <p class="text-xs text-gray-400 mt-2" id="recipe-time-{{ meal.id }}"></p>
+          <!-- Inline editor (hidden by default) -->
+          <div id="recipe-editor-{{ meal.id }}" class="hidden mt-3 space-y-2">
+            <p class="text-xs text-purple-600 font-medium">Editá los pasos (uno por línea):</p>
+            <textarea id="recipe-textarea-{{ meal.id }}" rows="8"
+                      class="w-full text-xs border border-purple-200 rounded-lg p-2 bg-white font-mono leading-relaxed resize-y"
+                      placeholder="Paso 1: ...&#10;Paso 2: ..."></textarea>
+            <div class="flex gap-2">
+              <button type="button" onclick="saveRecipe({{ meal.plan_id }}, {{ meal.id }})"
+                      class="text-xs btn-primary py-1 px-3">Guardar</button>
+              <button type="button" onclick="cancelEditRecipe({{ meal.id }})"
+                      class="text-xs btn-secondary py-1 px-3">Cancelar</button>
+            </div>
+          </div>
         </div>
 
         <!-- Action buttons -->
@@ -425,10 +320,10 @@
       {% for info in member_pax_info %}
       <div class="flex items-center px-4 py-3 gap-3">
         <div class="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-xs font-bold flex-shrink-0">
-          {{ info.email[0].upper() }}
+          {{ info.short_name[0].upper() }}
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-gray-800 truncate">{{ info.email }}</p>
+          <p class="text-sm font-medium text-gray-800 truncate">{{ info.short_name }}</p>
           <p class="text-xs text-gray-400">{{ '👑 Dueño' if info.role == 'owner' else 'Miembro' }}</p>
         </div>
         <p class="text-lg font-bold text-gray-900 flex-shrink-0">{{ "%.2f"|format(info.pax) }} <span class="text-xs font-normal text-gray-400">pax</span></p>
@@ -444,8 +339,163 @@
     </div>
   </div>
 
+  <!-- Members management -->
+  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+    <div class="border-b border-gray-200 px-4 py-3 bg-gray-50 flex items-center justify-between gap-2">
+      <div class="min-w-0">
+        <h2 class="text-sm font-semibold text-gray-800 truncate">{{ household.name }}</h2>
+        <p class="text-xs text-gray-400 mt-0.5">{{ members|length }} miembro(s) · {{ stock_count }} en stock</p>
+      </div>
+      <form method="POST" action="/hogar/salir" onsubmit="return confirm('¿Seguro? Tu stock volverá a ser personal.')">
+        <button type="submit" class="btn-danger flex-shrink-0" style="font-size:0.7rem;padding:0.3rem 0.6rem">Salir del hogar</button>
+      </form>
+    </div>
+    <div class="p-4 space-y-4">
+
+      <!-- Members list -->
+      <div class="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">
+        {% for m in members %}
+        {% set m_info = member_pax_info | selectattr("user_id", "equalto", m.user_id) | first | default(none) %}
+        {% set m_short = m_info.short_name if m_info else m.user.email.split('@')[0] %}
+        <div class="px-3 py-2.5 bg-white hover:bg-gray-50">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-xs font-bold flex-shrink-0">
+                {{ m_short[0].upper() }}
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-gray-800 truncate">{{ m_short }}</p>
+                <p class="text-xs text-gray-400 truncate">
+                  {% if m.role == 'owner' %}👑 Dueño · {% endif %}
+                  {% if m.user_id == current_user.id %}Vos · {% endif %}
+                  <strong>{{ "%.2f"|format(m_info.pax) if m_info else "1.00" }} pax</strong>
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 flex-shrink-0">
+              {% if m.user_id == current_user.id %}
+              <button type="button"
+                      onclick="document.getElementById('name-form-{{ m.user_id }}').classList.toggle('hidden')"
+                      class="text-xs text-gray-400 hover:text-green-600 px-2 py-1 rounded-lg border border-gray-200 hover:border-green-300 transition-all">✏️</button>
+              {% endif %}
+              {% if member.role == 'owner' and m.user_id != current_user.id %}
+              <form method="POST" action="/hogar/expulsar/{{ m.user_id }}" onsubmit="return confirm('¿Eliminar a {{ m_short }}?')">
+                <button type="submit" style="font-size:0.7rem;padding:0.2rem 0.5rem;color:#ef4444;border:1px solid #fca5a5;border-radius:0.5rem;background:white">×</button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+          <!-- Inline name editor (only for own row) -->
+          {% if m.user_id == current_user.id %}
+          <form id="name-form-{{ m.user_id }}" method="POST" action="/hogar/miembro/display-name"
+                class="hidden mt-2 flex gap-2 items-center">
+            <input type="text" name="nombre" value="{{ m.display_name or '' }}"
+                   maxlength="80" placeholder="Tu nombre en el hogar"
+                   class="input text-sm flex-1 min-w-0">
+            <button type="submit" class="btn-primary flex-shrink-0" style="font-size:0.75rem;padding:0.45rem 0.7rem">OK</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Invite link -->
+      <div class="pt-1 border-t border-gray-100">
+        <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Link de invitación</h3>
+        <div class="flex gap-2 items-center">
+          <input id="invite-link" type="text" readonly
+            value="{{ request.url.scheme }}://{{ request.headers.get('host','localhost') }}/hogar/unirse/{{ household.invite_token }}"
+            class="input text-xs flex-1 min-w-0" style="font-family:monospace">
+          <button type="button" onclick="copyInviteLink()" class="btn-secondary flex-shrink-0" style="font-size:0.75rem;padding:0.45rem 0.7rem">📋</button>
+        </div>
+        {% if member.role == 'owner' %}
+        <form method="POST" action="/hogar/regenerar-link" class="mt-1.5">
+          <button type="button" onclick="if(confirm('¿Generar nuevo link?')) this.form.submit()"
+            class="text-xs text-gray-400 hover:text-red-500 transition-colors">🔄 Regenerar link</button>
+        </form>
+        {% endif %}
+      </div>
+
+      <!-- Add by email -->
+      <div class="pt-1 border-t border-gray-100">
+        <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Agregar miembro</h3>
+        <form method="POST" action="/hogar/invitar" class="flex gap-2 items-end">
+          <input type="email" name="email" class="input flex-1 min-w-0 text-sm" placeholder="email@ejemplo.com" required>
+          <button type="submit" class="btn-primary flex-shrink-0" style="white-space:nowrap;font-size:0.8rem;padding:0.5rem 0.8rem">+ Agregar</button>
+        </form>
+      </div>
+
+      <!-- Resources + plan links -->
+      <div class="pt-1 border-t border-gray-100 grid grid-cols-2 gap-3">
+        <a href="/stock" class="flex items-center gap-2 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+          <span class="text-lg">🥦</span>
+          <div>
+            <p class="text-xs font-medium text-gray-700">Stock</p>
+            <p class="text-xs text-gray-400">{{ stock_count }} items</p>
+          </div>
+        </a>
+        {% if shopping_list %}
+        <a href="/compras/{{ shopping_list.id }}" class="flex items-center gap-2 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+          <span class="text-lg">🛒</span>
+          <div>
+            {% set sl_checked = shopping_list.items | selectattr("checked") | list | length %}
+            {% set sl_total = shopping_list.items | length %}
+            <p class="text-xs font-medium text-gray-700">Compras</p>
+            <p class="text-xs text-gray-400">{{ sl_checked }}/{{ sl_total }} marcados</p>
+          </div>
+        </a>
+        {% endif %}
+        {% if shared_plan %}
+        <a href="/plan/{{ shared_plan.id }}" class="flex items-center gap-2 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors {{ 'col-span-2' if is_plan_owner else '' }}">
+          <span class="text-lg">🍽️</span>
+          <div>
+            <p class="text-xs font-medium text-gray-700">Plan compartido</p>
+            <p class="text-xs text-gray-400">Semana del {{ shared_plan.week_start.strftime('%d/%m/%Y') }}</p>
+          </div>
+        </a>
+        {% if not is_plan_owner %}
+        <form method="POST" action="/hogar/plan-compartido/{{ shared_plan.id }}/copiar"
+              class="col-span-2 flex items-center gap-2 p-3 rounded-xl border-2 border-dashed border-green-300 bg-green-50 hover:bg-green-100 transition-colors cursor-pointer"
+              onsubmit="return confirm('¿Copiar el plan de {{ household.name }} a tu perfil?')">
+          <span class="text-lg">📋</span>
+          <div class="flex-1">
+            <p class="text-xs font-medium text-green-800">Copiar plan a mi perfil</p>
+            <p class="text-xs text-green-600">Tendrás tu propia copia editable</p>
+          </div>
+          <button type="submit" class="text-xs btn-primary" style="padding:0.3rem 0.7rem">Copiar</button>
+        </form>
+        {% endif %}
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+
   {% endif %}
   {# =========================================== #}
+
+  {% if not is_plan_owner and shared_plan and member %}
+  <!-- Welcome popup for non-owner members with a shared plan -->
+  <div id="plan-popup" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+       style="display: none !important">
+    <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm p-5 space-y-4">
+      <div class="flex items-start gap-3">
+        <span class="text-3xl flex-shrink-0">🍽️</span>
+        <div>
+          <h3 class="font-semibold text-gray-900 text-base">Plan de {{ household.name }}</h3>
+          <p class="text-sm text-gray-500 mt-0.5">Hay un plan compartido activo para la semana del <strong>{{ shared_plan.week_start.strftime('%d/%m/%Y') }}</strong>.</p>
+        </div>
+      </div>
+      <div class="flex flex-col gap-2">
+        <form method="POST" action="/hogar/plan-compartido/{{ shared_plan.id }}/copiar">
+          <button type="submit" class="btn-primary w-full">📋 Copiar plan a mi perfil</button>
+        </form>
+        <a href="/plan/{{ shared_plan.id }}" class="btn-secondary w-full text-center block">👀 Ver plan compartido</a>
+        <button type="button" onclick="dismissPlanPopup()" class="text-sm text-gray-400 text-center hover:text-gray-600 transition-colors">Ignorar por ahora</button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   {% endif %}<!-- end if member -->
 </div>
@@ -491,37 +541,108 @@ function showCocinaDay(idx) {
   showCocinaDay(best >= 0 ? best : 0);
 })();
 
-// ---- Recipe toggle (shared with plan view) ----
-async function toggleRecipe(planId, mealId) {
+// ---- Recipe helpers ----
+function _renderRecipeData(mealId, data) {
+  document.getElementById('recipe-steps-' + mealId).innerHTML =
+    (data.pasos || []).map(p => `<li>${p}</li>`).join('');
+  const parts = [];
+  if (data.tiempo_prep)    parts.push('Prep: ' + data.tiempo_prep + ' min');
+  if (data.tiempo_coccion) parts.push('Cocción: ' + data.tiempo_coccion + ' min');
+  if (data.porciones)      parts.push(data.porciones + ' porción(es)');
+  document.getElementById('recipe-time-' + mealId).textContent = parts.join(' · ');
+  document.getElementById('recipe-box-' + mealId).classList.remove('hidden');
+  // Sync textarea too in case it was open
+  const ta = document.getElementById('recipe-textarea-' + mealId);
+  if (ta) ta.value = (data.pasos || []).join('\n');
+}
+
+async function _fetchRecipe(planId, mealId, url) {
   const btn = document.getElementById('recipe-btn-' + mealId);
-  const box = document.getElementById('recipe-box-' + mealId);
-  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
-
-  const originalHTML = btn.innerHTML;
-  btn.innerHTML = '<svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Generando...';
-  btn.disabled = true;
-
+  const origHTML = btn ? btn.innerHTML : '';
+  if (btn) { btn.innerHTML = '⏳ Generando...'; btn.disabled = true; }
   try {
-    const resp = await fetch('/plan/' + planId + '/comida/' + mealId + '/receta', { method: 'POST' });
+    const resp = await fetch(url, { method: 'POST' });
     const data = await resp.json();
     if (data.error) throw new Error(data.error);
-
-    document.getElementById('recipe-steps-' + mealId).innerHTML =
-      (data.pasos || []).map(p => `<li>${p}</li>`).join('');
-
-    const parts = [];
-    if (data.tiempo_prep)   parts.push('Prep: ' + data.tiempo_prep + ' min');
-    if (data.tiempo_coccion) parts.push('Cocción: ' + data.tiempo_coccion + ' min');
-    if (data.porciones)     parts.push(data.porciones + ' porción(es)');
-    document.getElementById('recipe-time-' + mealId).textContent = parts.join(' · ');
-
-    box.classList.remove('hidden');
-    btn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg> Ocultar receta';
+    _renderRecipeData(mealId, data);
+    if (btn) btn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg> Ocultar receta';
   } catch(e) {
-    btn.innerHTML = '❌ Error';
-    setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
+    if (btn) { btn.innerHTML = '❌ Error'; setTimeout(() => { btn.innerHTML = origHTML; }, 2000); }
   }
-  btn.disabled = false;
+  if (btn) btn.disabled = false;
 }
+
+async function toggleRecipe(planId, mealId) {
+  const box = document.getElementById('recipe-box-' + mealId);
+  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
+  await _fetchRecipe(planId, mealId, '/plan/' + planId + '/comida/' + mealId + '/receta');
+}
+
+async function regenRecipe(planId, mealId) {
+  if (!confirm('¿Regenerar la receta con IA? Se reemplazará la actual.')) return;
+  const btn = document.getElementById('recipe-regen-btn-' + mealId);
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+  try {
+    const resp = await fetch('/plan/' + planId + '/comida/' + mealId + '/receta/regenerar', { method: 'POST' });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    _renderRecipeData(mealId, data);
+  } catch(e) {
+    alert('Error al regenerar: ' + e.message);
+  }
+  if (btn) { btn.textContent = orig; btn.disabled = false; }
+}
+
+function editRecipe(planId, mealId) {
+  const editor = document.getElementById('recipe-editor-' + mealId);
+  const steps = document.getElementById('recipe-steps-' + mealId);
+  const ta = document.getElementById('recipe-textarea-' + mealId);
+  // Populate textarea from current steps
+  const currentSteps = Array.from(steps.querySelectorAll('li')).map(li => li.textContent.trim());
+  ta.value = currentSteps.join('\n');
+  editor.classList.remove('hidden');
+}
+
+function cancelEditRecipe(mealId) {
+  document.getElementById('recipe-editor-' + mealId).classList.add('hidden');
+}
+
+async function saveRecipe(planId, mealId) {
+  const ta = document.getElementById('recipe-textarea-' + mealId);
+  const pasos = ta.value.split('\n').map(l => l.trim()).filter(Boolean);
+  const btn = ta.nextElementSibling?.querySelector('button');
+  const origText = btn ? btn.textContent : '';
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+  try {
+    const resp = await fetch('/plan/' + planId + '/comida/' + mealId + '/receta/guardar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pasos }),
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    // Update displayed steps
+    document.getElementById('recipe-steps-' + mealId).innerHTML = pasos.map(p => `<li>${p}</li>`).join('');
+    document.getElementById('recipe-editor-' + mealId).classList.add('hidden');
+  } catch(e) {
+    alert('Error al guardar: ' + e.message);
+  }
+  if (btn) { btn.textContent = origText; btn.disabled = false; }
+}
+
+// ---- Plan welcome popup ----
+const POPUP_KEY = 'hogar_plan_popup_dismissed';
+function dismissPlanPopup() {
+  sessionStorage.setItem(POPUP_KEY, '1');
+  document.getElementById('plan-popup')?.remove();
+}
+(function() {
+  const popup = document.getElementById('plan-popup');
+  if (!popup) return;
+  if (sessionStorage.getItem(POPUP_KEY)) return;
+  // Show with inline style override
+  popup.style.setProperty('display', 'flex', 'important');
+})();
 </script>
 {% endblock %}

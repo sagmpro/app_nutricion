@@ -68,7 +68,7 @@ def get_household_total_pax(household_id: int, db: Session) -> float:
 
 
 def get_member_pax_info(household_id: int, db: Session) -> list[dict]:
-    """Return list of {email, pax, role} for all household members."""
+    """Return list of {user_id, email, display_name, short_name, pax, role} for all household members."""
     from app.models.profile import UserProfile
     members = db.query(HouseholdMember).filter(
         HouseholdMember.household_id == household_id
@@ -76,9 +76,14 @@ def get_member_pax_info(household_id: int, db: Session) -> list[dict]:
     result = []
     for m in members:
         profile = db.query(UserProfile).filter(UserProfile.user_id == m.user_id).first()
+        email = m.user.email if m.user else "?"
+        dn = m.display_name or ""
+        short_name = dn if dn else email.split("@")[0]
         result.append({
             "user_id": m.user_id,
-            "email": m.user.email if m.user else "?",
+            "email": email,
+            "display_name": dn,
+            "short_name": short_name,
             "pax": getattr(profile, "pax", 1.0) if profile else 1.0,
             "role": m.role,
         })
