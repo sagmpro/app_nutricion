@@ -668,15 +668,24 @@ function showDay(idx) {
     const planStartDay = {{ meal_plan.week_start.weekday() }};
     const now          = new Date();
     const today        = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Python weekday: 0=Mon … 6=Sun; JS getDay(): 0=Sun … 6=Sat
+    const todayPy      = (now.getDay() + 6) % 7;
 
-    let bestIdx = 0, bestDiff = Infinity;
-    tabs.forEach((tab, i) => {
-      const tabDate = new Date(planStart);
-      tabDate.setDate(planStart.getDate() + (parseInt(tab.dataset.day) - planStartDay));
-      const diff = Math.abs(tabDate - today);
-      if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
-    });
-    init = bestIdx;
+    // 1st priority: a tab whose day_num matches today's weekday (same column regardless of week)
+    const sameWeekday = tabs.findIndex(t => parseInt(t.dataset.day) === todayPy);
+    if (sameWeekday >= 0) {
+      init = sameWeekday;
+    } else {
+      // 2nd priority: closest calendar date to today
+      let bestIdx = 0, bestDiff = Infinity;
+      tabs.forEach((tab, i) => {
+        const tabDate = new Date(planStart);
+        tabDate.setDate(planStart.getDate() + (parseInt(tab.dataset.day) - planStartDay));
+        const diff = Math.abs(tabDate - today);
+        if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+      });
+      init = bestIdx;
+    }
   }
 
   showDay(Math.min(Math.max(0, init), nTabs - 1));

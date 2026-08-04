@@ -180,6 +180,19 @@ def plan_index(request: Request, db: Session = Depends(get_db)):
         if latest:
             return RedirectResponse(f"/plan/{latest.id}", status_code=303)
 
+    # No personal plan — redirect household members to the latest shared plan
+    from app.models.household import HouseholdMember
+    member = db.query(HouseholdMember).filter(HouseholdMember.user_id == current_user.id).first()
+    if member:
+        shared = (
+            db.query(MealPlan)
+            .filter(MealPlan.household_id == member.household_id, MealPlan.is_shared == True)
+            .order_by(MealPlan.created_at.desc())
+            .first()
+        )
+        if shared:
+            return RedirectResponse(f"/plan/{shared.id}", status_code=303)
+
     return templates.TemplateResponse(request, "meal_plan/no_plan.html", {
         "profile": profile,
         "error": request.query_params.get("error"),
@@ -253,8 +266,11 @@ def ver_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
     if not meal_plan:
         return RedirectResponse("/plan", status_code=303)
 
+    # Always build days using the plan owner's profile so household members
+    # see the same configuration (meal times, activity days) as the main user.
     profile = _get_user_profile(db, current_user.id)
-    days = _build_days_data(meal_plan, profile)
+    plan_profile = meal_plan.profile
+    days = _build_days_data(meal_plan, plan_profile)
     all_plans = (
         db.query(MealPlan)
         .filter(MealPlan.profile_id == profile.id)
