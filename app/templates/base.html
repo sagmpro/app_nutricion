@@ -301,5 +301,85 @@
 </script>
 
 {% block scripts %}{% endblock %}
+
+{% if current_user is defined and current_user %}
+<!-- Global: shared-plan popup for household invitees -->
+<div id="g-plan-popup"
+     class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+     style="display:none!important">
+  <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm overflow-hidden">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100 px-5 py-4 flex items-center gap-3">
+      <span class="text-3xl">🍽️</span>
+      <div>
+        <p class="font-semibold text-gray-900 text-sm" id="g-popup-title">Plan compartido</p>
+        <p class="text-xs text-gray-500 mt-0.5" id="g-popup-subtitle">Hay un plan activo en tu hogar</p>
+      </div>
+    </div>
+    <!-- Body -->
+    <div class="p-5 space-y-2.5">
+      <form id="g-popup-copy-form" method="POST" action="">
+        <button type="submit"
+                onclick="gPopupDecide()"
+                class="btn-primary w-full text-sm">
+          📋 Copiar plan a mi perfil
+        </button>
+      </form>
+      <a id="g-popup-view-link" href=""
+         onclick="gPopupDecide()"
+         class="btn-secondary w-full text-sm block text-center">
+        👀 Ver plan compartido
+      </a>
+      <button type="button"
+              onclick="gPopupDecide(); document.getElementById('g-plan-popup').style.setProperty('display','none','important')"
+              class="w-full text-sm text-gray-400 text-center py-2 hover:text-gray-600 transition-colors">
+        Ignorar por ahora
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(async function() {
+  // Don't show on login/register/admin pages
+  const path = location.pathname;
+  if (path.startsWith('/login') || path.startsWith('/register') || path.startsWith('/admin')) return;
+
+  // Fetch popup data from server
+  let data;
+  try {
+    const r = await fetch('/hogar/plan-popup');
+    if (!r.ok) return;
+    data = await r.json();
+  } catch { return; }
+
+  if (!data.show) return;
+
+  // Check if user already decided for this plan
+  const key = 'nutriplan_plan_popup_' + data.plan_id;
+  if (localStorage.getItem(key)) return;
+
+  // Populate popup
+  document.getElementById('g-popup-title').textContent = 'Plan de ' + data.household_name;
+  document.getElementById('g-popup-subtitle').textContent = 'Semana del ' + data.week_start + ' · Podés copiarlo a tu perfil';
+  document.getElementById('g-popup-copy-form').action = '/hogar/plan-compartido/' + data.plan_id + '/copiar';
+  document.getElementById('g-popup-view-link').href = '/plan/' + data.plan_id;
+
+  // Store plan_id so gPopupDecide() can mark it
+  window._gPopupPlanId = data.plan_id;
+
+  // Show popup
+  const popup = document.getElementById('g-plan-popup');
+  popup.style.setProperty('display', 'flex', 'important');
+})();
+
+function gPopupDecide() {
+  if (window._gPopupPlanId) {
+    localStorage.setItem('nutriplan_plan_popup_' + window._gPopupPlanId, '1');
+  }
+  document.getElementById('g-plan-popup').style.setProperty('display', 'none', 'important');
+}
+</script>
+{% endif %}
 </body>
 </html>

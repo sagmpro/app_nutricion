@@ -139,6 +139,40 @@ def hogar_index(request: Request, db: Session = Depends(get_db)):
     })
 
 
+@router.get("/hogar/plan-popup")
+def plan_popup_data(request: Request, db: Session = Depends(get_db)):
+    """Lightweight JSON endpoint: returns shared plan info if the current user is a non-owner invitee."""
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return {"show": False}
+
+    member = hs.get_member(current_user.id, db)
+    if not member:
+        return {"show": False}
+
+    shared_plan = (
+        db.query(MealPlan)
+        .filter(MealPlan.household_id == member.household_id, MealPlan.is_shared == True)
+        .order_by(MealPlan.created_at.desc())
+        .first()
+    )
+    if not shared_plan:
+        return {"show": False}
+
+    # Only show popup if the current user is NOT the plan owner
+    is_owner = shared_plan.profile and shared_plan.profile.user_id == current_user.id
+    if is_owner:
+        return {"show": False}
+
+    household = db.query(Household).filter(Household.id == member.household_id).first()
+    return {
+        "show": True,
+        "plan_id": shared_plan.id,
+        "household_name": household.name if household else "Hogar",
+        "week_start": shared_plan.week_start.strftime("%d/%m/%Y"),
+    }
+
+
 @router.post("/hogar/crear")
 def crear_hogar(
     request: Request,

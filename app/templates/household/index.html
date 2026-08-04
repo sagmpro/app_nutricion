@@ -474,29 +474,6 @@
   {% endif %}
   {# =========================================== #}
 
-  {% if not is_plan_owner and shared_plan and member %}
-  <!-- Welcome popup for non-owner members with a shared plan -->
-  <div id="plan-popup" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-       style="display: none !important">
-    <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm p-5 space-y-4">
-      <div class="flex items-start gap-3">
-        <span class="text-3xl flex-shrink-0">🍽️</span>
-        <div>
-          <h3 class="font-semibold text-gray-900 text-base">Plan de {{ household.name }}</h3>
-          <p class="text-sm text-gray-500 mt-0.5">Hay un plan compartido activo para la semana del <strong>{{ shared_plan.week_start.strftime('%d/%m/%Y') }}</strong>.</p>
-        </div>
-      </div>
-      <div class="flex flex-col gap-2">
-        <form method="POST" action="/hogar/plan-compartido/{{ shared_plan.id }}/copiar">
-          <button type="submit" class="btn-primary w-full">📋 Copiar plan a mi perfil</button>
-        </form>
-        <a href="/plan/{{ shared_plan.id }}" class="btn-secondary w-full text-center block">👀 Ver plan compartido</a>
-        <button type="button" onclick="dismissPlanPopup()" class="text-sm text-gray-400 text-center hover:text-gray-600 transition-colors">Ignorar por ahora</button>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
   {% endif %}<!-- end if member -->
 </div>
 {% endblock %}
@@ -631,18 +608,5 @@ async function saveRecipe(planId, mealId) {
   if (btn) { btn.textContent = origText; btn.disabled = false; }
 }
 
-// ---- Plan welcome popup ----
-const POPUP_KEY = 'hogar_plan_popup_dismissed';
-function dismissPlanPopup() {
-  sessionStorage.setItem(POPUP_KEY, '1');
-  document.getElementById('plan-popup')?.remove();
-}
-(function() {
-  const popup = document.getElementById('plan-popup');
-  if (!popup) return;
-  if (sessionStorage.getItem(POPUP_KEY)) return;
-  // Show with inline style override
-  popup.style.setProperty('display', 'flex', 'important');
-})();
 </script>
 {% endblock %}
