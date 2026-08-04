@@ -44,6 +44,7 @@
     <div class="flex gap-0 border-b border-gray-200 min-w-max">
       {% set tabs = [
         ("cocina",   "🍳 Cocina"),
+        ("hogar",    "🏠 Hogar"),
         ("config",   "⚙️ Ajustes"),
       ] %}
       {% for slug, label in tabs %}
@@ -266,80 +267,10 @@
 
 
   {# =========================================== #}
-  {# TAB: CONFIGURACIÓN                          #}
+  {# TAB: HOGAR (miembros, invitación, recursos)  #}
   {# =========================================== #}
-  {% elif tab == "config" %}
+  {% elif tab == "hogar" %}
 
-  <form method="POST" action="/hogar/configuracion">
-    <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-      <div class="border-b border-gray-200 px-4 py-3 bg-gray-50">
-        <h2 class="text-sm font-semibold text-gray-800">Comidas compartidas</h2>
-        <p class="text-xs text-gray-400 mt-0.5">¿Qué comidas preparan juntos en el hogar?</p>
-      </div>
-      <div class="p-4 space-y-2">
-        {% set type_emojis = {
-          "desayuno":    "☀️",
-          "media_manana":"🍎",
-          "almuerzo":    "🍲",
-          "media_tarde": "🫖",
-          "cena":        "🌙"
-        } %}
-        {% for t in all_meal_types %}
-        {% set is_shared = t in shared_meal_types %}
-        <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors
-                      {{ 'border-green-300 bg-green-50' if is_shared else 'border-gray-200 bg-white hover:bg-gray-50' }}">
-          <input type="checkbox" name="shared_{{ t }}" value="1"
-                 {{ 'checked' if is_shared }}
-                 class="w-4 h-4 rounded accent-green-600 flex-shrink-0">
-          <span class="text-lg leading-none">{{ type_emojis.get(t, "🍽️") }}</span>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-gray-800">{{ meal_type_labels.get(t, t) }}</p>
-            <p class="text-xs text-gray-400 truncate">
-              {% if is_shared %}Compras × {{ "%.2f"|format(total_pax) }} pax{% else %}Personal de cada uno{% endif %}
-            </p>
-          </div>
-          {% if is_shared %}
-          <span class="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex-shrink-0">✓</span>
-          {% endif %}
-        </label>
-        {% endfor %}
-      </div>
-      <div class="px-4 pb-4">
-        <button type="submit" class="btn-primary w-full">Guardar</button>
-      </div>
-    </div>
-  </form>
-
-  <!-- Pax per member -->
-  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-    <div class="border-b border-gray-200 px-4 py-3 bg-gray-50">
-      <h2 class="text-sm font-semibold text-gray-800">Porciones por miembro</h2>
-      <p class="text-xs text-gray-400 mt-0.5">Cada miembro configura su pax en su perfil.</p>
-    </div>
-    <div class="divide-y divide-gray-100">
-      {% for info in member_pax_info %}
-      <div class="flex items-center px-4 py-3 gap-3">
-        <div class="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-xs font-bold flex-shrink-0">
-          {{ info.short_name[0].upper() }}
-        </div>
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-gray-800 truncate">{{ info.short_name }}</p>
-          <p class="text-xs text-gray-400">{{ '👑 Dueño' if info.role == 'owner' else 'Miembro' }}</p>
-        </div>
-        <p class="text-lg font-bold text-gray-900 flex-shrink-0">{{ "%.2f"|format(info.pax) }} <span class="text-xs font-normal text-gray-400">pax</span></p>
-      </div>
-      {% endfor %}
-      <div class="flex items-center justify-between px-4 py-3 bg-gray-50">
-        <span class="text-sm font-semibold text-gray-700">Total</span>
-        <span class="text-lg font-bold text-green-700">{{ "%.2f"|format(total_pax) }} pax</span>
-      </div>
-    </div>
-    <div class="px-4 pb-4 pt-2">
-      <a href="/perfil" class="btn-secondary text-sm w-full block text-center">Cambiar mi pax →</a>
-    </div>
-  </div>
-
-  <!-- Members management -->
   <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
     <div class="border-b border-gray-200 px-4 py-3 bg-gray-50 flex items-center justify-between gap-2">
       <div class="min-w-0">
@@ -385,7 +316,6 @@
               {% endif %}
             </div>
           </div>
-          <!-- Inline name editor (own row OR owner editing any member) -->
           {% if m.user_id == current_user.id or member.role == 'owner' %}
           <form id="name-form-{{ m.user_id }}" method="POST" action="/hogar/miembro/display-name"
                 class="hidden mt-2 flex gap-2 items-center">
@@ -469,6 +399,81 @@
         {% endif %}
       </div>
 
+    </div>
+  </div>
+
+
+  {# =========================================== #}
+  {# TAB: AJUSTES (comidas compartidas + pax)    #}
+  {# =========================================== #}
+  {% elif tab == "config" %}
+
+  <form method="POST" action="/hogar/configuracion">
+    <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+      <div class="border-b border-gray-200 px-4 py-3 bg-gray-50">
+        <h2 class="text-sm font-semibold text-gray-800">Comidas compartidas</h2>
+        <p class="text-xs text-gray-400 mt-0.5">¿Qué comidas preparan juntos en el hogar?</p>
+      </div>
+      <div class="p-4 space-y-2">
+        {% set type_emojis = {
+          "desayuno":    "☀️",
+          "media_manana":"🍎",
+          "almuerzo":    "🍲",
+          "media_tarde": "🫖",
+          "cena":        "🌙"
+        } %}
+        {% for t in all_meal_types %}
+        {% set is_shared = t in shared_meal_types %}
+        <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors
+                      {{ 'border-green-300 bg-green-50' if is_shared else 'border-gray-200 bg-white hover:bg-gray-50' }}">
+          <input type="checkbox" name="shared_{{ t }}" value="1"
+                 {{ 'checked' if is_shared }}
+                 class="w-4 h-4 rounded accent-green-600 flex-shrink-0">
+          <span class="text-lg leading-none">{{ type_emojis.get(t, "🍽️") }}</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-800">{{ meal_type_labels.get(t, t) }}</p>
+            <p class="text-xs text-gray-400 truncate">
+              {% if is_shared %}Compras × {{ "%.2f"|format(total_pax) }} pax{% else %}Personal de cada uno{% endif %}
+            </p>
+          </div>
+          {% if is_shared %}
+          <span class="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex-shrink-0">✓</span>
+          {% endif %}
+        </label>
+        {% endfor %}
+      </div>
+      <div class="px-4 pb-4">
+        <button type="submit" class="btn-primary w-full">Guardar</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Pax per member -->
+  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+    <div class="border-b border-gray-200 px-4 py-3 bg-gray-50">
+      <h2 class="text-sm font-semibold text-gray-800">Porciones por miembro</h2>
+      <p class="text-xs text-gray-400 mt-0.5">Cada miembro configura su pax en su perfil.</p>
+    </div>
+    <div class="divide-y divide-gray-100">
+      {% for info in member_pax_info %}
+      <div class="flex items-center px-4 py-3 gap-3">
+        <div class="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-xs font-bold flex-shrink-0">
+          {{ info.short_name[0].upper() }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-800 truncate">{{ info.short_name }}</p>
+          <p class="text-xs text-gray-400">{{ '👑 Dueño' if info.role == 'owner' else 'Miembro' }}</p>
+        </div>
+        <p class="text-lg font-bold text-gray-900 flex-shrink-0">{{ "%.2f"|format(info.pax) }} <span class="text-xs font-normal text-gray-400">pax</span></p>
+      </div>
+      {% endfor %}
+      <div class="flex items-center justify-between px-4 py-3 bg-gray-50">
+        <span class="text-sm font-semibold text-gray-700">Total</span>
+        <span class="text-lg font-bold text-green-700">{{ "%.2f"|format(total_pax) }} pax</span>
+      </div>
+    </div>
+    <div class="px-4 pb-4 pt-2">
+      <a href="/perfil" class="btn-secondary text-sm w-full block text-center">Cambiar mi pax →</a>
     </div>
   </div>
 

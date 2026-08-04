@@ -507,18 +507,18 @@ def actualizar_display_name(
     # Determine which member to update
     uid = target_user_id if target_user_id else current_user.id
     if uid != current_user.id and my_member.role != "owner":
-        return RedirectResponse("/hogar?tab=config&error=Solo+el+dueño+puede+renombrar+otros+miembros", status_code=303)
+        return RedirectResponse("/hogar?tab=hogar&error=Solo+el+dueño+puede+renombrar+otros+miembros", status_code=303)
 
     target_member = db.query(HouseholdMember).filter(
         HouseholdMember.user_id == uid,
         HouseholdMember.household_id == my_member.household_id,
     ).first()
     if not target_member:
-        return RedirectResponse("/hogar?tab=config&error=Miembro+no+encontrado", status_code=303)
+        return RedirectResponse("/hogar?tab=hogar&error=Miembro+no+encontrado", status_code=303)
 
     target_member.display_name = nombre.strip()[:80] or None
     db.commit()
-    return RedirectResponse("/hogar?tab=config&success=Nombre+actualizado", status_code=303)
+    return RedirectResponse("/hogar?tab=hogar&success=Nombre+actualizado", status_code=303)
 
 
 @router.post("/hogar/cocina/comida/{meal_id}/consumir")
