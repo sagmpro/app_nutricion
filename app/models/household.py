@@ -2,7 +2,7 @@ import uuid as _uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, Integer, DateTime, ForeignKey, func
+from sqlalchemy import String, Integer, DateTime, ForeignKey, Text, func
 from app.database import Base
 
 if TYPE_CHECKING:
@@ -17,6 +17,9 @@ class Household(Base):
     created_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     invite_token: Mapped[str] = mapped_column(String(64), unique=True, index=True, default=lambda: _uuid.uuid4().hex)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    # JSON list of meal types shared across all household members, e.g. ["almuerzo"]
+    shared_meal_types: Mapped[str] = mapped_column(Text, default='["almuerzo"]')
 
     members: Mapped[list["HouseholdMember"]] = relationship(
         back_populates="household", cascade="all, delete-orphan"

@@ -8,7 +8,7 @@
   <!-- Header -->
   <div>
     <h1 class="text-2xl font-bold text-gray-900">🏠 Mi Hogar</h1>
-    <p class="text-gray-500 text-sm mt-1">Stock, lista de compras y planes compartidos con las personas con quienes vivís.</p>
+    <p class="text-gray-500 text-sm mt-1">Stock, compras y cocina compartida con tu hogar.</p>
   </div>
 
   <!-- Alerts -->
@@ -38,7 +38,30 @@
   </div>
 
   {% else %}
-  <!-- Household info -->
+
+  <!-- Tab nav -->
+  <div class="flex gap-0 border-b border-gray-200">
+    {% set tabs = [
+      ("miembros", "🏠 Miembros"),
+      ("cocina",   "🍳 Cocina compartida"),
+      ("config",   "⚙️ Configuración"),
+    ] %}
+    {% for slug, label in tabs %}
+    <a href="/hogar?tab={{ slug }}"
+       class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap
+              {{ 'border-green-600 text-green-700 bg-white' if tab == slug else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+      {{ label }}
+    </a>
+    {% endfor %}
+  </div>
+
+
+  {# ============================================================ #}
+  {# TAB: MIEMBROS                                                #}
+  {# ============================================================ #}
+  {% if tab == "miembros" %}
+
+  <!-- Household info card -->
   <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
     <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center justify-between">
       <div>
@@ -50,8 +73,8 @@
       </form>
     </div>
 
-    <!-- Members table -->
     <div class="p-6 space-y-4">
+      <!-- Members table -->
       <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Miembros</h3>
       <div class="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">
         {% for m in members %}
@@ -65,6 +88,10 @@
               <p class="text-xs text-gray-400">
                 {% if m.role == 'owner' %}👑 Dueño{% else %}Miembro{% endif %}
                 {% if m.user_id == current_user.id %} · Sos vos{% endif %}
+                · <span class="font-semibold">
+                  {% for info in member_pax_info if info.user_id == m.user_id %}{{ "%.2f"|format(info.pax) }}{% endfor %}
+                  pax
+                </span>
               </p>
             </div>
           </div>
@@ -99,7 +126,7 @@
         {% endif %}
       </div>
 
-      <!-- Invite by email (direct add) -->
+      <!-- Invite by email -->
       <div class="pt-2 border-t border-gray-100">
         <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Agregar por email (directo)</h3>
         <form method="POST" action="/hogar/invitar" class="flex gap-3 items-end">
@@ -113,26 +140,16 @@
     </div>
   </div>
 
-  <!-- Shared resources summary -->
+  <!-- Shared resources -->
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-    <!-- Stock -->
     <a href="/stock" class="block bg-white rounded-2xl shadow border border-gray-200 p-5 hover:shadow-md transition-shadow">
-      <div class="flex items-center gap-3 mb-2">
-        <span class="text-2xl">🥦</span>
-        <h3 class="font-semibold text-gray-800">Stock compartido</h3>
-      </div>
+      <div class="flex items-center gap-3 mb-2"><span class="text-2xl">🥦</span><h3 class="font-semibold text-gray-800">Stock compartido</h3></div>
       <p class="text-3xl font-bold text-green-600">{{ stock_count }}</p>
       <p class="text-xs text-gray-400 mt-1">ingredientes en el hogar</p>
     </a>
-
-    <!-- Shopping list -->
     {% if shopping_list %}
     <a href="/compras/{{ shopping_list.id }}" class="block bg-white rounded-2xl shadow border border-gray-200 p-5 hover:shadow-md transition-shadow">
-      <div class="flex items-center gap-3 mb-2">
-        <span class="text-2xl">🛒</span>
-        <h3 class="font-semibold text-gray-800">Lista de compras</h3>
-      </div>
+      <div class="flex items-center gap-3 mb-2"><span class="text-2xl">🛒</span><h3 class="font-semibold text-gray-800">Lista de compras</h3></div>
       {% set checked = shopping_list.items | selectattr("checked") | list | length %}
       {% set total = shopping_list.items | length %}
       <p class="text-3xl font-bold text-green-600">{{ checked }}/{{ total }}</p>
@@ -140,16 +157,13 @@
     </a>
     {% else %}
     <div class="bg-white rounded-2xl shadow border border-gray-200 p-5 opacity-60">
-      <div class="flex items-center gap-3 mb-2">
-        <span class="text-2xl">🛒</span>
-        <h3 class="font-semibold text-gray-800">Lista de compras</h3>
-      </div>
+      <div class="flex items-center gap-3 mb-2"><span class="text-2xl">🛒</span><h3 class="font-semibold text-gray-800">Lista de compras</h3></div>
       <p class="text-sm text-gray-400">Sin lista aún — generá una desde tu plan.</p>
     </div>
     {% endif %}
   </div>
 
-  <!-- Shared meal plan -->
+  <!-- Shared plan -->
   <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
     <div class="border-b border-gray-200 px-6 py-4 bg-gray-50">
       <h2 class="text-sm font-semibold text-gray-800">🍽️ Plan semanal compartido</h2>
@@ -175,7 +189,205 @@
     </div>
   </div>
 
+
+  {# ============================================================ #}
+  {# TAB: COCINA COMPARTIDA                                       #}
+  {# ============================================================ #}
+  {% elif tab == "cocina" %}
+
+  <!-- Pax summary banner -->
+  <div class="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-800 flex flex-wrap gap-3 items-center">
+    <span class="font-semibold">🍳 Receta para el hogar</span>
+    <span class="text-green-600">—</span>
+    {% for info in member_pax_info %}
+    <span>{{ info.email.split('@')[0] }}: <strong>{{ "%.2f"|format(info.pax) }} pax</strong></span>
+    {% endfor %}
+    <span class="ml-auto font-bold text-green-700">Total: {{ "%.2f"|format(total_pax) }} pax</span>
+  </div>
+
+  {% if not shared_plan %}
+  <div class="card text-center text-gray-400 py-10">
+    <p class="text-lg mb-2">Sin plan compartido</p>
+    <p class="text-sm">Compartí un plan desde la vista del plan para ver las recetas aquí.</p>
+  </div>
+
+  {% elif not cocina_days %}
+  <div class="card text-center text-gray-400 py-10">
+    <p class="text-lg mb-2">Sin comidas compartidas configuradas</p>
+    <p class="text-sm">Configura qué comidas son compartidas en la pestaña <a href="/hogar?tab=config" class="text-green-600 underline">Configuración</a>.</p>
+  </div>
+
+  {% else %}
+
+  <div class="space-y-5">
+    {% for day in cocina_days %}
+    <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+      <div class="border-b border-gray-200 px-5 py-3 bg-gray-50">
+        <h2 class="text-sm font-semibold text-gray-800">{{ day.day_name }}</h2>
+      </div>
+      <div class="divide-y divide-gray-100">
+        {% for meal in day.meals %}
+        <div class="p-5 {{ 'opacity-60' if meal.consumed else '' }}">
+          <div class="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <span class="text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-lg">{{ meal.meal_type_label }}</span>
+              <h3 class="font-semibold text-gray-900 mt-1 {{ 'line-through' if meal.consumed else '' }}">{{ meal.name }}</h3>
+              {% if meal.description %}
+              <p class="text-xs text-gray-500 mt-0.5">{{ meal.description }}</p>
+              {% endif %}
+            </div>
+            <div class="flex-shrink-0">
+              {% if meal.consumed %}
+              <span class="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 px-3 py-1.5 rounded-xl">
+                ✓ Cocinado
+              </span>
+              <form method="POST" action="/hogar/cocina/comida/{{ meal.id }}/desmarcar" class="mt-1 text-right">
+                <button type="submit" class="text-xs text-gray-400 hover:text-gray-600">↩ Desmarcar</button>
+              </form>
+              {% else %}
+              <form method="POST" action="/hogar/cocina/comida/{{ meal.id }}/consumir"
+                    onsubmit="return confirm('¿Marcar como cocinado? Los ingredientes se descontarán de la despensa.')">
+                <button type="submit" class="btn-primary" style="font-size:0.8rem; padding:0.4rem 0.9rem; white-space:nowrap">
+                  ✓ Ya cociné esto
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Macros -->
+          <div class="flex gap-2 flex-wrap mb-3">
+            <span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg">🔥 {{ meal.calories }} kcal</span>
+            <span class="text-xs px-2 py-0.5 bg-red-50 text-red-600 rounded-lg">P {{ meal.protein_g }}g</span>
+            <span class="text-xs px-2 py-0.5 bg-orange-50 text-orange-600 rounded-lg">C {{ meal.carbs_g }}g</span>
+            <span class="text-xs px-2 py-0.5 bg-yellow-50 text-yellow-600 rounded-lg">G {{ meal.fat_g }}g</span>
+            <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg font-medium">por 1 pax</span>
+          </div>
+
+          <!-- Ingredients scaled for full household -->
+          {% if meal.ingredients %}
+          <div>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Ingredientes para {{ "%.2f"|format(total_pax) }} pax (todo el hogar)
+            </p>
+            <div class="rounded-xl border border-gray-100 overflow-hidden">
+              <table class="w-full text-sm">
+                <tbody class="divide-y divide-gray-50">
+                  {% for ing in meal.ingredients %}
+                  <tr class="hover:bg-gray-50">
+                    {% if ing is mapping %}
+                    <td class="px-4 py-2 text-gray-800">{{ ing.nombre }}</td>
+                    <td class="px-4 py-2 text-right font-medium text-gray-900">
+                      {{ ing.cantidad | int if ing.cantidad == ing.cantidad | int else "%.1f"|format(ing.cantidad) }}
+                    </td>
+                    <td class="px-4 py-2 text-gray-500 w-20">{{ ing.unidad }}</td>
+                    {% else %}
+                    <td class="px-4 py-2 text-gray-800 col-span-3">{{ ing }}</td>
+                    {% endif %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
   {% endif %}
+
+
+  {# ============================================================ #}
+  {# TAB: CONFIGURACIÓN                                           #}
+  {# ============================================================ #}
+  {% elif tab == "config" %}
+
+  <form method="POST" action="/hogar/configuracion">
+    <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+      <div class="border-b border-gray-200 px-6 py-4 bg-gray-50">
+        <h2 class="text-sm font-semibold text-gray-800">Comidas compartidas</h2>
+        <p class="text-xs text-gray-400 mt-1">
+          Marcá qué comidas preparan juntos. Las demás son personales de cada miembro.
+        </p>
+      </div>
+      <div class="p-6 space-y-3">
+        {% set type_emojis = {
+          "desayuno": "☀️",
+          "media_manana": "🍎",
+          "almuerzo": "🍲",
+          "media_tarde": "🫖",
+          "cena": "🌙"
+        } %}
+        {% for t in all_meal_types %}
+        <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors
+                      {{ 'border-green-300 bg-green-50' if t in shared_meal_types else 'border-gray-200 hover:bg-gray-50' }}">
+          <input type="checkbox" name="shared_{{ t }}" value="1"
+                 {{ 'checked' if t in shared_meal_types }}
+                 class="w-4 h-4 rounded accent-green-600">
+          <span class="text-xl leading-none">{{ type_emojis.get(t, "🍽️") }}</span>
+          <div class="flex-1">
+            <p class="text-sm font-medium text-gray-800">{{ meal_type_labels.get(t, t) }}</p>
+            <p class="text-xs text-gray-500">
+              {% if t in shared_meal_types %}
+              Compartida — ingredientes × {{ "%.2f"|format(total_pax) }} pax en la lista de compras
+              {% else %}
+              Personal — cada miembro gestiona la suya
+              {% endif %}
+            </p>
+          </div>
+          {% if t in shared_meal_types %}
+          <span class="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Compartida</span>
+          {% endif %}
+        </label>
+        {% endfor %}
+      </div>
+      <div class="px-6 pb-6">
+        <button type="submit" class="btn-primary w-full">Guardar configuración</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Pax per member info -->
+  <div class="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+    <div class="border-b border-gray-200 px-6 py-4 bg-gray-50">
+      <h2 class="text-sm font-semibold text-gray-800">Porciones por miembro (pax)</h2>
+      <p class="text-xs text-gray-400 mt-1">Cada miembro puede configurar su pax en su perfil.</p>
+    </div>
+    <div class="divide-y divide-gray-100">
+      {% for info in member_pax_info %}
+      <div class="flex items-center px-6 py-4 gap-4">
+        <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-semibold flex-shrink-0">
+          {{ info.email[0].upper() }}
+        </div>
+        <div class="flex-1">
+          <p class="text-sm font-medium text-gray-800">{{ info.email }}</p>
+          <p class="text-xs text-gray-400">{{ '👑 Dueño' if info.role == 'owner' else 'Miembro' }}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-lg font-bold text-gray-900">{{ "%.2f"|format(info.pax) }}</p>
+          <p class="text-xs text-gray-400">pax</p>
+        </div>
+      </div>
+      {% endfor %}
+      <div class="flex items-center px-6 py-3 bg-gray-50 justify-between">
+        <span class="text-sm font-semibold text-gray-700">Total hogar</span>
+        <span class="text-lg font-bold text-green-700">{{ "%.2f"|format(total_pax) }} pax</span>
+      </div>
+    </div>
+    <div class="px-6 pb-5 pt-2">
+      <a href="/perfil" class="btn-secondary text-sm w-full block text-center">
+        Cambiar mi pax en mi perfil →
+      </a>
+    </div>
+  </div>
+
+  {% endif %}
+  {# ============================================================ #}
+
+  {% endif %}<!-- end if member -->
 </div>
 {% endblock %}
 
@@ -183,6 +395,7 @@
 <script>
 function copyInviteLink() {
   const el = document.getElementById('invite-link');
+  if (!el) return;
   el.select();
   navigator.clipboard.writeText(el.value).then(() => {
     const btn = el.nextElementSibling;

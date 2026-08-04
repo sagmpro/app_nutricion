@@ -1,4 +1,5 @@
 """Helpers for household (shared living) scoping of stock, shopping and meal plans."""
+import json
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.household import Household, HouseholdMember
@@ -41,6 +42,47 @@ def migrate_stock_to_household(user_id: int, household_id: int, db: Session) -> 
         item.household_id = household_id
     db.commit()
     return len(items)
+
+
+def get_shared_meal_types(household_id: int, db: Session) -> list[str]:
+    """Return the list of meal types shared across all household members."""
+    hh = db.query(Household).filter(Household.id == household_id).first()
+    if not hh:
+        return ["almuerzo"]
+    try:
+        types = json.loads(hh.shared_meal_types or '["almuerzo"]')
+        return types if isinstance(types, list) else ["almuerzo"]
+    except Exception:
+        return ["almuerzo"]
+
+
+def get_household_total_pax(household_id: int, db: Session) -> float:
+    """Return the sum of all household members' pax values."""
+    from app.models.profile import UserProfile
+    members = db.query(HouseholdMember).filter(
+        HouseholdMember.household_id == household_id
+    ).all()
+    user_ids = [m.user_id for m in members]
+    profiles = db.query(UserProfile).filter(UserProfile.user_id.in_(user_ids)).all()
+    return sum(getattr(p, "pax", 1.0) or 1.0 for p in profiles) or 1.0
+
+
+def get_member_pax_info(household_id: int, db: Session) -> list[dict]:
+    """Return list of {email, pax, role} for all household members."""
+    from app.models.profile import UserProfile
+    members = db.query(HouseholdMember).filter(
+        HouseholdMember.household_id == household_id
+    ).all()
+    result = []
+    for m in members:
+        profile = db.query(UserProfile).filter(UserProfile.user_id == m.user_id).first()
+        result.append({
+            "user_id": m.user_id,
+            "email": m.user.email if m.user else "?",
+            "pax": getattr(profile, "pax", 1.0) if profile else 1.0,
+            "role": m.role,
+        })
+    return result
 
 
 def migrate_stock_to_personal(user_id: int, db: Session) -> int:

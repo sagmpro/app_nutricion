@@ -1,3 +1,5 @@
+import json
+import unicodedata
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -6,11 +8,17 @@ from app.database import get_db
 from app.models.household import Household, HouseholdMember
 from app.models.user import User
 from app.models.food_stock import FoodStock
+from app.models.meal import MEAL_TYPE_LABELS
 from app.models.meal_plan import MealPlan
 from app.models.profile import UserProfile
 from app.models.shopping_list import ShoppingList
 from app.services.auth_service import get_current_user
 from app.services import household_service as hs
+
+
+def _norm(name: str) -> str:
+    nfkd = unicodedata.normalize("NFKD", name.lower().strip())
+    return " ".join("".join(c for c in nfkd if not unicodedata.combining(c)).split())
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -22,12 +30,17 @@ def hogar_index(request: Request, db: Session = Depends(get_db)):
     if not current_user:
         return RedirectResponse("/login", status_code=303)
 
+    tab = request.query_params.get("tab", "miembros")
     member = hs.get_member(current_user.id, db)
     household = None
     members = []
     stock_count = 0
     shopping_list = None
     shared_plan = None
+    shared_meal_types: list[str] = ["almuerzo"]
+    member_pax_info: list[dict] = []
+    total_pax: float = 1.0
+    cocina_days: list[dict] = []
 
     if member:
         household = db.query(Household).filter(Household.id == member.household_id).first()
@@ -48,19 +61,55 @@ def hogar_index(request: Request, db: Session = Depends(get_db)):
             .first()
         )
 
-        # Latest household shopping list (from any member's plan)
-        household_profile_ids = [
-            m.user.profile.id
-            for m in members
-            if m.user and m.user.profile
-        ]
-        if household_profile_ids:
-            shopping_list = (
-                db.query(ShoppingList)
-                .filter(ShoppingList.household_id == member.household_id)
-                .order_by(ShoppingList.created_at.desc())
-                .first()
-            )
+        shopping_list = (
+            db.query(ShoppingList)
+            .filter(ShoppingList.household_id == member.household_id)
+            .order_by(ShoppingList.created_at.desc())
+            .first()
+        )
+
+        shared_meal_types = hs.get_shared_meal_types(member.household_id, db)
+        member_pax_info = hs.get_member_pax_info(member.household_id, db)
+        total_pax = hs.get_household_total_pax(member.household_id, db)
+
+        # Build Cocina tab data: shared meals from the active shared plan
+        if shared_plan:
+            days_map: dict[int, list] = {}
+            DAY_NAMES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+            for meal in shared_plan.meals:
+                if meal.meal_type not in shared_meal_types:
+                    continue
+                d = meal.day_of_week
+                if d not in days_map:
+                    days_map[d] = []
+                # Scale ingredients × total_pax for display
+                raw_ings = json.loads(meal.ingredients_json or "[]")
+                scaled_ings = []
+                for ing in raw_ings:
+                    if isinstance(ing, dict) and "cantidad" in ing:
+                        qty = round(float(ing["cantidad"]) * total_pax, 2)
+                        scaled_ings.append({**ing, "cantidad": qty})
+                    else:
+                        scaled_ings.append(ing)
+                days_map[d].append({
+                    "id": meal.id,
+                    "name": meal.name,
+                    "description": meal.description or "",
+                    "meal_type": meal.meal_type,
+                    "meal_type_label": MEAL_TYPE_LABELS.get(meal.meal_type, meal.meal_type),
+                    "calories": meal.calories,
+                    "protein_g": meal.protein_g,
+                    "carbs_g": meal.carbs_g,
+                    "fat_g": meal.fat_g,
+                    "consumed": meal.consumed,
+                    "ingredients": scaled_ings,
+                })
+            for day_num in sorted(days_map):
+                cocina_days.append({
+                    "day_num": day_num,
+                    "day_name": DAY_NAMES[day_num] if 0 <= day_num <= 6 else f"Día {day_num}",
+                    "meals": days_map[day_num],
+                })
 
     return templates.TemplateResponse(request, "household/index.html", {
         "current_user": current_user,
@@ -70,6 +119,13 @@ def hogar_index(request: Request, db: Session = Depends(get_db)):
         "stock_count": stock_count,
         "shopping_list": shopping_list,
         "shared_plan": shared_plan,
+        "tab": tab,
+        "shared_meal_types": shared_meal_types,
+        "all_meal_types": ["desayuno", "media_manana", "almuerzo", "media_tarde", "cena"],
+        "meal_type_labels": MEAL_TYPE_LABELS,
+        "member_pax_info": member_pax_info,
+        "total_pax": total_pax,
+        "cocina_days": cocina_days,
         "success": request.query_params.get("success"),
         "error": request.query_params.get("error"),
     })
@@ -362,3 +418,123 @@ def copiar_plan_compartido(plan_id: int, request: Request, db: Session = Depends
     db.commit()
 
     return RedirectResponse(f"/plan/{new_plan.id}?success=Plan+copiado+a+tu+perfil", status_code=303)
+
+
+@router.post("/hogar/configuracion")
+async def guardar_configuracion(request: Request, db: Session = Depends(get_db)):
+    """Save household shared_meal_types setting."""
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    member = hs.get_member(current_user.id, db)
+    if not member:
+        return RedirectResponse("/hogar?error=No+perteneces+a+un+hogar", status_code=303)
+
+    household = db.query(Household).filter(Household.id == member.household_id).first()
+    if not household:
+        return RedirectResponse("/hogar", status_code=303)
+
+    form_data = await request.form()
+    all_types = ["desayuno", "media_manana", "almuerzo", "media_tarde", "cena"]
+    selected = [t for t in all_types if form_data.get(f"shared_{t}") == "1"]
+    household.shared_meal_types = json.dumps(selected if selected else [])
+    db.commit()
+
+    return RedirectResponse("/hogar?tab=config&success=Configuración+guardada", status_code=303)
+
+
+@router.post("/hogar/cocina/comida/{meal_id}/consumir")
+def marcar_cocinado(meal_id: int, request: Request, db: Session = Depends(get_db)):
+    """Mark a shared meal as cooked and deduct scaled ingredients from household stock."""
+    from app.models.meal import Meal
+
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    member = hs.get_member(current_user.id, db)
+    if not member:
+        return RedirectResponse("/hogar?error=No+perteneces+a+un+hogar", status_code=303)
+
+    # Only allow access to meals in the household's shared plan
+    meal = (
+        db.query(Meal)
+        .join(MealPlan)
+        .filter(
+            Meal.id == meal_id,
+            MealPlan.household_id == member.household_id,
+            MealPlan.is_shared == True,
+        )
+        .first()
+    )
+    if not meal:
+        return RedirectResponse("/hogar?tab=cocina&error=Comida+no+encontrada", status_code=303)
+
+    # Get total household pax for scaling
+    total_pax = hs.get_household_total_pax(member.household_id, db)
+
+    # Deduct scaled ingredients from shared stock (best effort)
+    raw_ings = json.loads(meal.ingredients_json or "[]")
+    stock_rows = db.query(FoodStock).filter(
+        FoodStock.household_id == member.household_id
+    ).all()
+    stock_by_norm = {_norm(s.name): s for s in stock_rows}
+
+    deducted = 0
+    for ing in raw_ings:
+        if not isinstance(ing, dict):
+            continue
+        nombre = ing.get("nombre", "")
+        cantidad = float(ing.get("cantidad", 0)) * total_pax
+        unidad = ing.get("unidad", "")
+        norm_name = _norm(nombre)
+
+        # Try exact match, then prefix match
+        stock_item = stock_by_norm.get(norm_name)
+        if not stock_item:
+            for k, v in stock_by_norm.items():
+                if norm_name.startswith(k) or k.startswith(norm_name):
+                    stock_item = v
+                    break
+
+        if stock_item and stock_item.unit == unidad:
+            stock_item.quantity = max(0.0, stock_item.quantity - cantidad)
+            deducted += 1
+
+    # Mark as consumed
+    meal.consumed = True
+    db.commit()
+
+    msg = f"Marcado+como+cocinado.+{deducted}+ingrediente(s)+descontados+de+la+despensa."
+    return RedirectResponse(f"/hogar?tab=cocina&success={msg}", status_code=303)
+
+
+@router.post("/hogar/cocina/comida/{meal_id}/desmarcar")
+def desmarcar_cocinado(meal_id: int, request: Request, db: Session = Depends(get_db)):
+    """Unmark a shared meal as cooked."""
+    from app.models.meal import Meal
+
+    current_user = get_current_user(request, db)
+    if not current_user:
+        return RedirectResponse("/login", status_code=303)
+
+    member = hs.get_member(current_user.id, db)
+    if not member:
+        return RedirectResponse("/hogar?tab=cocina", status_code=303)
+
+    meal = (
+        db.query(Meal)
+        .join(MealPlan)
+        .filter(
+            Meal.id == meal_id,
+            MealPlan.household_id == member.household_id,
+            MealPlan.is_shared == True,
+        )
+        .first()
+    )
+    if meal:
+        meal.consumed = False
+        db.commit()
+
+    return RedirectResponse("/hogar?tab=cocina", status_code=303)

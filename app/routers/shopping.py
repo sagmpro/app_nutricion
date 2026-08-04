@@ -117,34 +117,6 @@ def compras_index(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse("/plan", status_code=303)
 
 
-def _get_household_pax_multiplier(db, plan, current_user_id: int) -> float:
-    """
-    Returns the ratio total_household_pax / owner_pax.
-
-    Example: owner pax=1.0, member pax=0.75 → multiplier=1.75
-    This is used to scale shopping list quantities so both members' needs are covered.
-    """
-    from app.models.household import HouseholdMember
-    from app.models.profile import UserProfile as UP
-
-    household_id = hs.get_household_id(current_user_id, db)
-    if not household_id:
-        return 1.0
-
-    # Plan owner's pax
-    owner_pax: float = getattr(plan.profile, "pax", 1.0) or 1.0
-
-    # All members' pax (including owner)
-    member_rows = db.query(HouseholdMember).filter(
-        HouseholdMember.household_id == household_id
-    ).all()
-    member_user_ids = [m.user_id for m in member_rows]
-    profiles = db.query(UP).filter(UP.user_id.in_(member_user_ids)).all()
-    total_pax = sum(getattr(p, "pax", 1.0) or 1.0 for p in profiles)
-
-    return round(total_pax / owner_pax, 4) if owner_pax > 0 else 1.0
-
-
 @router.post("/plan/{plan_id}/lista-compras")
 def generar_lista(plan_id: int, request: Request, db: Session = Depends(get_db)):
     current_user = get_current_user(request, db)
@@ -166,9 +138,26 @@ def generar_lista(plan_id: int, request: Request, db: Session = Depends(get_db))
     db.refresh(shopping_list)
 
     try:
+        # Compute pax scaling per meal type:
+        #   - Shared meal types (e.g. almuerzo) → ingredients × total_household_pax / owner_pax
+        #   - Personal meals → keep as-is (× 1.0)
+        owner_pax: float = getattr(meal_plan.profile, "pax", 1.0) or 1.0
+        if household_id:
+            shared_types = hs.get_shared_meal_types(household_id, db)
+            total_pax = hs.get_household_total_pax(household_id, db)
+            shared_scale = round(total_pax / owner_pax, 4) if owner_pax > 0 else 1.0
+        else:
+            shared_types = []
+            shared_scale = 1.0
+
         all_ingredients = []
         for meal in meal_plan.meals:
-            all_ingredients.extend(json.loads(meal.ingredients_json or "[]"))
+            raw_ings = json.loads(meal.ingredients_json or "[]")
+            scale = shared_scale if meal.meal_type in shared_types else 1.0
+            for ing in raw_ings:
+                if scale != 1.0 and isinstance(ing, dict) and "cantidad" in ing:
+                    ing = {**ing, "cantidad": round(float(ing["cantidad"]) * scale, 2)}
+                all_ingredients.append(ing)
 
         stock_rows = db.query(FoodStock).filter(hs.stock_filter(current_user.id, db)).all()
         stock_items = [
@@ -177,9 +166,6 @@ def generar_lista(plan_id: int, request: Request, db: Session = Depends(get_db))
         ]
         # Pre-build normalized set for server-side filtering
         stock_norms = {_norm(s.name) for s in stock_rows}
-
-        # Pax multiplier: scales quantities for all household members
-        pax_multiplier = _get_household_pax_multiplier(db, meal_plan, current_user.id)
 
         set_token_user_id(current_user.id)
         result = claude_shopping(all_ingredients, stock_items)
@@ -191,13 +177,10 @@ def generar_lista(plan_id: int, request: Request, db: Session = Depends(get_db))
                 # Skip items already covered by the user's stock
                 if _in_stock(nombre, stock_norms):
                     continue
-                raw_qty = float(item.get("cantidad", 0))
-                # Scale by household pax (no-op when multiplier == 1.0)
-                scaled_qty = round(raw_qty * pax_multiplier, 2) if pax_multiplier != 1.0 else raw_qty
                 db.add(ShoppingItem(
                     shopping_list_id=shopping_list.id,
                     name=nombre,
-                    quantity=scaled_qty,
+                    quantity=float(item.get("cantidad", 0)),
                     unit=item.get("unidad", "unidades"),
                     category=category,
                     checked=False,
