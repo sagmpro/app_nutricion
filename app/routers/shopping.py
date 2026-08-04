@@ -1,4 +1,5 @@
 import json
+import unicodedata
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -12,6 +13,27 @@ from app.models.food_stock import FoodStock
 from app.services.auth_service import get_current_user
 from app.services.claude_service import generate_shopping_list as claude_shopping, set_token_user_id
 from app.services import household_service as hs
+
+
+def _norm(name: str) -> str:
+    """Lowercase + remove accents + collapse spaces."""
+    nfkd = unicodedata.normalize("NFKD", name.lower().strip())
+    return " ".join("".join(c for c in nfkd if not unicodedata.combining(c)).split())
+
+
+def _in_stock(item_name: str, stock_norms: set[str]) -> bool:
+    """Return True if item_name is covered by any stock entry (exact or prefix match)."""
+    n = _norm(item_name)
+    for s in stock_norms:
+        if n == s:
+            return True
+        # "aceite de oliva" (stock) covers "aceite de oliva virgen extra" (recipe)
+        if len(s) > 4 and n.startswith(s + " "):
+            return True
+        # "aceite de oliva virgen extra" (stock) covers "aceite de oliva" (recipe)
+        if len(n) > 4 and s.startswith(n + " "):
+            return True
+    return False
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -120,19 +142,27 @@ def generar_lista(plan_id: int, request: Request, db: Session = Depends(get_db))
         for meal in meal_plan.meals:
             all_ingredients.extend(json.loads(meal.ingredients_json or "[]"))
 
+        stock_rows = db.query(FoodStock).filter(hs.stock_filter(current_user.id, db)).all()
         stock_items = [
             {"nombre": s.name, "cantidad": s.quantity, "unidad": s.unit}
-            for s in db.query(FoodStock).filter(hs.stock_filter(current_user.id, db)).all()
+            for s in stock_rows
         ]
+        # Pre-build normalized set for server-side filtering
+        stock_norms = {_norm(s.name) for s in stock_rows}
+
         set_token_user_id(current_user.id)
         result = claude_shopping(all_ingredients, stock_items)
 
         for category_group in result.get("lista", []):
             category = category_group.get("categoria", "Otros")
             for item in category_group.get("items", []):
+                nombre = item.get("nombre", "")
+                # Skip items already covered by the user's stock
+                if _in_stock(nombre, stock_norms):
+                    continue
                 db.add(ShoppingItem(
                     shopping_list_id=shopping_list.id,
-                    name=item.get("nombre", ""),
+                    name=nombre,
                     quantity=float(item.get("cantidad", 0)),
                     unit=item.get("unidad", "unidades"),
                     category=category,
